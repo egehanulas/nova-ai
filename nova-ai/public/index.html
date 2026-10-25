@@ -1,3 +1,334 @@
+
 <!doctype html>
-<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0d12"><title>NOVA AI — Akıllı sohbet</title><link rel="stylesheet" href="style.css"></head>
-<body><div class="layout" id="layout"><div class="scrim" id="scrim"></div><aside class="sidebar" id="sidebar"><div class="brand"><span class="logo">✦</span><span>NOVA AI</span></div><button class="new-chat" id="newChat">＋ Yeni sohbet</button><div class="history-label">SOHBET GEÇMİŞİ</div><div id="history" class="history"></div><div class="side-note">NOVA AI · Önizleme<br>Konuşmalar bu tarayıcıda saklanır.</div></aside><main><header><button id="menu" class="menu" aria-label="Menüyü aç">☰</button><div class="top-title">NOVA AI <span>/ Sohbet</span></div><div class="status"><i></i> Hazır</div></header><section id="messages" class="messages" aria-live="polite"></section><footer><form id="form" class="composer"><textarea id="prompt" maxlength="4000" rows="1" placeholder="NOVA'ya bir şey sor..." aria-label="Mesajınız"></textarea><div class="composer-bottom"><span>Enter: gönder · Shift+Enter: yeni satır</span><button id="send" type="submit" aria-label="Gönder">↑</button></div></form><p class="disclaimer">NOVA AI hata yapabilir. Önemli bilgileri kontrol et.</p></footer></main></div><script src="app.js"></script></body></html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta
+    name="theme-color"
+    content="#080910"
+  >
+
+  <meta
+    name="description"
+    content="NOVA AI — Sorularını keşfet, fikirlerini geliştir ve üretkenliğini artır."
+  >
+
+  <meta
+    name="color-scheme"
+    content="dark"
+  >
+
+  <meta
+    name="application-name"
+    content="NOVA AI"
+  >
+
+  <title>NOVA AI — Yeni nesil yapay zekâ asistanı</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <link
+    rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='25' fill='%238b78ff'/%3E%3Ctext x='50' y='69' font-size='66' text-anchor='middle' fill='white'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E"
+  >
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650;700;750;800&display=swap"
+    rel="stylesheet"
+  >
+</head>
+
+<body>
+  <!-- Arka plan efektleri -->
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <!-- Ana uygulama -->
+  <div class="layout" id="layout">
+
+    <!-- Mobil menü arka planı -->
+    <div
+      class="scrim"
+      id="scrim"
+      aria-hidden="true"
+    ></div>
+
+    <!-- SOL MENÜ -->
+    <aside
+      class="sidebar"
+      id="sidebar"
+      aria-label="Ana menü"
+    >
+      <!-- Marka -->
+      <a
+        class="brand"
+        href="/"
+        aria-label="NOVA AI ana sayfa"
+        style="text-decoration:none"
+      >
+        <span class="logo" aria-hidden="true">✦</span>
+
+        <span class="brand-copy">
+          <span class="brand-name">NOVA AI</span>
+          <span class="brand-caption">YOUR AI COMPANION</span>
+        </span>
+      </a>
+
+      <!-- Yeni sohbet -->
+      <button
+        class="new-chat"
+        id="newChat"
+        type="button"
+      >
+        <span class="new-chat-icon" aria-hidden="true">＋</span>
+        <span>Yeni sohbet</span>
+        <span class="new-chat-shortcut" aria-hidden="true">N</span>
+      </button>
+
+      <!-- Menü bölümleri -->
+      <div class="sidebar-section">
+        <div class="history-label">
+          <span>ÇALIŞMA ALANI</span>
+        </div>
+
+        <div class="sidebar-static-item">
+          <span class="sidebar-item-icon" aria-hidden="true">✧</span>
+          <span>Yapay zekâ sohbeti</span>
+          <span class="sidebar-item-status" aria-hidden="true"></span>
+        </div>
+      </div>
+
+      <!-- Sohbet geçmişi -->
+      <section
+        class="history-section"
+        aria-label="Sohbet geçmişi"
+      >
+        <div class="history-label history-heading">
+          <span>SON KONUŞMALAR</span>
+          <span class="history-heading-icon" aria-hidden="true">◷</span>
+        </div>
+
+        <div
+          id="history"
+          class="history"
+          role="list"
+          aria-label="Kayıtlı konuşmalar"
+        ></div>
+
+        <div
+          class="history-empty-hint"
+          id="historyHint"
+        >
+          Sohbetlerin burada görünecek.
+        </div>
+      </section>
+
+      <!-- Sol alt bilgi -->
+      <div class="sidebar-bottom">
+        <div class="sidebar-divider"></div>
+
+        <div class="sidebar-user-card">
+          <div class="sidebar-user-avatar" aria-hidden="true">
+            N
+          </div>
+
+          <div class="sidebar-user-info">
+            <span class="sidebar-user-name">NOVA AI</span>
+            <span class="sidebar-user-description">
+              Kişisel yapay zekâ alanın
+            </span>
+          </div>
+
+          <span class="sidebar-user-sparkle" aria-hidden="true">
+            ✦
+          </span>
+        </div>
+
+        <div class="side-note">
+          <span class="side-note-icon" aria-hidden="true">◈</span>
+          <span>
+            Sohbetler bu tarayıcıda saklanır.
+          </span>
+        </div>
+
+        <div class="sidebar-footer">
+          <span>NOVA AI</span>
+          <span class="footer-separator">·</span>
+          <span>Önizleme sürümü</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ANA İÇERİK -->
+    <main class="main-panel">
+
+      <!-- ÜST BAŞLIK -->
+      <header class="topbar">
+
+        <div class="topbar-left">
+          <button
+            class="menu"
+            id="menu"
+            type="button"
+            aria-label="Menüyü aç veya kapat"
+            aria-controls="sidebar"
+            aria-expanded="false"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 7H20M4 12H20M4 17H20"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+
+          <div class="top-title">
+            <span class="top-title-main">NOVA AI</span>
+
+            <span class="top-title-divider" aria-hidden="true">
+              /
+            </span>
+
+            <span class="top-title-section">Sohbet</span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <div
+            class="status"
+            id="connectionStatus"
+            title="Uygulama durumu"
+          >
+            <i aria-hidden="true"></i>
+            <span>Hazır</span>
+          </div>
+
+          <div class="topbar-brand-mark" aria-hidden="true">
+            ✦
+          </div>
+        </div>
+      </header>
+
+      <!-- SOHBET ALANI -->
+      <section
+        class="messages"
+        id="messages"
+        aria-label="Mesajlar"
+        aria-live="polite"
+        aria-relevant="additions text"
+      ></section>
+
+      <!-- ALT MESAJ ALANI -->
+      <footer class="composer-area">
+
+        <div class="composer-shell">
+
+          <form
+            id="form"
+            class="composer"
+            autocomplete="off"
+          >
+            <div class="composer-main">
+
+              <textarea
+                id="prompt"
+                name="prompt"
+                maxlength="4000"
+                rows="1"
+                placeholder="Aklındaki soruyu buraya yaz..."
+                aria-label="NOVA AI'ye mesaj yaz"
+                aria-describedby="composerHelp"
+                required
+              ></textarea>
+
+            </div>
+
+            <div class="composer-bottom">
+
+              <div class="composer-tools">
+                <span
+                  class="composer-ai-indicator"
+                  aria-hidden="true"
+                >
+                  <span class="composer-ai-dot"></span>
+                  NOVA
+                </span>
+
+                <span class="composer-divider" aria-hidden="true">
+                  /
+                </span>
+
+                <span class="composer-hint">
+                  Birlikte daha fazlasını keşfet.
+                </span>
+              </div>
+
+              <div class="composer-actions">
+                <span
+                  class="character-count"
+                  id="characterCount"
+                  aria-live="off"
+                ></span>
+
+                <button
+                  class="send-button"
+                  id="send"
+                  type="submit"
+                  aria-label="Mesajı gönder"
+                  title="Mesajı gönder"
+                >
+                  <svg
+                    width="19"
+                    height="19"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M12 19V5M6 11L12 5L18 11"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </form>
+
+        </div>
+
+        <div class="composer-meta" id="composerHelp">
+          <span>
+            <kbd>Enter</kbd> gönder
+            <span class="meta-dot">·</span>
+            <kbd>Shift</kbd> + <kbd>Enter</kbd> yeni satır
+          </span>
+
+          <span class="composer-disclaimer">
+            Yapay zekâ hata yapabilir.
+          </span>
+        </div>
+      </footer>
+
+    </main>
+  </div>
+
+  <!-- Uygulamanın mevcut sohbet mantığı -->
+  <script src="app.js" defer></script>
+</body>
+</html>
