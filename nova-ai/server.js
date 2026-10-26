@@ -1,10 +1,11 @@
+```js
 require("dotenv").config();
 
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 const path = require("path");
 
-// helmet kurulu değilse sunucu yine de açılır (npm install helmet).
+// Helmet kurulu değilse sunucu yine de açılır.
 let helmet = null;
 try {
   helmet = require("helmet");
@@ -23,20 +24,20 @@ const ELEVENLABS_VOICE_ID =
   process.env.ELEVENLABS_VOICE_ID || "fXhoW006nc5Wf8xkGVSy";
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "openrouter/free";
+const OPENROUTER_MODEL =
+  process.env.OPENROUTER_MODEL || "openrouter/free";
 
-const MAX_MESSAGE_LENGTH = 4000; // Arayüzdeki maxlength ile aynı olmalı.
+const MAX_MESSAGE_LENGTH = 4000;
 const MAX_HISTORY = 16;
 const MAX_TTS_LENGTH = 2500;
 
-// Günlük toplam sınırlar (tüm kullanıcılar için). Sunucu yeniden başlarsa sıfırlanır.
 const DAILY_LIMITS = {
   chat: Number(process.env.DAILY_CHAT_LIMIT) || 2000,
   research: Number(process.env.DAILY_RESEARCH_LIMIT) || 200,
   tts: Number(process.env.DAILY_TTS_LIMIT) || 300
 };
 
-// Render gibi bir proxy arkasındaysan 1 olmalı. Doğrudan internete açıksan 0 yap.
+// Render proxy ayarı.
 app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
 app.disable("x-powered-by");
 
@@ -47,8 +48,16 @@ if (helmet && process.env.DISABLE_HELMET !== "1") {
         directives: {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-          fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+          styleSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "https://fonts.googleapis.com"
+          ],
+          fontSrc: [
+            "'self'",
+            "https://fonts.gstatic.com",
+            "data:"
+          ],
           imgSrc: ["'self'", "data:", "blob:"],
           mediaSrc: ["'self'", "blob:", "data:"],
           connectSrc: ["'self'"],
@@ -79,7 +88,7 @@ KİMLİĞİN VE GELİŞTİRİCİN
   bir şey sorarsa doğal ve samimi şekilde "Beni Ege yaptı 😊" de.
 - "Ege kim?" diye sorulursa bildiğin kadarıyla NOVA AI'yi geliştiren
   kişi olduğunu söyle. Ege hakkında sana verilmemiş kişisel bilgileri
-  (yaş, okul, şehir, iletişim vb.) uydurma.
+  uydurma.
 - Kendini NOVA AI olarak tanıt. ChatGPT, Gemini, Claude gibi başka bir
   yapay zekâ olduğunu iddia etme.
 - Altyapın sorulursa aşağıdaki ALTYAPI notuna göre dürüstçe cevap ver.
@@ -148,12 +157,18 @@ ARAŞTIRMA MODU
 
 const PROVIDER_NOTES = {
   gemini:
-    "ALTYAPI: Bu yanıtı Google'ın Gemini API'si üzerinden çalışan bir model üretiyor. " +
+    "ALTYAPI: Bu yanıtı Google Gemini API üzerinden çalışan bir model üretiyor. " +
     "Gemini'nin kendisi olduğunu iddia etme; NOVA AI'sın.",
+
   openrouter:
     "ALTYAPI: Bu yanıtı OpenRouter üzerinden çalışan bir model üretiyor. " +
     "Tam olarak hangi model olduğunu bilmiyorsun, tahmin etme ve kendini " +
-    "başka bir yapay zekâ olarak tanıtma; NOVA AI'sın."
+    "başka bir yapay zekâ olarak tanıtma; NOVA AI'sın.",
+
+  vireonix:
+    "ALTYAPI: Bu yanıt Vireonix üzerinden çalışan bir model tarafından " +
+    "üretiliyor. Tam model sürümünü bilmiyorsan tahmin etme. " +
+    "NOVA AI olarak tanıt."
 };
 
 function currentDateText() {
@@ -192,10 +207,12 @@ const chatLimiter = makeLimiter(
   12,
   "Çok fazla istek gönderdin. Bir dakika sonra tekrar dene."
 );
+
 const researchLimiter = makeLimiter(
   5,
   "Araştırma sınırına ulaştın. Bir dakika sonra tekrar dene."
 );
+
 const ttsLimiter = makeLimiter(
   10,
   "Ses üretme sınırına ulaştın. Biraz sonra tekrar dene."
@@ -237,19 +254,22 @@ function sendAiError(res, error, fallbackMessage) {
 
   if (error.kind === "quota") {
     return res.status(429).json({
-      error: "Yapay zekâ kullanım kotası dolmuş olabilir. Biraz sonra tekrar dene."
+      error:
+        "Yapay zekâ kullanım kotası dolmuş olabilir. " +
+        "Biraz sonra tekrar dene."
     });
   }
 
   if (error.kind === "config") {
     return res.status(503).json({
-      error: "Sunucuda yapay zekâ anahtarı tanımlı değil."
+      error: "Sunucuda kullanılabilir bir yapay zekâ sağlayıcısı yok."
     });
   }
 
   if (error.kind === "blocked") {
     return res.status(422).json({
-      error: "Bu isteğe yanıt veremiyorum. Soruyu farklı şekilde sorabilirsin."
+      error:
+        "Bu isteğe yanıt veremiyorum. Soruyu farklı şekilde sorabilirsin."
     });
   }
 
@@ -276,7 +296,10 @@ function normalizeMessages(messages) {
     .slice(-MAX_HISTORY);
 
   for (const message of cleaned) {
-    if (message.role === "user" && message.content.length > MAX_MESSAGE_LENGTH) {
+    if (
+      message.role === "user" &&
+      message.content.length > MAX_MESSAGE_LENGTH
+    ) {
       throw new ClientError(
         `Mesaj en fazla ${MAX_MESSAGE_LENGTH} karakter olabilir.`
       );
@@ -315,7 +338,10 @@ function toGeminiContents(messages) {
     parts: [{ text: message.content }]
   }));
 
-  if (contents.length && contents[contents.length - 1].role !== "user") {
+  if (
+    contents.length &&
+    contents[contents.length - 1].role !== "user"
+  ) {
     contents.push({
       role: "user",
       parts: [{ text: "Önceki konuşmaya devam et." }]
@@ -335,12 +361,17 @@ function extractGeminiText(data) {
 function extractGeminiSources(data) {
   const chunks =
     data?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+
   const unique = new Map();
 
   for (const chunk of chunks) {
     const web = chunk?.web;
     if (!web?.uri || !web?.title) continue;
-    unique.set(web.uri, { title: web.title, url: web.uri });
+
+    unique.set(web.uri, {
+      title: web.title,
+      url: web.uri
+    });
   }
 
   return [...unique.values()].slice(0, 8);
@@ -352,6 +383,7 @@ function extractOpenRouterSources(data) {
 
   for (const item of annotations) {
     const citation = item?.url_citation;
+
     if (item?.type !== "url_citation" || !citation?.url) continue;
 
     unique.set(citation.url, {
@@ -364,12 +396,13 @@ function extractOpenRouterSources(data) {
 }
 
 // --------------------------------------------------
-// AĞ İSTEKLERİ (zaman aşımı + tek seferlik yeniden deneme)
+// AĞ İSTEKLERİ (ZAMAN AŞIMI + YENİDEN DENEME)
 // --------------------------------------------------
 
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 async function fetchJsonOnce(url, options, timeoutMs) {
   const controller = new AbortController();
@@ -393,8 +426,10 @@ async function fetchJsonOnce(url, options, timeoutMs) {
     if (!response.ok) {
       const error = new Error(
         data?.error?.message ||
+          data?.message ||
           `API isteği başarısız oldu (${response.status}).`
       );
+
       error.status = response.status;
       throw error;
     }
@@ -405,13 +440,18 @@ async function fetchJsonOnce(url, options, timeoutMs) {
   }
 }
 
-async function fetchJson(url, options, { timeoutMs = 45000, retries = 1 } = {}) {
+async function fetchJson(
+  url,
+  options,
+  { timeoutMs = 45000, retries = 1 } = {}
+) {
   for (let attempt = 0; ; attempt += 1) {
     try {
       return await fetchJsonOnce(url, options, timeoutMs);
     } catch (error) {
       const canRetry =
-        attempt < retries && RETRYABLE_STATUSES.has(error.status);
+        attempt < retries &&
+        RETRYABLE_STATUSES.has(error.status);
 
       if (!canRetry) throw error;
 
@@ -435,7 +475,11 @@ async function askGemini(messages, options = {}) {
 
   const body = {
     systemInstruction: {
-      parts: [{ text: buildInstruction("gemini", options.extraInstruction) }]
+      parts: [
+        {
+          text: buildInstruction("gemini", options.extraInstruction)
+        }
+      ]
     },
     contents: toGeminiContents(messages),
     generationConfig: {
@@ -448,14 +492,17 @@ async function askGemini(messages, options = {}) {
     body.tools = [{ google_search: {} }];
   }
 
-  const data = await fetchJson(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": GEMINI_API_KEY
-    },
-    body: JSON.stringify(body)
-  });
+  const data = await fetchJson(
+    url,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": GEMINI_API_KEY
+      },
+      body: JSON.stringify(body)
+    }
+  );
 
   const reply = extractGeminiText(data);
 
@@ -469,6 +516,7 @@ async function askGemini(messages, options = {}) {
         ? "Gemini isteği güvenlik nedeniyle engelledi."
         : "Gemini boş bir yanıt döndürdü."
     );
+
     error.blocked = Boolean(blocked);
     throw error;
   }
@@ -492,36 +540,42 @@ async function askOpenRouter(messages, options = {}) {
     throw new Error("OPENROUTER_API_KEY tanımlı değil.");
   }
 
-  // Not: ":online" ekinin bu model adıyla gerçekten arama yaptığını
-  // OpenRouter belgesinden doğrula. Kaynak dönmezse arayüze "arama yapılamadı" notu eklenir.
   const model = options.useSearch
-    ? process.env.OPENROUTER_RESEARCH_MODEL || "openrouter/free:online"
+    ? process.env.OPENROUTER_RESEARCH_MODEL ||
+      "openrouter/free:online"
     : OPENROUTER_MODEL;
 
   const apiMessages = [
     {
       role: "system",
-      content: buildInstruction("openrouter", options.extraInstruction)
+      content: buildInstruction(
+        "openrouter",
+        options.extraInstruction
+      )
     },
     ...mergeSameRole(messages)
   ];
 
-  const data = await fetchJson("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer":
-        process.env.APP_URL || "https://nova-ai-xxid.onrender.com",
-      "X-Title": "NOVA AI"
-    },
-    body: JSON.stringify({
-      model,
-      messages: apiMessages,
-      temperature: options.temperature ?? 0.5,
-      max_tokens: options.maxOutputTokens ?? 2500
-    })
-  });
+  const data = await fetchJson(
+    "https://openrouter.ai/api/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer":
+          process.env.APP_URL ||
+          "https://nova-ai-xxid.onrender.com",
+        "X-Title": "NOVA AI"
+      },
+      body: JSON.stringify({
+        model,
+        messages: apiMessages,
+        temperature: options.temperature ?? 0.5,
+        max_tokens: options.maxOutputTokens ?? 2500
+      })
+    }
+  );
 
   const reply = data?.choices?.[0]?.message?.content;
 
@@ -540,34 +594,98 @@ async function askOpenRouter(messages, options = {}) {
 }
 
 // --------------------------------------------------
-// SAĞLAYICI SEÇİMİ
+// VIREONIX - API KEY GEREKTİRMEYEN YEDEK
+// --------------------------------------------------
+
+async function askVireonix(messages, options = {}) {
+  const apiMessages = [
+    {
+      role: "system",
+      content: buildInstruction(
+        "vireonix",
+        options.extraInstruction
+      )
+    },
+    ...mergeSameRole(messages)
+  ];
+
+  const data = await fetchJson(
+    "https://vireonix.ai/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "auto",
+        messages: apiMessages,
+        temperature: options.temperature ?? 0.5,
+        max_tokens: options.maxOutputTokens ?? 2500
+      })
+    },
+    {
+      timeoutMs: 30000,
+      retries: 1
+    }
+  );
+
+  const reply = data?.choices?.[0]?.message?.content;
+
+  if (typeof reply !== "string" || !reply.trim()) {
+    throw new Error("Vireonix boş bir yanıt döndürdü.");
+  }
+
+  return {
+    reply: reply.trim(),
+    sources: [],
+    provider: "vireonix",
+    searched: false
+  };
+}
+
+// --------------------------------------------------
+// SAĞLAYICI SEÇİMİ VE YEDEK SIRASI
+// Gemini -> OpenRouter -> Vireonix
 // --------------------------------------------------
 
 async function generateAnswer(messages, options = {}) {
   const providers = [];
 
-  if (GEMINI_API_KEY) providers.push({ name: "Gemini", run: askGemini });
-  if (OPENROUTER_API_KEY) {
-    providers.push({ name: "OpenRouter", run: askOpenRouter });
+  if (GEMINI_API_KEY) {
+    providers.push({
+      name: "Gemini",
+      run: askGemini
+    });
   }
 
-  if (!providers.length) {
-    const error = new Error(
-      "GEMINI_API_KEY veya OPENROUTER_API_KEY tanımlanmalı."
-    );
-    error.kind = "config";
-    throw error;
+  if (OPENROUTER_API_KEY) {
+    providers.push({
+      name: "OpenRouter",
+      run: askOpenRouter
+    });
   }
+
+  // API anahtarı olmadan denenir.
+  providers.push({
+    name: "Vireonix",
+    run: askVireonix
+  });
 
   const failures = [];
 
   for (const provider of providers) {
     try {
-      return await provider.run(messages, options);
-    } catch (error) {
-      console.error(`${provider.name} isteği başarısız:`, error.message);
+      const result = await provider.run(messages, options);
 
-      // Güvenlik filtresine takılan istek başka modele denenmez.
+      console.log(`${provider.name}: yanıt başarıyla alındı.`);
+
+      return result;
+    } catch (error) {
+      console.error(
+        `${provider.name} isteği başarısız:`,
+        error.message
+      );
+
       if (error.blocked) {
         error.kind = "blocked";
         throw error;
@@ -577,11 +695,20 @@ async function generateAnswer(messages, options = {}) {
     }
   }
 
-  const error = new Error("Yapay zekâ sağlayıcılarından yanıt alınamadı.");
-  error.kind = failures.every((failure) => failure.status === 429)
+  const error = new Error(
+    "Yapay zekâ sağlayıcılarından yanıt alınamadı."
+  );
+
+  error.kind = failures.every(
+    (failure) => failure.status === 429
+  )
     ? "quota"
     : "upstream";
-  error.details = failures.map((failure) => failure.message);
+
+  error.details = failures.map(
+    (failure) => failure.message
+  );
+
   throw error;
 }
 
@@ -610,7 +737,9 @@ app.post("/api/chat", chatLimiter, async (req, res) => {
       maxOutputTokens: 2500
     });
 
-    return res.json({ reply: result.reply });
+    return res.json({
+      reply: result.reply
+    });
   } catch (error) {
     console.error("Sohbet hatası:", error.message);
 
@@ -644,7 +773,8 @@ app.post("/api/tts", ttsLimiter, async (req, res) => {
   try {
     if (!ELEVENLABS_API_KEY) {
       return res.status(503).json({
-        error: "ElevenLabs API anahtarı sunucuda tanımlı değil."
+        error:
+          "ElevenLabs API anahtarı sunucuda tanımlı değil."
       });
     }
 
@@ -660,19 +790,22 @@ app.post("/api/tts", ttsLimiter, async (req, res) => {
 
     if (!text) {
       return res.status(400).json({
-        error: "Seslendirilecek okunabilir bir metin bulunamadı."
+        error:
+          "Seslendirilecek okunabilir bir metin bulunamadı."
       });
     }
 
     if (text.length > MAX_TTS_LENGTH) {
       return res.status(400).json({
-        error: `Metin en fazla ${MAX_TTS_LENGTH} karakter olabilir.`
+        error:
+          `Metin en fazla ${MAX_TTS_LENGTH} karakter olabilir.`
       });
     }
 
     if (!consumeBudget("tts")) {
       return res.status(429).json({
-        error: "Bugünlük ses üretme limiti doldu. Yarın tekrar dene."
+        error:
+          "Bugünlük ses üretme limiti doldu. Yarın tekrar dene."
       });
     }
 
@@ -709,8 +842,8 @@ app.post("/api/tts", ttsLimiter, async (req, res) => {
 
       return res.status(502).json({
         error:
-          "ElevenLabs ses üretemedi. API anahtarını, erişim izinlerini " +
-          "ve kredi limitini kontrol et."
+          "ElevenLabs ses üretemedi. API anahtarını, erişim " +
+          "izinlerini ve kredi limitini kontrol et."
       });
     }
 
@@ -734,8 +867,8 @@ app.post("/api/tts", ttsLimiter, async (req, res) => {
 // --------------------------------------------------
 
 const NO_SEARCH_NOTE =
-  "⚠️ Web araması yapılamadı veya doğrulanamadı. Bu yanıt modelin kendi " +
-  "bilgisine dayanıyor ve güncel olmayabilir.\n\n";
+  "⚠️ Web araması yapılamadı veya doğrulanamadı. Bu yanıt modelin " +
+  "kendi bilgisine dayanıyor ve güncel olmayabilir.\n\n";
 
 app.post("/api/research", researchLimiter, async (req, res) => {
   try {
@@ -749,7 +882,8 @@ app.post("/api/research", researchLimiter, async (req, res) => {
 
     if (!consumeBudget("research")) {
       return res.status(429).json({
-        error: "Bugünlük araştırma limiti doldu. Yarın tekrar dene."
+        error:
+          "Bugünlük araştırma limiti doldu. Yarın tekrar dene."
       });
     }
 
@@ -761,7 +895,8 @@ app.post("/api/research", researchLimiter, async (req, res) => {
     });
 
     return res.json({
-      reply: (result.searched ? "" : NO_SEARCH_NOTE) + result.reply,
+      reply:
+        (result.searched ? "" : NO_SEARCH_NOTE) + result.reply,
       sources: result.sources,
       searched: result.searched
     });
@@ -793,18 +928,27 @@ app.get("/health", (_req, res) => {
 // --------------------------------------------------
 
 app.use("/api", (_req, res) => {
-  res.status(404).json({ error: "Böyle bir adres yok." });
+  res.status(404).json({
+    error: "Böyle bir adres yok."
+  });
 });
 
 app.use((err, _req, res, next) => {
   if (res.headersSent) return next(err);
 
   if (err.type === "entity.too.large") {
-    return res.status(413).json({ error: "Gönderilen veri çok büyük." });
+    return res.status(413).json({
+      error: "Gönderilen veri çok büyük."
+    });
   }
 
-  if (err.type === "entity.parse.failed" || err instanceof SyntaxError) {
-    return res.status(400).json({ error: "İstek biçimi geçersiz." });
+  if (
+    err.type === "entity.parse.failed" ||
+    err instanceof SyntaxError
+  ) {
+    return res.status(400).json({
+      error: "İstek biçimi geçersiz."
+    });
   }
 
   console.error("Sunucu hatası:", err.message);
@@ -820,16 +964,20 @@ app.use((err, _req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`NOVA AI ${PORT} portunda çalışıyor.`);
-  console.log(
-    "Gemini:", GEMINI_API_KEY ? "tanımlı" : "YOK",
-    "| OpenRouter:", OPENROUTER_API_KEY ? "tanımlı" : "YOK",
-    "| ElevenLabs:", ELEVENLABS_API_KEY ? "tanımlı" : "YOK",
-    "| helmet:", helmet && process.env.DISABLE_HELMET !== "1" ? "açık" : "kapalı"
-  );
 
-  if (!GEMINI_API_KEY && !OPENROUTER_API_KEY) {
-    console.warn(
-      "UYARI: Ne GEMINI_API_KEY ne de OPENROUTER_API_KEY tanımlı. Sohbet çalışmaz."
-    );
-  }
+  console.log(
+    "Gemini:",
+    GEMINI_API_KEY ? "tanımlı" : "YOK",
+    "| OpenRouter:",
+    OPENROUTER_API_KEY ? "tanımlı" : "YOK",
+    "| Vireonix:",
+    "yedek olarak etkin",
+    "| ElevenLabs:",
+    ELEVENLABS_API_KEY ? "tanımlı" : "YOK",
+    "| helmet:",
+    helmet && process.env.DISABLE_HELMET !== "1"
+      ? "açık"
+      : "kapalı"
+  );
 });
+```
