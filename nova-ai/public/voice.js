@@ -1,14 +1,12 @@
-
 "use strict";
 
 /*
- * NOVA AI — Ücretsiz tarayıcı tabanlı sesli sohbet
+ * NOVA AI — ElevenLabs destekli sesli sohbet
  *
- * Kullanılan özellikler:
- * - Web Speech API (konuşma tanıma)
- * - SpeechSynthesis API (sesli cevap)
- *
- * Mevcut app.js ve /api/chat endpoint'i korunur.
+ * - Web Speech API: Türkçe konuşma tanıma
+ * - ElevenLabs: Türkçe sesli yanıt
+ * - Mevcut app.js ve /api/chat korunur
+ * - /api/tts üzerinden ses oluşturulur
  */
 
 (() => {
@@ -29,16 +27,16 @@
   const SpeechRecognition =
     window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  const synthesis = window.speechSynthesis;
-
   let recognition = null;
   let voiceEnabled = false;
   let recognitionRunning = false;
   let waitingForReply = false;
   let speaking = false;
   let restartTimer = null;
-  let lastSpokenReply = "";
+  let currentAudio = null;
+  let audioUrl = null;
   let requestCounter = 0;
+  let activeSpeechRequest = 0;
 
   function setVoiceStatus(message, state = "idle") {
     statusLabel.textContent = message;
@@ -82,7 +80,7 @@
     }
   }
 
-  function scheduleRecognitionRestart(delay = 350) {
+  function scheduleRecognitionRestart(delay = 450) {
     clearRestartTimer();
 
     if (!voiceEnabled || waitingForReply || speaking) return;
@@ -98,14 +96,13 @@
     if (recognitionRunning || waitingForReply || speaking) return;
 
     if (!navigator.onLine) {
-      setVoiceStatus("İnternet bağlantısı gerekli olabilir.", "error");
+      setVoiceStatus("İnternet bağlantısı gerekli.", "error");
       return;
     }
 
     try {
       recognition.start();
     } catch (error) {
-      // Tarayıcı zaten dinliyorsa ikinci kez başlatmayı denemiyoruz.
       if (error.name !== "InvalidStateError") {
         console.warn("NOVA Voice: Mikrofon başlatılamadı.", error);
         setVoiceStatus("Mikrofon başlatılamadı. Tekrar dene.", "error");
@@ -113,85 +110,157 @@
     }
   }
 
-  function chooseTurkishVoice() {
-    if (!synthesis) return null;
-
-    const voices = synthesis.getVoices();
-
-    return (
-      voices.find((voice) => /^tr[-_]/i.test(voice.lang) && /female|woman| kadın/i.test(voice.name)) ||
-      voices.find((voice) => /^tr[-_]/i.test(voice.lang)) ||
-      voices.find((voice) => voice.lang.toLowerCase().startsWith("tr")) ||
-      null
-    );
+  function releaseAudioUrl() {
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      audioUrl = null;
+    }
   }
 
-  function speakReply(text) {
+  function stopAudio() {
+    activeSpeechRequest += 1;
+
+    if (currentAudio) {
+      currentAudio.onended = null;
+      currentAudio.onerror = null;
+      currentAudio.pause();
+      currentAudio.src = "";
+      currentAudio = null;
+    }
+
+    releaseAudioUrl();
+    speaking = false;
+  }
+
+  async function speakReply(text) {
     const answer = String(text || "").trim();
 
-    if (!answer || !voiceEnabled || !synthesis) {
+    if (!answer || !voiceEnabled) {
       waitingForReply = false;
       scheduleRecognitionRestart();
       return;
     }
 
-    // Aynı yanıtın yanlışlıkla iki defa okunmasını önle.
-    if (answer === lastSpokenReply && synthesis.speaking) return;
+    const speechRequest = ++activeSpeechRequest;
 
-    lastSpokenReply = answer;
     waitingForReply = false;
     speaking = true;
-
     stopRecognition();
-    synthesis.cancel();
+    stopAudio();
 
-    const utterance = new SpeechSynthesisUtterance(answer);
-    utterance.lang = "tr-TR";
-    utterance.rate = 1;
-    utterance.pitch = 1;
-    utterance.volume = 1;
+    // stopAudio sayaç artırdığı için bu isteğin kimliğini tekrar ayarla.
+    const currentRequest = ++activeSpeechRequest;
 
-    const turkishVoice = chooseTurkishVoice();
-    if (turkishVoice) utterance.voice = turkishVoice;
+    setVoiceStatus("NOVA'nın sesi hazırlanıyor…", "speaking");
 
-    utterance.onstart = () => {
+    try {
+      const response = await fetch("/api/tts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          text: answer.slice(0, 2500)
+        })
+      });
+
+      if (
+        !voiceEnabled ||
+        currentRequest !== activeSpeechRequest ||
+        speechRequest > activeSpeechRequest
+      ) {
+        return;
+      }
+
+      if (!response.ok) {
+        let message = "Ses oluşturulamadı.";
+
+        try {
+          const data = await response.json();
+          if (data?.error) message = data.error;
+        } catch {
+          // Sunucu JSON dönmediyse genel hata mesajı kullanılır.
+        }
+
+        throw new Error(message);
+      }
+
+      const audioBlob = await response.blob();
+
+      if (!voiceEnabled || currentRequest !== activeSpeechRequest) {
+        return;
+      }
+
+      releaseAudioUrl();
+      audioUrl = URL.createObjectURL(audioBlob);
+      currentAudio = new Audio(audioUrl);
+      currentAudio.preload = "auto";
+
+      currentAudio.onended = () => {
+        if (currentRequest !== activeSpeechRequest) return;
+
+        currentAudio = null;
+        releaseAudioUrl();
+        speaking = false;
+
+        if (voiceEnabled) {
+          setVoiceStatus("Seni dinliyorum…", "listening");
+          scheduleRecognitionRestart(500);
+        } else {
+          setVoiceStatus("Sesli sohbet kapalı", "idle");
+        }
+      };
+
+      currentAudio.onerror = () => {
+        if (currentRequest !== activeSpeechRequest) return;
+
+        currentAudio = null;
+        releaseAudioUrl();
+        speaking = false;
+
+        if (voiceEnabled) {
+          setVoiceStatus("Ses oynatılamadı. Yeniden dinlemeye geçiliyor.", "error");
+          scheduleRecognitionRestart(800);
+        }
+      };
+
       setVoiceStatus("NOVA konuşuyor…", "speaking");
-    };
 
-    utterance.onend = () => {
-      speaking = false;
+      try {
+        await currentAudio.play();
+      } catch (error) {
+        if (currentRequest !== activeSpeechRequest) return;
 
-      if (voiceEnabled) {
-        setVoiceStatus("Seni dinliyorum…", "listening");
-        scheduleRecognitionRestart(450);
-      } else {
-        setVoiceStatus("Sesli sohbet kapalı", "idle");
+        console.warn("NOVA Voice: Ses oynatılamadı.", error);
+        stopAudio();
+
+        if (voiceEnabled) {
+          setVoiceStatus(
+            "Ses başlatılamadı. Sayfayla etkileşip tekrar dene.",
+            "error"
+          );
+          scheduleRecognitionRestart(1000);
+        }
       }
-    };
+    } catch (error) {
+      if (!voiceEnabled || currentRequest !== activeSpeechRequest) return;
 
-    utterance.onerror = (event) => {
+      console.error("NOVA Voice: ElevenLabs ses hatası.", error);
+
       speaking = false;
-      console.warn("NOVA Voice: Seslendirme hatası.", event.error);
-
-      if (voiceEnabled) {
-        setVoiceStatus(
-          "Ses okunamadı; dinleme yeniden başlayacak.",
-          "error"
-        );
-        scheduleRecognitionRestart(700);
-      }
-    };
-
-    // Uzun cevaplarda tarayıcının metni kesmesini önlemek için
-    // tek bir utterance kullanılır; desteklenen uzunluk tarayıcıya bağlıdır.
-    synthesis.speak(utterance);
+      setVoiceStatus(
+        `Ses oluşturulamadı: ${error.message || "Bilinmeyen hata"}`,
+        "error"
+      );
+      scheduleRecognitionRestart(1000);
+    }
   }
 
   function setupRecognition() {
     if (!SpeechRecognition) {
       toggleButton.disabled = true;
       setVoiceStatus(
-        "Bu tarayıcı konuşma tanımayı desteklemiyor. Chrome veya Edge deneyebilirsin.",
+        "Konuşma tanıma desteklenmiyor. Chrome veya Edge deneyebilirsin.",
         "error"
       );
       return false;
@@ -225,7 +294,6 @@
       const text = finalText.trim();
       if (!text || !voiceEnabled || waitingForReply || speaking) return;
 
-      // Tanınan konuşmayı mevcut sohbet alanına gönder.
       input.value = text;
       input.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -238,10 +306,12 @@
       if (typeof form.requestSubmit === "function") {
         form.requestSubmit();
       } else {
-        form.dispatchEvent(new Event("submit", {
-          bubbles: true,
-          cancelable: true
-        }));
+        form.dispatchEvent(
+          new Event("submit", {
+            bubbles: true,
+            cancelable: true
+          })
+        );
       }
     };
 
@@ -250,10 +320,14 @@
 
       if (!voiceEnabled) return;
 
-      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+      if (
+        event.error === "not-allowed" ||
+        event.error === "service-not-allowed"
+      ) {
         voiceEnabled = false;
         waitingForReply = false;
         updateButtons();
+
         setVoiceStatus(
           "Mikrofon izni verilmedi. Tarayıcı ayarlarından mikrofon iznini aç.",
           "error"
@@ -273,7 +347,7 @@
 
       if (event.error === "network") {
         setVoiceStatus(
-          "Konuşma tanıma bağlantı hatası verdi. Tarayıcı hizmeti internet gerektirebilir.",
+          "Konuşma tanıma bağlantı hatası verdi. İnternet gerekebilir.",
           "error"
         );
       }
@@ -304,18 +378,16 @@
   function stopVoiceChat() {
     voiceEnabled = false;
     waitingForReply = false;
-    speaking = false;
     clearRestartTimer();
+    stopAudio();
 
     if (recognition && recognitionRunning) {
       try {
         recognition.stop();
       } catch {
-        // Zaten durmuş olabilir.
+        // Mikrofon zaten durmuş olabilir.
       }
     }
-
-    if (synthesis) synthesis.cancel();
 
     updateButtons();
     setVoiceStatus("Sesli sohbet kapalı", "idle");
@@ -332,25 +404,23 @@
   stopButton.addEventListener("click", stopVoiceChat);
 
   /*
-   * Mevcut fetch işlevini sarmalıyoruz.
-   * /api/chat başarılı yanıt döndürdüğünde cevabı seslendiriyoruz.
-   * Orijinal Response nesnesi app.js tarafından kullanılmaya devam eder.
+   * app.js içindeki fetch işlemini sarmalar.
+   * /api/chat yanıtını kopyadan okur; orijinal Response korunur.
    */
   const originalFetch = window.fetch.bind(window);
 
   window.fetch = async (...args) => {
-    const requestUrl = args[0] instanceof Request
-      ? args[0].url
-      : String(args[0]);
+    const requestUrl =
+      args[0] instanceof Request ? args[0].url : String(args[0]);
 
-    const isChatRequest = (() => {
-      try {
-        const url = new URL(requestUrl, window.location.href);
-        return url.pathname.endsWith("/api/chat");
-      } catch {
-        return requestUrl.includes("/api/chat");
-      }
-    })();
+    let isChatRequest = false;
+
+    try {
+      const url = new URL(requestUrl, window.location.href);
+      isChatRequest = url.pathname.endsWith("/api/chat");
+    } catch {
+      isChatRequest = requestUrl.includes("/api/chat");
+    }
 
     let response;
 
@@ -359,9 +429,13 @@
     } catch (error) {
       if (isChatRequest && voiceEnabled) {
         waitingForReply = false;
-        setVoiceStatus("Bağlantı kurulamadı. Yeniden dinlemeye geçiliyor.", "error");
+        setVoiceStatus(
+          "Bağlantı kurulamadı. Yeniden dinlemeye geçiliyor.",
+          "error"
+        );
         scheduleRecognitionRestart(900);
       }
+
       throw error;
     }
 
@@ -370,8 +444,12 @@
     try {
       const data = await response.clone().json();
 
-      if (response.ok && typeof data?.reply === "string" && data.reply.trim()) {
-        speakReply(data.reply);
+      if (
+        response.ok &&
+        typeof data?.reply === "string" &&
+        data.reply.trim()
+      ) {
+        await speakReply(data.reply);
       } else {
         waitingForReply = false;
         setVoiceStatus(
@@ -383,6 +461,7 @@
     } catch (error) {
       console.warn("NOVA Voice: Yanıt sesli sohbete aktarılamadı.", error);
       waitingForReply = false;
+      speaking = false;
       scheduleRecognitionRestart(900);
     }
 
@@ -393,25 +472,23 @@
 
   if (!SpeechRecognition) {
     setVoiceStatus(
-      "Konuşma tanıma desteği bulunamadı. Chrome veya Edge kullan.",
+      "Konuşma tanıma bulunamadı. Chrome veya Edge kullan.",
       "error"
     );
-  } else if (!synthesis) {
-    toggleButton.disabled = true;
-    setVoiceStatus("Bu tarayıcı sesli yanıtı desteklemiyor.", "error");
   }
 
   window.addEventListener("beforeunload", () => {
     clearRestartTimer();
+
     try {
       recognition?.abort();
     } catch {
-      // Sayfa kapanırken mikrofon zaten durmuş olabilir.
+      // Sayfa kapanırken mikrofon durmuş olabilir.
     }
-    synthesis?.cancel();
+
+    stopAudio();
   });
 
-  // İsteğe bağlı konsol kontrolü.
   window.NOVAVoice = Object.freeze({
     start: startVoiceChat,
     stop: stopVoiceChat,
@@ -420,5 +497,5 @@
     }
   });
 
-  console.info("✦ NOVA Voice modülü yüklendi.");
+  console.info("✦ NOVA Voice — ElevenLabs modu yüklendi.");
 })();
