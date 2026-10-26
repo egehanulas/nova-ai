@@ -18,6 +18,9 @@ const PORT = process.env.PORT || 3000;
 app.disable("x-powered-by");
 app.use(express.json({ limit: "1mb" }));
 
+// CSS, JavaScript ve diğer ön yüz dosyalarını public klasöründen sun.
+app.use(express.static(path.join(__dirname, "public")));
+
 if (helmet) {
   app.use(
     helmet({
