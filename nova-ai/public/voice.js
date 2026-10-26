@@ -3,11 +3,8 @@
 
 /*
  * NOVA AI — Ücretsiz tarayıcı sesiyle sesli sohbet
- *
- * - Türkçe mikrofon desteği
- * - Tarayıcının speechSynthesis seslendirmesi
- * - ElevenLabs ve /api/tts kullanılmaz
- * - Mevcut /api/chat endpoint'i korunur
+ * Türkçe mikrofon + ücretsiz tarayıcı seslendirmesi
+ * ElevenLabs veya /api/tts kullanılmaz.
  */
 
 (() => {
@@ -27,6 +24,7 @@
 
   const SpeechRecognition =
     window.SpeechRecognition || window.webkitSpeechRecognition;
+
   const synth = window.speechSynthesis;
 
   let recognition = null;
@@ -44,6 +42,8 @@
   }
 
   function updateButtons() {
+    toggleButton.disabled = !SpeechRecognition;
+
     toggleButton.setAttribute("aria-pressed", String(voiceEnabled));
     toggleButton.classList.toggle("active", voiceEnabled);
     toggleButton.setAttribute(
@@ -68,14 +68,13 @@
       voice.lang.toLowerCase().startsWith("tr")
     );
 
-    if (!turkishVoices.length) return null;
-
     return (
       turkishVoices.find((voice) =>
         /ahmet|emel|tolga|yelda|turkish/i.test(voice.name)
       ) ||
       turkishVoices.find((voice) => voice.localService) ||
-      turkishVoices[0]
+      turkishVoices[0] ||
+      null
     );
   }
 
@@ -164,13 +163,14 @@
     }
 
     stopSpeech();
-    const thisRequest = speechRequest;
+    const currentRequest = speechRequest;
 
     waitingForReply = false;
     speaking = true;
     stopRecognition();
 
     const utterance = new SpeechSynthesisUtterance(answer.slice(0, 4000));
+
     utterance.lang = "tr-TR";
     utterance.rate = 1;
     utterance.pitch = 1;
@@ -183,12 +183,12 @@
     }
 
     utterance.onstart = () => {
-      if (thisRequest !== speechRequest || !voiceEnabled) return;
+      if (currentRequest !== speechRequest || !voiceEnabled) return;
       setVoiceStatus("NOVA konuşuyor…", "speaking");
     };
 
     utterance.onend = () => {
-      if (thisRequest !== speechRequest) return;
+      if (currentRequest !== speechRequest) return;
 
       speaking = false;
 
@@ -201,7 +201,7 @@
     };
 
     utterance.onerror = (event) => {
-      if (thisRequest !== speechRequest) return;
+      if (currentRequest !== speechRequest) return;
 
       speaking = false;
       console.warn("NOVA Voice: Tarayıcı ses hatası.", event.error);
@@ -226,7 +226,6 @@
 
   function setupRecognition() {
     if (!SpeechRecognition) {
-      toggleButton.disabled = true;
       setVoiceStatus(
         "Konuşma tanıma desteklenmiyor. Chrome veya Edge deneyebilirsin.",
         "error"
@@ -259,11 +258,18 @@
         }
       }
 
-      const text = finalText.trim();
+      const spokenText = finalText.trim();
 
-      if (!text || !voiceEnabled || waitingForReply || speaking) return;
+      if (
+        !spokenText ||
+        !voiceEnabled ||
+        waitingForReply ||
+        speaking
+      ) {
+        return;
+      }
 
-      input.value = text;
+      input.value = spokenText;
       input.dispatchEvent(new Event("input", { bubbles: true }));
 
       waitingForReply = true;
@@ -294,6 +300,7 @@
         voiceEnabled = false;
         waitingForReply = false;
         updateButtons();
+
         setVoiceStatus(
           "Mikrofon izni verilmedi. Tarayıcı ayarlarından mikrofon iznini aç.",
           "error"
@@ -372,21 +379,27 @@
 
   /*
    * /api/chat yanıtını yakalar.
-   * Beklenen JSON biçimi: { "reply": "NOVA yanıtı" }
-   * Yanıtın kendisini değiştirmeden döndürür.
+   * Beklenen biçim: { "reply": "NOVA yanıtı" }
    */
   const originalFetch = window.fetch.bind(window);
 
   window.fetch = async (...args) => {
+    let requestUrl;
+
+    try {
+      requestUrl =
+        args[0] instanceof Request ? args[0].url : String(args[0]);
+    } catch {
+      return originalFetch(...args);
+    }
+
     let isChatRequest = false;
 
     try {
-      const requestUrl =
-        args[0] instanceof Request ? args[0].url : String(args[0]);
       const url = new URL(requestUrl, window.location.href);
       isChatRequest = url.pathname.endsWith("/api/chat");
     } catch {
-      return originalFetch(...args);
+      isChatRequest = requestUrl.includes("/api/chat");
     }
 
     let response;
