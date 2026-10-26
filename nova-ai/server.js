@@ -11,82 +11,39 @@ const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const ELEVENLABS_VOICE_ID =
-  process.env.ELEVENLABS_VOICE_ID || "fXhoW006nc5Wf8xkGVSy";
-
+// Render Environment değişkeni eski değeri içeriyorsa onu da güncelle.
 const GEMINI_MODEL =
-  process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 const OPENROUTER_MODEL =
   process.env.OPENROUTER_MODEL || "openrouter/free";
+
+const REQUEST_TIMEOUT_MS = 30000;
 
 app.disable("x-powered-by");
 app.use(express.json({ limit: "100kb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
-// --------------------------------------------------
-// NOVA AI - KİŞİLİK TALİMATLARI
-// --------------------------------------------------
-
 const SYSTEM_INSTRUCTION = `
-Sen NOVA AI'sın. Türkçe konuşan, doğal, zeki, dikkatli ve güvenilir
-bir yapay zekâ asistanısın.
+Sen NOVA AI'sın. Türkçe konuşan, doğal, zeki ve güvenilir bir asistansın.
 
-KİŞİLİĞİN
-- Kullanıcıyla rahat, samimi ve doğal konuş.
-- Gerektiğinde "knk", "kanka" gibi ifadeler kullanabilirsin.
-- Her cümlede samimi hitap kullanma.
-- Emoji kullanımın ölçülü olsun.
-- Kurumsal müşteri temsilcisi gibi konuşma.
-- Kalıp selamlamalarla her cevaba başlama.
+- Kullanıcıyla samimi ve doğal konuş; gerektiğinde "knk" diyebilirsin.
 - Kısa sorulara kısa, detaylı sorulara yeterince ayrıntılı cevap ver.
-
-BAĞLAM VE DEVAMLILIK
-- Önceki mesajları dikkatle değerlendir.
-- Kullanıcının verdiği bilgileri gereksiz yere tekrar sorma.
-- Takip sorularını önceki konuşmaya göre yorumla.
-- Geçmişte verilmemiş bir bilgiyi hatırlıyormuş gibi davranma.
-- Konu belirsizse tek ve gerekli bir soru sor.
-
-DOĞRULUK
-- Bilmediğin konularda açık ol.
-- Tahminlerini doğrulanmış bilgi gibi sunma.
-- Kontrol etmediğin bir siteyi veya kodu kontrol etmiş gibi anlatma.
-- Test etmediğin kodun test edildiğini iddia etme.
-- Güncel ve teknik konularda mümkünse güvenilir kaynakları kullan.
-
-TEKNİK YARDIM
-- Kullanıcının mevcut proje yapısını korumaya çalış.
-- Çalışan sistemleri sebepsiz yere değiştirme.
-- Kodları anlaşılır ve uygulanabilir biçimde sun.
-- Hataların kesin nedenini, kanıt olmadan kesinleştirme.
-- Gerekli olduğunda hangi dosyanın değişeceğini belirt.
-
-UNREAL ENGINE
-- Aksi belirtilmedikçe Unreal Engine 5.8 ve Blueprint varsay.
-- Blueprint düğümlerinin İngilizce adlarını kullan ve gerektiğinde
-  Türkçe açıklama ekle.
-- Bağlantıları ve değişken türlerini açıkça anlat.
-
-YANIT KALİTESİ
-- Soruyu doğrudan cevapla.
-- Gereksiz tekrar yapma.
-- Uygulanabilir bir sonraki adım sun.
+- Önceki konuşma bağlamını koru.
+- Bilmediğin bilgileri uydurma.
+- Kontrol etmediğin şeyleri kontrol etmiş gibi anlatma.
+- Kod yardımlarında kullanıcının mevcut projesini koru.
+- Gereksiz tekrarlardan ve uzun girişlerden kaçın.
+- Kullanıcı beklerken gereksiz yere uzun cevaplar üretme.
+- Yanıtı doğrudan soruya yönelik hazırla.
 `;
-
-// --------------------------------------------------
-// RATE LIMIT
-// --------------------------------------------------
 
 const chatLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 12,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: {
-    error: "Çok fazla istek gönderdin. Bir dakika sonra tekrar dene."
-  }
+  message: { error: "Çok fazla istek gönderdin. Bir dakika sonra tekrar dene." }
 });
 
 const researchLimiter = rateLimit({
@@ -94,24 +51,8 @@ const researchLimiter = rateLimit({
   limit: 5,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: {
-    error: "Araştırma sınırına ulaştın. Bir dakika sonra tekrar dene."
-  }
+  message: { error: "Araştırma sınırına ulaştın. Bir dakika sonra tekrar dene." }
 });
-
-const ttsLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 10,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  message: {
-    error: "Ses üretme sınırına ulaştın. Biraz sonra tekrar dene."
-  }
-});
-
-// --------------------------------------------------
-// MESAJ İŞLEME
-// --------------------------------------------------
 
 function normalizeMessages(messages) {
   if (!Array.isArray(messages)) {
@@ -119,16 +60,16 @@ function normalizeMessages(messages) {
   }
 
   return messages
-    .filter((message) =>
-      message &&
-      ["user", "assistant"].includes(message.role) &&
-      typeof message.content === "string" &&
-      message.content.trim().length > 0
+    .filter((m) =>
+      m &&
+      ["user", "assistant"].includes(m.role) &&
+      typeof m.content === "string" &&
+      m.content.trim()
     )
-    .slice(-16)
-    .map((message) => ({
-      role: message.role,
-      content: message.content.slice(0, 4000)
+    .slice(-12)
+    .map((m) => ({
+      role: m.role,
+      content: m.content.slice(0, 4000)
     }));
 }
 
@@ -178,19 +119,15 @@ function extractSources(data) {
 
   for (const chunk of chunks) {
     const web = chunk?.web;
-
-    if (!web?.uri || !web?.title) continue;
-
-    unique.set(web.uri, {
-      title: web.title,
-      url: web.uri
-    });
+    if (web?.uri && web?.title) {
+      unique.set(web.uri, { title: web.title, url: web.uri });
+    }
   }
 
   return [...unique.values()].slice(0, 8);
 }
 
-async function fetchJson(url, options, timeoutMs = 45000) {
+async function fetchJson(url, options, timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -201,7 +138,7 @@ async function fetchJson(url, options, timeoutMs = 45000) {
     });
 
     const rawText = await response.text();
-    let data;
+    let data = {};
 
     try {
       data = rawText ? JSON.parse(rawText) : {};
@@ -212,7 +149,8 @@ async function fetchJson(url, options, timeoutMs = 45000) {
     if (!response.ok) {
       const error = new Error(
         data?.error?.message ||
-        `API isteği başarısız oldu (${response.status}).`
+        data?.message ||
+        `Sağlayıcı HTTP ${response.status} hatası döndürdü.`
       );
 
       error.status = response.status;
@@ -220,23 +158,65 @@ async function fetchJson(url, options, timeoutMs = 45000) {
     }
 
     return data;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(`Sağlayıcı ${timeoutMs / 1000} saniyede yanıt vermedi.`);
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
 }
 
-// --------------------------------------------------
-// GEMINI
-// --------------------------------------------------
+function getFriendlyError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  const status = error?.status;
+
+  if (
+    status === 429 ||
+    message.includes("rate limit") ||
+    message.includes("quota") ||
+    message.includes("resource_exhausted")
+  ) {
+    return "Kullanım kotası dolmuş veya istek sınırına ulaşılmış.";
+  }
+
+  if (
+    status === 401 ||
+    status === 403 ||
+    message.includes("api key") ||
+    message.includes("permission")
+  ) {
+    return "API anahtarı veya model erişimi kontrol edilmeli.";
+  }
+
+  if (
+    message.includes("not found") ||
+    message.includes("no longer available") ||
+    message.includes("unsupported model")
+  ) {
+    return "Model bulunamadı veya bu hesapta kullanılamıyor.";
+  }
+
+  if (message.includes("saniyede yanıt vermedi")) {
+    return "Yanıt zaman aşımına uğradı.";
+  }
+
+  return "Sağlayıcı isteği tamamlayamadı.";
+}
+
+// ---------------- GEMINI ----------------
 
 async function askGemini(messages, options = {}) {
   if (!GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY tanımlı değil.");
   }
 
+  const model = GEMINI_MODEL.replace(/^models\//, "");
+
   const url =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
-    `${encodeURIComponent(GEMINI_MODEL)}:generateContent`;
+    `${encodeURIComponent(model)}:generateContent`;
 
   const body = {
     systemInstruction: {
@@ -247,7 +227,7 @@ async function askGemini(messages, options = {}) {
     contents: toGeminiContents(messages),
     generationConfig: {
       temperature: options.temperature ?? 0.5,
-      maxOutputTokens: options.maxOutputTokens ?? 2500
+      maxOutputTokens: options.maxOutputTokens ?? 1200
     }
   };
 
@@ -262,7 +242,7 @@ async function askGemini(messages, options = {}) {
       "x-goog-api-key": GEMINI_API_KEY
     },
     body: JSON.stringify(body)
-  });
+  }, options.useSearch ? 45000 : REQUEST_TIMEOUT_MS);
 
   const reply = extractGeminiText(data);
 
@@ -277,9 +257,7 @@ async function askGemini(messages, options = {}) {
   };
 }
 
-// --------------------------------------------------
-// OPENROUTER
-// --------------------------------------------------
+// ---------------- OPENROUTER ----------------
 
 async function askOpenRouter(messages, options = {}) {
   if (!OPENROUTER_API_KEY) {
@@ -295,9 +273,9 @@ async function askOpenRouter(messages, options = {}) {
       role: "system",
       content: options.systemInstruction || SYSTEM_INSTRUCTION
     },
-    ...messages.map((message) => ({
-      role: message.role,
-      content: message.content
+    ...messages.map((m) => ({
+      role: m.role,
+      content: m.content
     }))
   ];
 
@@ -316,9 +294,10 @@ async function askOpenRouter(messages, options = {}) {
         model,
         messages: apiMessages,
         temperature: options.temperature ?? 0.5,
-        max_tokens: options.maxOutputTokens ?? 2500
+        max_tokens: options.maxOutputTokens ?? 1200
       })
-    }
+    },
+    options.useSearch ? 45000 : REQUEST_TIMEOUT_MS
   );
 
   const reply = data?.choices?.[0]?.message?.content;
@@ -334,19 +313,18 @@ async function askOpenRouter(messages, options = {}) {
   };
 }
 
-// --------------------------------------------------
-// SAĞLAYICI SEÇİMİ
-// --------------------------------------------------
+// ---------------- SAĞLAYICI SEÇİMİ ----------------
 
 async function generateAnswer(messages, options = {}) {
   const errors = [];
 
+  // Önce Gemini, hata olursa OpenRouter denenir.
   if (GEMINI_API_KEY) {
     try {
       return await askGemini(messages, options);
     } catch (error) {
-      console.error("Gemini isteği başarısız:", error.message);
-      errors.push(`Gemini: ${error.message}`);
+      console.error("Gemini:", error.message);
+      errors.push({ provider: "Gemini", error });
     }
   }
 
@@ -354,26 +332,46 @@ async function generateAnswer(messages, options = {}) {
     try {
       return await askOpenRouter(messages, options);
     } catch (error) {
-      console.error("OpenRouter isteği başarısız:", error.message);
-      errors.push(`OpenRouter: ${error.message}`);
+      console.error("OpenRouter:", error.message);
+      errors.push({ provider: "OpenRouter", error });
     }
   }
 
-  const error = new Error(
-    errors.length
-      ? "Yapay zekâ sağlayıcılarından yanıt alınamadı."
-      : "GEMINI_API_KEY veya OPENROUTER_API_KEY tanımlanmalı."
-  );
-
-  error.details = errors;
+  const error = new Error("Yapay zekâ sağlayıcılarından yanıt alınamadı.");
+  error.providerErrors = errors;
   throw error;
 }
 
-// --------------------------------------------------
-// NORMAL SOHBET
-// --------------------------------------------------
+function sendProviderError(res, error) {
+  const details = error.providerErrors || [];
+
+  const messages = details.map(({ provider, error: e }) => ({
+    provider,
+    message: getFriendlyError(e)
+  }));
+
+  const allQuota = details.length > 0 &&
+    details.every(({ error: e }) => {
+      const m = String(e.message || "").toLowerCase();
+      return e.status === 429 ||
+        m.includes("rate limit") ||
+        m.includes("quota") ||
+        m.includes("resource_exhausted");
+    });
+
+  return res.status(allQuota ? 429 : 502).json({
+    error: allQuota
+      ? "NOVA'nın kullanılabilir yapay zekâ kotası şu anda dolu."
+      : "NOVA şu anda yanıt üretemedi. Sağlayıcı ayarlarını kontrol et.",
+    providers: messages
+  });
+}
+
+// ---------------- NORMAL SOHBET ----------------
 
 app.post("/api/chat", chatLimiter, async (req, res) => {
+  const startedAt = Date.now();
+
   try {
     const messages = normalizeMessages(req.body?.messages);
 
@@ -385,15 +383,15 @@ app.post("/api/chat", chatLimiter, async (req, res) => {
 
     const latestUserMessage = [...messages]
       .reverse()
-      .find((message) => message.role === "user");
+      .find((m) => m.role === "user");
 
     if (!latestUserMessage) {
       return res.status(400).json({
-        error: "Sohbet içinde bir kullanıcı mesajı bulunmalı."
+        error: "Sohbette bir kullanıcı mesajı bulunmalı."
       });
     }
 
-    if (latestUserMessage.content.trim().length > 2000) {
+    if (latestUserMessage.content.length > 2000) {
       return res.status(400).json({
         error: "Son mesaj en fazla 2000 karakter olabilir."
       });
@@ -401,103 +399,34 @@ app.post("/api/chat", chatLimiter, async (req, res) => {
 
     const result = await generateAnswer(messages, {
       temperature: 0.5,
-      maxOutputTokens: 2500
+      maxOutputTokens: 1200
     });
 
+    console.log(
+      `Sohbet tamamlandı: ${result.provider}, ${Date.now() - startedAt}ms`
+    );
+
     return res.json({
-      reply: result.reply
+      reply: result.reply,
+      provider: result.provider
     });
   } catch (error) {
     console.error("Sohbet hatası:", error.message);
-
-    return res.status(502).json({
-      error: "NOVA şu anda yanıt üretemedi. Biraz sonra tekrar dene."
-    });
+    return sendProviderError(res, error);
   }
 });
 
-// --------------------------------------------------
-// ELEVENLABS - METİNDEN SES ÜRETME
-// --------------------------------------------------
+// ---------------- TTS UYUMLULUK ----------------
+// Ücretli ElevenLabs servisine istek gönderilmez.
+// Eski istemci bu endpoint'i çağırırsa anlaşılır cevap alır.
 
-app.post("/api/tts", ttsLimiter, async (req, res) => {
-  try {
-    if (!ELEVENLABS_API_KEY) {
-      return res.status(503).json({
-        error: "ElevenLabs API anahtarı sunucuda tanımlı değil."
-      });
-    }
-
-    const text = req.body?.text;
-
-    if (typeof text !== "string" || !text.trim()) {
-      return res.status(400).json({
-        error: "Seslendirilecek metni gönder."
-      });
-    }
-
-    if (text.length > 2500) {
-      return res.status(400).json({
-        error: "Metin en fazla 2500 karakter olabilir."
-      });
-    }
-
-    const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(ELEVENLABS_VOICE_ID)}?output_format=mp3_44100_128`,
-      {
-        method: "POST",
-        headers: {
-          "xi-api-key": ELEVENLABS_API_KEY,
-          "Content-Type": "application/json",
-          Accept: "audio/mpeg"
-        },
-        body: JSON.stringify({
-          text: text.trim(),
-          model_id: "eleven_flash_v2_5",
-          language_code: "tr",
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75
-          }
-        }),
-        signal: AbortSignal.timeout(45000)
-      }
-    );
-
-    if (!response.ok) {
-      const details = await response.text();
-
-      console.error(
-        "ElevenLabs TTS hatası:",
-        response.status,
-        details.slice(0, 500)
-      );
-
-      return res.status(502).json({
-        error:
-          "ElevenLabs ses üretemedi. API anahtarını, erişim izinlerini " +
-          "ve kredi limitini kontrol et."
-      });
-    }
-
-    const audio = Buffer.from(await response.arrayBuffer());
-
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Cache-Control", "no-store");
-
-    return res.send(audio);
-  } catch (error) {
-    console.error("TTS hatası:", error.message);
-
-    return res.status(502).json({
-      error: "Ses oluşturulamadı. Biraz sonra tekrar dene."
-    });
-  }
+app.post("/api/tts", (req, res) => {
+  return res.status(410).json({
+    error: "Sunucu TTS kapalı. Tarayıcıdaki yerleşik seslendirmeyi kullan."
+  });
 });
 
-// --------------------------------------------------
-// WEB ARAŞTIRMASI
-// --------------------------------------------------
+// ---------------- WEB ARAŞTIRMASI ----------------
 
 app.post("/api/research", researchLimiter, async (req, res) => {
   try {
@@ -514,50 +443,44 @@ ${SYSTEM_INSTRUCTION}
 
 ARAŞTIRMA MODU
 - Mümkünse web arama aracını kullan.
-- Öncelikle resmî dokümantasyon ve güvenilir kaynakları değerlendir.
-- Güncel bilgilerle genel bilgileri birbirinden ayır.
-- Kaynaklarda bulunmayan ayrıntıları kaynaklardan alınmış gibi gösterme.
-- Doğrulanamayan bilgileri açıkça belirt.
-- Cevabı Türkçe ve anlaşılır hazırla.
-- Gerçekten erişmediğin sayfaları kaynak olarak yazma.
+- Resmî dokümantasyonu ve güvenilir kaynakları önceliklendir.
+- Güncel bilgileri genel bilgilerden ayır.
+- Erişmediğin kaynakları erişmiş gibi gösterme.
+- Belirsizliği açıkça belirt.
+- Cevabı Türkçe hazırla.
 `;
 
     const result = await generateAnswer(messages, {
       systemInstruction: researchInstruction,
       useSearch: true,
       temperature: 0.3,
-      maxOutputTokens: 3500
+      maxOutputTokens: 2200
     });
 
     return res.json({
       reply: result.reply,
-      sources: result.sources
+      sources: result.sources,
+      provider: result.provider
     });
   } catch (error) {
     console.error("Araştırma hatası:", error.message);
-
-    return res.status(502).json({
-      error:
-        "Araştırma tamamlanamadı. API modelini, anahtarını ve " +
-        "sağlayıcının araştırma desteğini kontrol et."
-    });
+    return sendProviderError(res, error);
   }
 });
 
-// --------------------------------------------------
-// SAĞLIK KONTROLÜ
-// --------------------------------------------------
+// ---------------- SAĞLIK KONTROLÜ ----------------
 
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
-    service: "NOVA AI"
+    service: "NOVA AI",
+    model: GEMINI_MODEL,
+    geminiConfigured: Boolean(GEMINI_API_KEY),
+    openrouterConfigured: Boolean(OPENROUTER_API_KEY)
   });
 });
 
-// --------------------------------------------------
-// HATA YÖNETİMİ
-// --------------------------------------------------
+// ---------------- HATA YÖNETİMİ ----------------
 
 app.use((err, req, res, next) => {
   console.error("Sunucu hatası:", err.message);
@@ -573,4 +496,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`NOVA AI ${PORT} portunda çalışıyor.`);
+  console.log(`Gemini model: ${GEMINI_MODEL}`);
+  console.log(`Gemini API: ${GEMINI_API_KEY ? "ayarlı" : "eksik"}`);
+  console.log(`OpenRouter API: ${OPENROUTER_API_KEY ? "ayarlı" : "eksik"}`);
 });
