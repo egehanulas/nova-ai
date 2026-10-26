@@ -3,8 +3,8 @@
 
 /*
  * NOVA AI — Ücretsiz tarayıcı sesli sohbeti
- * Türkçe konuşma tanıma + tarayıcı seslendirmesi.
- * ElevenLabs ve /api/tts kullanılmaz.
+ * Türkçe konuşma tanıma ve tarayıcı seslendirmesi.
+ * ElevenLabs veya /api/tts kullanılmaz.
  */
 
 (() => {
@@ -17,13 +17,7 @@
   const input = $("prompt");
   const form = $("form");
 
-  if (
-    !toggleButton ||
-    !stopButton ||
-    !statusLabel ||
-    !input ||
-    !form
-  ) {
+  if (!toggleButton || !stopButton || !statusLabel || !input || !form) {
     console.warn("NOVA Voice: Sesli sohbet arayüzü bulunamadı.");
     return;
   }
@@ -136,10 +130,7 @@
     } catch (error) {
       if (error.name !== "InvalidStateError") {
         console.warn("NOVA Voice: Mikrofon başlatılamadı.", error);
-        setVoiceStatus(
-          "Mikrofon başlatılamadı. Tekrar dene.",
-          "error"
-        );
+        setVoiceStatus("Mikrofon başlatılamadı. Tekrar dene.", "error");
       }
     }
   }
@@ -165,10 +156,7 @@
 
     if (!synth || !("SpeechSynthesisUtterance" in window)) {
       waitingForReply = false;
-      setVoiceStatus(
-        "Tarayıcı seslendirmeyi desteklemiyor.",
-        "error"
-      );
+      setVoiceStatus("Tarayıcı seslendirmeyi desteklemiyor.", "error");
       scheduleRecognitionRestart();
       return;
     }
@@ -180,9 +168,7 @@
     speaking = true;
     stopRecognition();
 
-    const utterance = new SpeechSynthesisUtterance(
-      answer.slice(0, 4000)
-    );
+    const utterance = new SpeechSynthesisUtterance(answer.slice(0, 4000));
 
     utterance.lang = "tr-TR";
     utterance.rate = 1;
@@ -217,16 +203,10 @@
       if (currentRequest !== speechRequest) return;
 
       speaking = false;
-      console.warn(
-        "NOVA Voice: Tarayıcı ses hatası.",
-        event.error
-      );
+      console.warn("NOVA Voice: Tarayıcı ses hatası.", event.error);
 
       if (voiceEnabled) {
-        setVoiceStatus(
-          "Ses okunamadı. Tekrar deneyebilirsin.",
-          "error"
-        );
+        setVoiceStatus("Ses okunamadı. Tekrar deneyebilirsin.", "error");
         scheduleRecognitionRestart(800);
       }
     };
@@ -269,11 +249,7 @@
     recognition.onresult = (event) => {
       let finalText = "";
 
-      for (
-        let i = event.resultIndex;
-        i < event.results.length;
-        i += 1
-      ) {
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const result = event.results[i];
 
         if (result.isFinal && result[0]?.transcript) {
@@ -283,12 +259,7 @@
 
       const spokenText = finalText.trim();
 
-      if (
-        !spokenText ||
-        !voiceEnabled ||
-        waitingForReply ||
-        speaking
-      ) {
+      if (!spokenText || !voiceEnabled || waitingForReply || speaking) {
         return;
       }
 
@@ -296,10 +267,7 @@
       input.dispatchEvent(new Event("input", { bubbles: true }));
 
       waitingForReply = true;
-      setVoiceStatus(
-        "Söylediklerin NOVA'ya gönderiliyor…",
-        "speaking"
-      );
+      setVoiceStatus("Söylediklerin NOVA'ya gönderiliyor…", "speaking");
       stopRecognition();
 
       if (typeof form.requestSubmit === "function") {
@@ -315,10 +283,7 @@
     };
 
     recognition.onerror = (event) => {
-      console.warn(
-        "NOVA Voice: Konuşma tanıma hatası.",
-        event.error
-      );
+      console.warn("NOVA Voice: Konuşma tanıma hatası.", event.error);
 
       if (!voiceEnabled) return;
 
@@ -338,26 +303,25 @@
       }
 
       if (event.error === "audio-capture") {
-        setVoiceStatus(
-          "Mikrofon bulunamadı veya kullanılamıyor.",
-          "error"
-        );
+        setVoiceStatus("Mikrofon bulunamadı veya kullanılamıyor.", "error");
         return;
       }
 
       if (event.error === "language-not-supported") {
-        setVoiceStatus(
-          "Türkçe konuşma tanıma desteklenmiyor.",
-          "error"
-        );
+        setVoiceStatus("Türkçe konuşma tanıma desteklenmiyor.", "error");
         return;
       }
 
       if (event.error === "network") {
         setVoiceStatus(
-          "Konuşma tanıma bağlantı hatası verdi. İnternetini kontrol et.",
+          "Konuşma tanıma bağlantı hatası verdi. İnternet bağlantını kontrol et.",
           "error"
         );
+        return;
+      }
+
+      if (event.error === "no-speech") {
+        scheduleRecognitionRestart(500);
       }
     };
 
@@ -413,25 +377,17 @@
   stopButton.addEventListener("click", stopVoiceChat);
 
   /*
-   * Yalnızca /api/chat yanıtını izler.
-   * app.js ile uyumlu olarak reply, text veya message alanını okur.
-   * Araştırma isteklerini ve diğer istekleri seslendirmez.
+   * Yalnızca /api/chat yanıtlarını yakalar.
+   * Araştırma ve diğer API isteklerine müdahale etmez.
    */
   const originalFetch = window.fetch.bind(window);
 
   window.fetch = async (...args) => {
-    let requestUrl = "";
+    let requestUrl;
 
     try {
-      const request = args[0];
-
-      if (request instanceof Request) {
-        requestUrl = request.url;
-      } else if (request instanceof URL) {
-        requestUrl = request.href;
-      } else {
-        requestUrl = String(request);
-      }
+      requestUrl =
+        args[0] instanceof Request ? args[0].url : String(args[0]);
     } catch {
       return originalFetch(...args);
     }
@@ -440,53 +396,57 @@
 
     try {
       const url = new URL(requestUrl, window.location.href);
-      isChatRequest =
-        url.pathname.replace(/\/+$/, "").endsWith("/api/chat");
+      isChatRequest = url.pathname.endsWith("/api/chat");
     } catch {
-      isChatRequest = requestUrl.includes("/api/chat");
+      isChatRequest = false;
     }
 
-    const response = await originalFetch(...args);
+    let response;
 
-    if (!isChatRequest || !voiceEnabled) {
-      return response;
+    try {
+      response = await originalFetch(...args);
+    } catch (error) {
+      if (isChatRequest && voiceEnabled) {
+        waitingForReply = false;
+        setVoiceStatus(
+          "Bağlantı kurulamadı. Tekrar deneyebilirsin.",
+          "error"
+        );
+        scheduleRecognitionRestart(900);
+      }
+
+      throw error;
     }
+
+    if (!isChatRequest || !voiceEnabled) return response;
 
     try {
       const data = await response.clone().json();
 
       const reply =
-        data?.reply ??
-        data?.text ??
-        data?.message;
+        typeof data?.reply === "string"
+          ? data.reply
+          : typeof data?.text === "string"
+            ? data.text
+            : typeof data?.message === "string"
+              ? data.message
+              : "";
 
-      if (response.ok && typeof reply === "string" && reply.trim()) {
+      if (response.ok && reply.trim()) {
         speakReply(reply);
       } else {
         waitingForReply = false;
-
         setVoiceStatus(
-          data?.error ||
-            "NOVA yanıt veremedi. Tekrar konuşabilirsin.",
+          data?.error || "NOVA yanıt veremedi. Tekrar konuşabilirsin.",
           "error"
         );
-
         scheduleRecognitionRestart(900);
       }
     } catch (error) {
-      console.warn(
-        "NOVA Voice: Yanıt okunamadı.",
-        error
-      );
-
+      console.warn("NOVA Voice: Yanıt işlenemedi.", error);
       waitingForReply = false;
       speaking = false;
-
-      setVoiceStatus(
-        "Yanıt okunamadı. Tekrar deneyebilirsin.",
-        "error"
-      );
-
+      setVoiceStatus("Yanıt okunamadı. Tekrar deneyebilirsin.", "error");
       scheduleRecognitionRestart(900);
     }
 
