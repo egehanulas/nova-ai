@@ -1,10 +1,11 @@
 
 /* =========================================================
-   NOVA AI — Sohbet, internet araştırması ve mini oyunlar
-   Uyumlu sunucu endpoint'leri:
-   POST /api/chat
-   POST /api/research
+   NOVA AI
+   Sohbet, internet araştırması, mini oyunlar ve sohbet geçmişi
+   Sunucu: POST /api/chat, POST /api/research
    ========================================================= */
+
+"use strict";
 
 const STORAGE_KEY = "nova_ai_chats_v1";
 const MAX_CHATS = 50;
@@ -37,8 +38,6 @@ let chats = loadChats();
 let activeChatId = chats[0]?.id ?? null;
 let busy = false;
 let requestId = 0;
-
-// Aktif mini oyunlar tarayıcı belleğinde tutulur.
 let activeGame = null;
 
 /* -------------------- Yardımcılar -------------------- */
@@ -54,11 +53,7 @@ function loadChats() {
     if (!Array.isArray(saved)) return [];
 
     return saved
-      .filter(c =>
-        c &&
-        typeof c.id === "string" &&
-        Array.isArray(c.messages)
-      )
+      .filter(c => c && typeof c.id === "string" && Array.isArray(c.messages))
       .map(c => ({
         id: c.id,
         title: String(c.title || "Yeni sohbet").slice(0, 100),
@@ -71,7 +66,9 @@ function loadChats() {
           .map(m => ({
             role: m.role,
             content: m.content.slice(0, MAX_LENGTH * 4),
-            ...(m.error ? { error: true } : {})
+            ...(m.error ? { error: true } : {}),
+            ...(m.research ? { research: true } : {}),
+            ...(typeof m.query === "string" ? { query: m.query } : {})
           })),
         createdAt: Number(c.createdAt) || Date.now(),
         updatedAt: Number(c.updatedAt) || Date.now()
@@ -89,7 +86,7 @@ function saveChats() {
     chats = chats.slice(0, MAX_CHATS);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
   } catch {
-    setStatus("Geçmiş kaydedilemedi", true);
+    setStatus("Sohbet geçmişi kaydedilemedi", true);
   }
 }
 
@@ -107,11 +104,20 @@ function escapeHTML(value = "") {
   })[char]);
 }
 
+function safeUrl(value) {
+  try {
+    const url = new URL(value);
+    return ["https:", "http:"].includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 /* -------------------- Markdown -------------------- */
 
 function renderMarkdown(text = "") {
   const blocks = [];
-  const inlines = [];
+  const inlineCodes = [];
 
   let html = String(text).replace(CODE_BLOCK, (_, lang, code) => {
     blocks.push({
@@ -124,8 +130,8 @@ function renderMarkdown(text = "") {
   html = escapeHTML(html);
 
   html = html.replace(/`([^`\n]+)`/g, (_, code) => {
-    inlines.push(code);
-    return `\u0000I${inlines.length - 1}\u0000`;
+    inlineCodes.push(code);
+    return `\u0000I${inlineCodes.length - 1}\u0000`;
   });
 
   html = html
@@ -136,23 +142,35 @@ function renderMarkdown(text = "") {
     .replace(/^# (.+)$/gm, "<h1>$1</h1>")
     .replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>")
     .replace(/^[*-] (.+)$/gm, "<li>$1</li>")
-    .replace(/^\d+\. (.+)$/gm, "<li>$1</li>")
-    .replace(/(?:<li>.*<\/li>\n?)+/g, list =>
-      `<ul>${list.replace(/\n/g, "")}</ul>`
-    )
+    .replace(/^\d+\. (.+)$/gm, "<li>$1</li>");
+
+  html = html.replace(/(?:<li>.*?<\/li>\n?)+/g, list =>
+    `<ul>${list.replace(/\n/g, "")}</ul>`
+  );
+
+  // Yalnızca HTTP/HTTPS bağlantılarını bağlantıya dönüştür.
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_, title, url) => {
+    const safe = safeUrl(url);
+    return safe
+      ? `<a href="${escapeHTML(safe)}" target="_blank" rel="noopener noreferrer">${title}</a>`
+      : `${title} (${url})`;
+  });
+
+  html = html
     .replace(/\n?(<\/?(?:ul|h[1-3]|blockquote)>)\n?/g, "$1")
     .replace(/\n?(\u0000B\d+\u0000)\n?/g, "$1")
     .replace(/\n/g, "<br>");
 
-  return html
-    .replace(/\u0000I(\d+)\u0000/g, (_, i) =>
-      `<code>${inlines[Number(i)]}</code>`
-    )
-    .replace(/\u0000B(\d+)\u0000/g, (_, i) => {
-      const block = blocks[Number(i)];
+  html = html.replace(/\u0000I(\d+)\u0000/g, (_, i) =>
+    `<code>${inlineCodes[Number(i)]}</code>`
+  );
 
-      return `<pre class="nova-code-block"><div class="code-header">${escapeHTML(block.lang)}</div><code>${escapeHTML(block.code)}</code></pre>`;
-    });
+  html = html.replace(/\u0000B(\d+)\u0000/g, (_, i) => {
+    const block = blocks[Number(i)];
+    return `<pre class="nova-code-block"><div class="code-header">${escapeHTML(block.lang)}</div><code>${escapeHTML(block.code)}</code></pre>`;
+  });
+
+  return html;
 }
 
 /* -------------------- Sohbet geçmişi -------------------- */
@@ -259,9 +277,7 @@ function renderMessages() {
 function setStatus(message, isError = false) {
   if (!el.status) return;
 
-  el.status.innerHTML =
-    `<i aria-hidden="true"></i><span>${escapeHTML(message)}</span>`;
-
+  el.status.innerHTML = `<i aria-hidden="true"></i><span>${escapeHTML(message)}</span>`;
   el.status.classList.toggle("error", isError);
   el.status.classList.toggle("busy", busy && !isError);
 }
@@ -290,9 +306,7 @@ function updateCount() {
   if (!el.count || !el.prompt) return;
 
   const length = el.prompt.value.length;
-  el.count.textContent = length > 3000
-    ? `${length} / ${MAX_LENGTH}`
-    : "";
+  el.count.textContent = length > 3000 ? `${length} / ${MAX_LENGTH}` : "";
 }
 
 function resizePrompt() {
@@ -361,17 +375,21 @@ function deleteChat(id) {
   renderMessages();
 }
 
-function addMessage(role, content, { chat = getActiveChat(), error = false } = {}) {
+function addMessage(role, content, options = {}) {
+  const chat = options.chat || getActiveChat();
   if (!chat) return;
 
   const message = { role, content: String(content) };
-  if (error) message.error = true;
+
+  if (options.error) message.error = true;
+  if (options.research) message.research = true;
+  if (typeof options.query === "string") message.query = options.query;
 
   chat.messages.push(message);
   chat.updatedAt = Date.now();
 
   if (role === "user" && chat.title === "Yeni sohbet") {
-    chat.title = content.replace(/\s+/g, " ").trim().slice(0, 35) || "Yeni sohbet";
+    chat.title = String(content).replace(/\s+/g, " ").trim().slice(0, 35) || "Yeni sohbet";
   }
 
   saveChats();
@@ -386,15 +404,16 @@ function buildPayload(chat) {
   for (const message of chat.messages) {
     if (message.error) continue;
 
+    const content = message.research
+      ? (message.query || message.content.replace(/^🌐 Araştır:\s*/i, ""))
+      : message.content;
+
     const previous = payload[payload.length - 1];
 
     if (previous && previous.role === message.role) {
-      previous.content += `\n\n${message.content}`;
+      previous.content += `\n\n${content}`;
     } else {
-      payload.push({
-        role: message.role,
-        content: message.content
-      });
+      payload.push({ role: message.role, content });
     }
   }
 
@@ -414,22 +433,22 @@ async function postJSON(url, body, signal) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(
-      data.error ||
-      data.message ||
-      `Sunucu hatası (${response.status})`
-    );
+    throw new Error(data.error || data.message || `Sunucu hatası (${response.status})`);
   }
 
   return data;
 }
 
-async function requestAssistant({ research = false } = {}) {
+async function requestAssistant(options = {}) {
   const chat = getActiveChat();
   if (!chat || busy) return;
 
   const last = chat.messages[chat.messages.length - 1];
   if (!last || last.role !== "user") return;
+
+  const research = options.research ?? Boolean(last.research);
+  const query = options.query ?? last.query ??
+    last.content.replace(/^🌐 Araştır:\s*/i, "").trim();
 
   const thisRequest = ++requestId;
   setBusy(true);
@@ -441,14 +460,9 @@ async function requestAssistant({ research = false } = {}) {
   try {
     const endpoint = research ? "/api/research" : "/api/chat";
 
-    // Araştırma endpoint'i query bekler; sohbet endpoint'i messages bekler.
     const body = research
-      ? {
-          query: last.content.replace(/^🌐 Araştır:\s*/i, "").trim()
-        }
-      : {
-          messages: buildPayload(chat)
-        };
+      ? { query }
+      : { messages: buildPayload(chat) };
 
     const data = await postJSON(endpoint, body, controller.signal);
 
@@ -462,45 +476,35 @@ async function requestAssistant({ research = false } = {}) {
 
     let finalReply = reply.trim();
 
-    // server.js sources[].uri döndürür; url alanı da geriye uyumluluk için desteklenir.
     if (research && Array.isArray(data.sources) && data.sources.length) {
       const sourceText = data.sources
-        .filter(source => {
-          const uri = source?.uri || source?.url;
-          return typeof uri === "string" && /^https?:\/\//i.test(uri);
-        })
+        .filter(source => safeUrl(source?.uri || source?.url))
         .slice(0, 8)
         .map((source, index) => {
-          const uri = source.uri || source.url;
+          const uri = safeUrl(source.uri || source.url);
           const title = String(source.title || uri).slice(0, 150);
           return `${index + 1}. [${title}](${uri})`;
         })
         .join("\n");
 
-      if (sourceText) {
-        finalReply += `\n\n### Kaynaklar\n${sourceText}`;
-      }
+      if (sourceText) finalReply += `\n\n### Kaynaklar\n${sourceText}`;
     }
 
     addMessage("assistant", finalReply, { chat });
-
   } catch (error) {
     if (thisRequest !== requestId) return;
 
-    failure = "Bağlantı hatası";
+    failure = "İstek başarısız";
     let message = error.message || "Beklenmeyen bir hata oluştu.";
 
     if (error.name === "AbortError") {
       failure = "Zaman aşımı";
       message = "İstek zaman aşımına uğradı. Tekrar deneyebilirsin.";
     } else if (error instanceof TypeError) {
-      message = research
-        ? "Araştırma servisine ulaşılamadı. Sunucuda /api/research endpoint'inin bulunduğunu kontrol et."
-        : "Sunucuya ulaşılamadı. İnternet bağlantını ve sunucunun çalıştığını kontrol et.";
+      message = "Sunucuya ulaşılamadı. İnternet bağlantını ve sunucunun çalıştığını kontrol et.";
     }
 
     addMessage("assistant", message, { chat, error: true });
-
   } finally {
     clearTimeout(timeout);
 
@@ -516,23 +520,28 @@ async function retryAnswer(index) {
   const chat = getActiveChat();
   if (!chat || index !== chat.messages.length - 1) return;
 
-  const message = chat.messages[index];
-
-  if (!message || message.role !== "assistant") return;
+  const answer = chat.messages[index];
+  if (!answer || answer.role !== "assistant") return;
 
   chat.messages.pop();
 
-  if (chat.messages[chat.messages.length - 1]?.role !== "user") {
-    chat.messages.push(message);
+  const last = chat.messages[chat.messages.length - 1];
+
+  if (!last || last.role !== "user") {
+    chat.messages.push(answer);
     return;
   }
 
   saveChats();
   renderMessages();
-  await requestAssistant();
+
+  await requestAssistant({
+    research: Boolean(last.research),
+    query: last.query
+  });
 }
 
-/* -------------------- Mini oyun altyapısı -------------------- */
+/* -------------------- Mini oyunlar -------------------- */
 
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -548,7 +557,7 @@ function gameReply(userText, result) {
 function handleLocalCommand(text) {
   const command = text.trim().toLocaleLowerCase("tr-TR");
 
-  // Aktif sayı tahmin oyunu.
+  // Sayı tahmin oyunu
   if (activeGame?.type === "guess" && /^\d+$/.test(command)) {
     const guess = Number(command);
 
@@ -568,35 +577,25 @@ function handleLocalCommand(text) {
         `🎉 Doğru bildin! Sayı **${guess}** idi.\n\nDeneme sayın: **${attempts}**\n\nYeni oyun için \`/tahmin\` yaz.`
       );
     } else {
-      const hint = guess < activeGame.number ? "Daha büyük bir sayı dene." : "Daha küçük bir sayı dene.";
+      const hint = guess < activeGame.number
+        ? "Daha büyük bir sayı dene."
+        : "Daha küçük bir sayı dene.";
 
-      gameReply(
-        text,
-        `❌ ${hint}\n\nDeneme sayın: **${activeGame.attempts}**`
-      );
+      gameReply(text, `❌ ${hint}\n\nDeneme sayın: **${activeGame.attempts}**`);
     }
 
     return true;
   }
 
-  // Aktif matematik oyunu.
+  // Matematik oyunu
   if (activeGame?.type === "math" && /^-?\d+$/.test(command)) {
     const answer = Number(command);
-    const correct = answer === activeGame.answer;
-    activeGame.attempts++;
 
-    if (correct) {
+    if (answer === activeGame.answer) {
       activeGame = null;
-
-      gameReply(
-        text,
-        `🧠 **Doğru cevap!** Tebrikler! 🎉\n\nYeni soru için \`/matematik\` yaz.`
-      );
+      gameReply(text, "🧠 **Doğru cevap!** Tebrikler! 🎉\n\nYeni soru için `/matematik` yaz.");
     } else {
-      gameReply(
-        text,
-        `❌ Doğru cevap değil. Bir daha dene!\n\nİpucu: İşlemi tekrar kontrol et.`
-      );
+      gameReply(text, "❌ Doğru cevap değil. Bir daha dene!");
     }
 
     return true;
@@ -605,8 +604,7 @@ function handleLocalCommand(text) {
   if (command === "/oyun" || command === "/oyunlar") {
     activeGame = null;
 
-    gameReply(
-      text,
+    gameReply(text,
       "## 🎮 NOVA Mini Oyun Merkezi\n\n" +
       "- `/yazitura` — Yazı tura at\n" +
       "- `/zar` — Zar at\n" +
@@ -620,16 +618,9 @@ function handleLocalCommand(text) {
     return true;
   }
 
-  if (command === "/yazitura" || command === "/yazı tura") {
+  if (command === "/yazitura" || command === "/yazı tura" || command === "/yazı" || command === "/tura") {
     activeGame = null;
-
-    gameReply(
-      text,
-      Math.random() < 0.5
-        ? "🪙 Sonuç: **YAZI!**"
-        : "🪙 Sonuç: **TURA!**"
-    );
-
+    gameReply(text, Math.random() < 0.5 ? "🪙 Sonuç: **YAZI!**" : "🪙 Sonuç: **TURA!**");
     return true;
   }
 
@@ -642,17 +633,13 @@ function handleLocalCommand(text) {
   if (command.startsWith("/rps")) {
     activeGame = null;
 
-    const choice = command
-      .replace(/^\/rps\s*/, "")
-      .replace("kağıt", "kâğıt");
+    let choice = command.replace(/^\/rps\s*/, "");
+    choice = choice.replace(/kagit/g, "kâğıt").replace(/kağıt/g, "kâğıt");
 
     const choices = ["taş", "kâğıt", "makas"];
 
     if (!choices.includes(choice)) {
-      gameReply(
-        text,
-        "Taş-kâğıt-makas için `/rps taş`, `/rps kâğıt` veya `/rps makas` yaz."
-      );
+      gameReply(text, "Taş-kâğıt-makas için `/rps taş`, `/rps kâğıt` veya `/rps makas` yaz.");
       return true;
     }
 
@@ -668,11 +655,7 @@ function handleLocalCommand(text) {
         ? "Kazandın! 🎉"
         : "Bu turu ben kazandım! 😄";
 
-    gameReply(
-      text,
-      `Sen: **${choice}**\n\nNOVA: **${bot}**\n\n${result}`
-    );
-
+    gameReply(text, `Sen: **${choice}**\n\nNOVA: **${bot}**\n\n${result}`);
     return true;
   }
 
@@ -683,11 +666,7 @@ function handleLocalCommand(text) {
       attempts: 0
     };
 
-    gameReply(
-      text,
-      "🔢 **Sayı Tahmin Oyunu**\n\n1 ile 100 arasında bir sayı tuttum. Tahminini yaz!\n\nOyundan çıkmak için `/oyun` yazabilirsin."
-    );
-
+    gameReply(text, "🔢 **Sayı Tahmin Oyunu**\n\n1 ile 100 arasında bir sayı tuttum. Tahminini yaz!\n\nOyundan çıkmak için `/oyun` yaz.");
     return true;
   }
 
@@ -698,40 +677,27 @@ function handleLocalCommand(text) {
 
     activeGame = {
       type: "math",
-      answer: multiply ? a * b : a + b,
-      attempts: 0
+      answer: multiply ? a * b : a + b
     };
 
-    gameReply(
-      text,
-      `🧠 **Hızlı Matematik**\n\n${a} ${multiply ? "×" : "+"} ${b} = ?\n\nCevabını sayı olarak yaz.`
-    );
-
+    gameReply(text, `🧠 **Hızlı Matematik**\n\n${a} ${multiply ? "×" : "+"} ${b} = ?\n\nCevabını sayı olarak yaz.`);
     return true;
   }
 
-  if (command.startsWith("/secenek ")) {
+  if (command.startsWith("/secenek")) {
     activeGame = null;
 
     const options = text
-      .slice(9)
+      .replace(/^\/secenek\s*/i, "")
       .split(",")
       .map(option => option.trim())
       .filter(Boolean)
       .slice(0, 30);
 
     if (options.length < 2) {
-      gameReply(
-        text,
-        "En az iki seçenek yaz.\n\nÖrnek: `/secenek pizza, hamburger, döner`"
-      );
+      gameReply(text, "En az iki seçenek yaz.\n\nÖrnek: `/secenek pizza, hamburger, döner`");
     } else {
-      const chosen = options[randomInt(0, options.length - 1)];
-
-      gameReply(
-        text,
-        `🎯 NOVA'nın seçimi: **${chosen}**`
-      );
+      gameReply(text, `🎯 NOVA'nın seçimi: **${options[randomInt(0, options.length - 1)]}**`);
     }
 
     return true;
@@ -754,7 +720,6 @@ function sendMessage(content) {
 
   if (!getActiveChat()) createChat();
 
-  // Oyun komutlarını API çağırmadan çalıştır.
   if (handleLocalCommand(text)) {
     if (el.prompt) el.prompt.value = "";
     resizePrompt();
@@ -762,17 +727,14 @@ function sendMessage(content) {
     return;
   }
 
-  // /ara konusu doğrudan araştırma endpoint'ine gönderilir.
   const research = /^\/ara(?:\s|$)/i.test(text);
   const actualText = research
     ? text.replace(/^\/ara\s*/i, "").trim()
     : text;
 
-  if (!actualText) {
-    addMessage(
-      "assistant",
-      "Araştırmak istediğin konuyu yaz. Örnek: `/ara 2026 teknoloji haberleri`"
-    );
+  if (research && !actualText) {
+    if (!getActiveChat()) createChat();
+    addMessage("assistant", "Araştırmak istediğin konuyu yaz. Örnek: `/ara Fenerbahçe'nin bugünkü maçı`");
     return;
   }
 
@@ -780,14 +742,15 @@ function sendMessage(content) {
 
   addMessage(
     "user",
-    research ? `🌐 Araştır: ${actualText}` : actualText
+    research ? `🌐 Araştır: ${actualText}` : actualText,
+    research ? { research: true, query: actualText } : {}
   );
 
   if (el.prompt) el.prompt.value = "";
   resizePrompt();
   updateCount();
 
-  requestAssistant({ research });
+  requestAssistant({ research, query: actualText });
 }
 
 /* -------------------- Menü ve dışa aktarma -------------------- */
@@ -803,10 +766,7 @@ function toggleSidebar() {
 }
 
 function downloadText(filename, content) {
-  const blob = new Blob([content], {
-    type: "text/plain;charset=utf-8"
-  });
-
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
 
@@ -832,10 +792,7 @@ function exportChat() {
   const chat = getActiveChat();
 
   if (chat) {
-    downloadText(
-      `${chat.title || "nova-sohbet"}.txt`,
-      formatMessages(chat.messages)
-    );
+    downloadText(`${chat.title || "nova-sohbet"}.txt`, formatMessages(chat.messages));
   }
 }
 
@@ -881,7 +838,6 @@ el.history?.addEventListener("click", event => {
   }
 
   const open = event.target.closest("[data-chat-id]");
-
   if (open) openChat(open.dataset.chatId);
 });
 
@@ -896,10 +852,7 @@ el.messages?.addEventListener("click", async event => {
   const copy = event.target.closest("[data-copy-index]");
 
   if (copy) {
-    const message = getActiveChat()?.messages[
-      Number(copy.dataset.copyIndex)
-    ];
-
+    const message = getActiveChat()?.messages[Number(copy.dataset.copyIndex)];
     if (!message) return;
 
     try {
@@ -917,7 +870,6 @@ el.messages?.addEventListener("click", async event => {
   }
 
   const retry = event.target.closest("[data-retry-index]");
-
   if (retry) retryAnswer(Number(retry.dataset.retryIndex));
 });
 
@@ -943,7 +895,7 @@ document.addEventListener("keydown", event => {
   }
 });
 
-// İsteğe bağlı olarak tarayıcı konsolundan kullanılabilir.
+// İsteğe bağlı tarayıcı konsolu araçları.
 window.NOVA = {
   newChat: createChat,
   exportChat,
@@ -952,7 +904,7 @@ window.NOVA = {
   games: () => sendMessage("/oyun")
 };
 
-// İlk ekranı oluştur.
+// İlk ekran
 renderHistory();
 renderMessages();
 updateCount();
