@@ -11,7 +11,10 @@ const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
-// Model adlarını Render ortam değişkenlerinden değiştirebilirsin.
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVENLABS_VOICE_ID =
+  process.env.ELEVENLABS_VOICE_ID || "fXhoW006nc5Wf8xkGVSy";
+
 const GEMINI_MODEL =
   process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
@@ -23,7 +26,7 @@ app.use(express.json({ limit: "100kb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 // --------------------------------------------------
-// NOVA AI - TEMEL KİŞİLİK VE KALİTE TALİMATLARI
+// NOVA AI - KİŞİLİK TALİMATLARI
 // --------------------------------------------------
 
 const SYSTEM_INSTRUCTION = `
@@ -32,114 +35,48 @@ bir yapay zekâ asistanısın.
 
 KİŞİLİĞİN
 - Kullanıcıyla rahat, samimi ve doğal konuş.
-- Gerektiğinde "knk", "kanka" gibi ifadeler kullanabilirsin; ancak
-  her cümlede kullanma ve yapay bir samimiyet oluşturma.
-- Emoji kullanımı ölçülü olsun.
+- Gerektiğinde "knk", "kanka" gibi ifadeler kullanabilirsin.
+- Her cümlede samimi hitap kullanma.
+- Emoji kullanımın ölçülü olsun.
 - Kurumsal müşteri temsilcisi gibi konuşma.
-- Her cevaba "Merhaba", "Harika soru" veya "Yardımcı olmaktan
-  mutluluk duyarım" gibi kalıp ifadelerle başlama.
-- Kullanıcı kısa bir şey soruyorsa gereksiz yere uzun cevap verme.
-- Kullanıcı detaylı analiz istiyorsa gereken ayrıntıları sun.
+- Kalıp selamlamalarla her cevaba başlama.
+- Kısa sorulara kısa, detaylı sorulara yeterince ayrıntılı cevap ver.
 
 BAĞLAM VE DEVAMLILIK
 - Önceki mesajları dikkatle değerlendir.
-- Kullanıcının zaten verdiği bilgileri tekrar sorma.
-- "Peki bunu nasıl yapacağım?", "sonra ne yapayım?" gibi soruları
-  önceki konuşmaya göre yorumla.
-- Kullanıcının mevcut projesini, tercihlerini ve teknik seviyesini
-  konuşma geçmişinde gerçekten mevcut oldukları ölçüde kullan.
-- Önceki konuşmada belirlenmiş isimleri, değişkenleri, dosyaları ve
-  kısıtlamaları sebepsiz yere değiştirme.
+- Kullanıcının verdiği bilgileri gereksiz yere tekrar sorma.
+- Takip sorularını önceki konuşmaya göre yorumla.
 - Geçmişte verilmemiş bir bilgiyi hatırlıyormuş gibi davranma.
-- Konu belirsizse tek ve gerekli bir soru sor; gereksiz anket hazırlama.
+- Konu belirsizse tek ve gerekli bir soru sor.
 
-DOĞRULUK VE DÜRÜSTLÜK
-- Bir şeyi bilmiyorsan bunu açıkça söyle.
-- Tahminini doğrulanmış bilgi gibi sunma.
-- Gerçekten kontrol etmediğin bir internet sayfasını, dosyayı,
-  kodu veya uygulamayı kontrol etmiş gibi anlatma.
-- Bir kodun çalıştırılmadıysa test edildiğini iddia etme.
-- API, model, fiyat, sürüm ve güncel özellikler hakkında kesin
-  konuşmadan önce mümkünse araştırma yap.
-- Bir kaynak bir iddiayı desteklemiyorsa o kaynağı kanıt gibi gösterme.
-- Hata mesajı görmeden hatanın kesin sebebini bildiğini iddia etme.
-- Birden fazla makul açıklama varsa en olası olanı belirt ve
-  diğer ihtimalleri gerektiği kadar açıkla.
+DOĞRULUK
+- Bilmediğin konularda açık ol.
+- Tahminlerini doğrulanmış bilgi gibi sunma.
+- Kontrol etmediğin bir siteyi veya kodu kontrol etmiş gibi anlatma.
+- Test etmediğin kodun test edildiğini iddia etme.
+- Güncel ve teknik konularda mümkünse güvenilir kaynakları kullan.
 
-TEKNİK SORULARDA ÖZEL KURALLAR
-- Öncelikle kullanıcının kullandığı teknolojiye, sürüme ve mevcut
-  proje yapısına uygun cevap ver.
-- Kullanıcı Blueprint kullanıyorsa açıkça istemediği sürece çözümü
-  C++ koduna dönüştürme.
-- Kullanıcı bir kod veya Blueprint ekran görüntüsü paylaşırsa
-  önce onu incele; çalışan bölümleri sebepsiz yere değiştirme.
-- Bir düğüm, fonksiyon, değişken veya API adı uydurma.
-- İsmin doğruluğundan emin değilsen bunu belirt ve mümkünse
-  resmî dokümantasyondan kontrol et.
-- Bir özelliğin sürüme göre değişebileceğini göz önünde bulundur.
-- Kullanıcı acemiyse açıklamaları anlaşılır tut; fakat teknik
-  doğruluktan ödün verme.
-- Adımları uygulanabilir sırayla anlat.
-- Her adımda kullanıcının hangi sonucu görmesi gerektiğini açıkla.
-- Olası hata noktalarını ve nasıl kontrol edileceğini belirt.
-- Kullanıcının mevcut sistemini anlamadan büyük mimari değişiklikler
-  önermemeye çalış.
-- Kod isteniyorsa mümkün olduğunda çalıştırılabilir, eksiksiz kod ver.
-- Birden fazla dosya varsa hangi kodun hangi dosyaya ait olduğunu belirt.
-- Kullanıcı mevcut bir dosyanın tamamını istiyorsa yalnızca birkaç
-  satırlık yama verme; tam dosyayı sun.
-- Bir çözümün kesin çalışacağını garanti etme. Gerekirse test adımı ver.
+TEKNİK YARDIM
+- Kullanıcının mevcut proje yapısını korumaya çalış.
+- Çalışan sistemleri sebepsiz yere değiştirme.
+- Kodları anlaşılır ve uygulanabilir biçimde sun.
+- Hataların kesin nedenini, kanıt olmadan kesinleştirme.
+- Gerekli olduğunda hangi dosyanın değişeceğini belirt.
 
-UNREAL ENGINE ÖZEL KURALLARI
-- Kullanıcının Unreal Engine 5.8 ve Blueprint ile çalıştığını,
-  aksi belirtilmedikçe varsay.
-- Blueprint düğümlerinin İngilizce adlarını kullan; yanına gerektiğinde
+UNREAL ENGINE
+- Aksi belirtilmedikçe Unreal Engine 5.8 ve Blueprint varsay.
+- Blueprint düğümlerinin İngilizce adlarını kullan ve gerektiğinde
   Türkçe açıklama ekle.
-- Doğrulayamadığın düğüm adlarını kesinmiş gibi yazma.
-- Bir düğümün bulunamaması durumunda alternatif arama terimleri veya
-  doğru bağlamı açıklamayı düşün.
-- Blueprint bağlantılarını açıkça belirt: hangi düğümün hangi çıkışı,
-  diğer düğümün hangi girişine bağlanacak?
-- Değişken türlerini, varsayılan değerlerini ve gerekli ayarları belirt.
-- Bir C++ örneği verirsen Unreal'ın gerçek API'sine uygun olmasına
-  dikkat et; gerekli header, sınıf ve yaşam döngüsü gereksinimlerini
-  göz önünde bulundur.
-- Güncel veya sürüme özgü ayrıntılarda mümkünse Epic Games'in resmî
-  dokümantasyonunu esas al.
-- Kullanıcıdan ekran görüntüsü veya hata metni istemek, yanlış
-  düğümler uydurmaktan daha iyidir.
-
-ARAŞTIRMA VE KAYNAKLAR
-- Güncellik, teknik doğruluk veya kaynak gerektiren sorularda,
-  mevcut araştırma imkânlarını kullan.
-- Kaynakları gerçekten elde etmeden kaynak adı veya bağlantı uydurma.
-- Kaynaklı cevapta hangi bilginin doğrulandığını, hangisinin
-  çıkarım olduğunu gerektiğinde ayır.
-- Araştırma yapılamıyorsa bunu saklama; mevcut bilgine dayalı
-  cevabını bu sınırlamayla birlikte sun.
-- Kaynakları sırf cevap daha profesyonel görünsün diye ekleme.
-
-HATA AYIKLAMA
-- Önce sorunu daralt ve bilinen gerçekleri belirle.
-- Kullanıcının çalışan sistemini koru.
-- Gereksiz yere her şeyi sıfırdan yazdırma.
-- Muhtemel nedenleri öncelik sırasına göre değerlendir.
-- Bir değişiklik önerdiğinde neyi değiştirdiğini ve nedenini açıkla.
-- Kullanıcı sonucu bildirdiğinde bir sonraki adımı o sonuca göre seç.
+- Bağlantıları ve değişken türlerini açıkça anlat.
 
 YANIT KALİTESİ
-Her cevap öncesinde şu kontrolleri yap:
-1. Kullanıcının asıl sorusunu cevaplıyor muyum?
-2. Önceki bağlamı kullandım mı?
-3. Teknik isimler ve iddialar konusunda yeterince emin miyim?
-4. Gereksiz ayrıntı veya tekrar var mı?
-5. Kullanıcının uygulayabileceği net bir sonraki adım var mı?
-
-Bu kontrolleri kullanıcıya açıklama; doğrudan kaliteli cevap üret.
+- Soruyu doğrudan cevapla.
+- Gereksiz tekrar yapma.
+- Uygulanabilir bir sonraki adım sun.
 `;
 
 // --------------------------------------------------
-// İSTEK KONTROLÜ VE HIZ SINIRLARI
+// RATE LIMIT
 // --------------------------------------------------
 
 const chatLimiter = rateLimit({
@@ -162,12 +99,25 @@ const researchLimiter = rateLimit({
   }
 });
 
+const ttsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    error: "Ses üretme sınırına ulaştın. Biraz sonra tekrar dene."
+  }
+});
+
+// --------------------------------------------------
+// MESAJ İŞLEME
+// --------------------------------------------------
+
 function normalizeMessages(messages) {
   if (!Array.isArray(messages)) {
     throw new Error("Mesajlar bir liste olmalı.");
   }
 
-  // Yalnızca geçerli kullanıcı ve asistan mesajlarını kabul et.
   return messages
     .filter((message) =>
       message &&
@@ -189,7 +139,6 @@ function toGeminiContents(messages) {
     const role = message.role === "assistant" ? "model" : "user";
     const previous = contents[contents.length - 1];
 
-    // Gemini'de aynı rolden art arda gelen metinleri birleştir.
     if (previous && previous.role === role) {
       previous.parts[0].text += "\n\n" + message.content;
     } else {
@@ -200,7 +149,6 @@ function toGeminiContents(messages) {
     }
   }
 
-  // Gemini sohbeti bir kullanıcı mesajıyla bitmeli.
   while (contents.length && contents[0].role === "model") {
     contents.shift();
   }
@@ -264,7 +212,6 @@ async function fetchJson(url, options, timeoutMs = 45000) {
     if (!response.ok) {
       const error = new Error(
         data?.error?.message ||
-        data?.error?.message?.toString?.() ||
         `API isteği başarısız oldu (${response.status}).`
       );
 
@@ -288,7 +235,7 @@ async function askGemini(messages, options = {}) {
   }
 
   const url =
-    `https://generativelanguage.googleapis.com/v1beta/models/` +
+    "https://generativelanguage.googleapis.com/v1beta/models/" +
     `${encodeURIComponent(GEMINI_MODEL)}:generateContent`;
 
   const body = {
@@ -331,7 +278,7 @@ async function askGemini(messages, options = {}) {
 }
 
 // --------------------------------------------------
-// OPENROUTER YEDEĞİ
+// OPENROUTER
 // --------------------------------------------------
 
 async function askOpenRouter(messages, options = {}) {
@@ -359,9 +306,10 @@ async function askOpenRouter(messages, options = {}) {
     {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": process.env.APP_URL || "https://nova-ai-xxid.onrender.com",
+        "HTTP-Referer":
+          process.env.APP_URL || "https://nova-ai-xxid.onrender.com",
         "X-Title": "NOVA AI"
       },
       body: JSON.stringify({
@@ -379,7 +327,6 @@ async function askOpenRouter(messages, options = {}) {
     throw new Error("OpenRouter boş bir yanıt döndürdü.");
   }
 
-  // OpenRouter yanıtına doğrulanmamış kaynaklar eklemiyoruz.
   return {
     reply: reply.trim(),
     sources: [],
@@ -388,7 +335,7 @@ async function askOpenRouter(messages, options = {}) {
 }
 
 // --------------------------------------------------
-// SAĞLAYICI SEÇİMİ VE YEDEK SİSTEM
+// SAĞLAYICI SEÇİMİ
 // --------------------------------------------------
 
 async function generateAnswer(messages, options = {}) {
@@ -415,7 +362,7 @@ async function generateAnswer(messages, options = {}) {
   const error = new Error(
     errors.length
       ? "Yapay zekâ sağlayıcılarından yanıt alınamadı."
-      : "Sunucuda GEMINI_API_KEY veya OPENROUTER_API_KEY tanımlanmalı."
+      : "GEMINI_API_KEY veya OPENROUTER_API_KEY tanımlanmalı."
   );
 
   error.details = errors;
@@ -470,6 +417,85 @@ app.post("/api/chat", chatLimiter, async (req, res) => {
 });
 
 // --------------------------------------------------
+// ELEVENLABS - METİNDEN SES ÜRETME
+// --------------------------------------------------
+
+app.post("/api/tts", ttsLimiter, async (req, res) => {
+  try {
+    if (!ELEVENLABS_API_KEY) {
+      return res.status(503).json({
+        error: "ElevenLabs API anahtarı sunucuda tanımlı değil."
+      });
+    }
+
+    const text = req.body?.text;
+
+    if (typeof text !== "string" || !text.trim()) {
+      return res.status(400).json({
+        error: "Seslendirilecek metni gönder."
+      });
+    }
+
+    if (text.length > 2500) {
+      return res.status(400).json({
+        error: "Metin en fazla 2500 karakter olabilir."
+      });
+    }
+
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(ELEVENLABS_VOICE_ID)}?output_format=mp3_44100_128`,
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVENLABS_API_KEY,
+          "Content-Type": "application/json",
+          Accept: "audio/mpeg"
+        },
+        body: JSON.stringify({
+          text: text.trim(),
+          model_id: "eleven_flash_v2_5",
+          language_code: "tr",
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75
+          }
+        }),
+        signal: AbortSignal.timeout(45000)
+      }
+    );
+
+    if (!response.ok) {
+      const details = await response.text();
+
+      console.error(
+        "ElevenLabs TTS hatası:",
+        response.status,
+        details.slice(0, 500)
+      );
+
+      return res.status(502).json({
+        error:
+          "ElevenLabs ses üretemedi. API anahtarını, erişim izinlerini " +
+          "ve kredi limitini kontrol et."
+      });
+    }
+
+    const audio = Buffer.from(await response.arrayBuffer());
+
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Cache-Control", "no-store");
+
+    return res.send(audio);
+  } catch (error) {
+    console.error("TTS hatası:", error.message);
+
+    return res.status(502).json({
+      error: "Ses oluşturulamadı. Biraz sonra tekrar dene."
+    });
+  }
+});
+
+// --------------------------------------------------
 // WEB ARAŞTIRMASI
 // --------------------------------------------------
 
@@ -487,17 +513,12 @@ app.post("/api/research", researchLimiter, async (req, res) => {
 ${SYSTEM_INSTRUCTION}
 
 ARAŞTIRMA MODU
-Bu istek, normal sohbetten farklı olarak araştırma gerektiriyor.
-
 - Mümkünse web arama aracını kullan.
-- Öncelikle resmî dokümantasyon, birincil kaynaklar ve güvenilir
-  kaynaklardan gelen bilgileri değerlendir.
+- Öncelikle resmî dokümantasyon ve güvenilir kaynakları değerlendir.
 - Güncel bilgilerle genel bilgileri birbirinden ayır.
-- Kaynaklarda bulunmayan bir ayrıntıyı kaynaktan alınmış gibi gösterme.
-- Bir iddia doğrulanamıyorsa bunu açıkça söyle.
-- Teknik sorularda sürüm ve ürün adlarını dikkatle kontrol et.
-- Cevabı Türkçe, anlaşılır ve doğrudan hazırla.
-- Kaynaklar varsa sonuçta kısa bir kaynak listesi ver.
+- Kaynaklarda bulunmayan ayrıntıları kaynaklardan alınmış gibi gösterme.
+- Doğrulanamayan bilgileri açıkça belirt.
+- Cevabı Türkçe ve anlaşılır hazırla.
 - Gerçekten erişmediğin sayfaları kaynak olarak yazma.
 `;
 
@@ -517,8 +538,8 @@ Bu istek, normal sohbetten farklı olarak araştırma gerektiriyor.
 
     return res.status(502).json({
       error:
-        "Araştırma şu anda tamamlanamadı. API modelini, anahtarını " +
-        "ve sağlayıcının araştırma desteğini kontrol et."
+        "Araştırma tamamlanamadı. API modelini, anahtarını ve " +
+        "sağlayıcının araştırma desteğini kontrol et."
     });
   }
 });
