@@ -4,10 +4,10 @@
 /*
  * NOVA AI — Ücretsiz tarayıcı sesiyle sesli sohbet
  *
- * - Web Speech API: Türkçe konuşma tanıma
- * - speechSynthesis: Tarayıcının kendi sesleri
- * - ElevenLabs ve /api/tts gerekmez
- * - Mevcut app.js ve /api/chat korunur
+ * - Türkçe mikrofon desteği
+ * - Tarayıcının speechSynthesis seslendirmesi
+ * - ElevenLabs ve /api/tts kullanılmaz
+ * - Mevcut /api/chat endpoint'i korunur
  */
 
 (() => {
@@ -27,7 +27,6 @@
 
   const SpeechRecognition =
     window.SpeechRecognition || window.webkitSpeechRecognition;
-
   const synth = window.speechSynthesis;
 
   let recognition = null;
@@ -47,17 +46,16 @@
   function updateButtons() {
     toggleButton.setAttribute("aria-pressed", String(voiceEnabled));
     toggleButton.classList.toggle("active", voiceEnabled);
+    toggleButton.setAttribute(
+      "aria-label",
+      voiceEnabled ? "Sesli sohbeti kapat" : "Sesli sohbeti başlat"
+    );
 
     if (toggleLabel) {
       toggleLabel.textContent = voiceEnabled
         ? "Sesli sohbet açık"
         : "Sesli sohbeti başlat";
     }
-
-    toggleButton.setAttribute(
-      "aria-label",
-      voiceEnabled ? "Sesli sohbeti kapat" : "Sesli sohbeti başlat"
-    );
 
     stopButton.disabled = !voiceEnabled;
   }
@@ -66,19 +64,17 @@
     if (!synth) return null;
 
     const voices = synth.getVoices();
-
-    // Önce Türkçe sesleri bul.
     const turkishVoices = voices.filter((voice) =>
       voice.lang.toLowerCase().startsWith("tr")
     );
 
     if (!turkishVoices.length) return null;
 
-    // Varsa doğal/yerel Türkçe seslerden birini tercih et.
     return (
       turkishVoices.find((voice) =>
         /ahmet|emel|tolga|yelda|turkish/i.test(voice.name)
-      ) || turkishVoices.find((voice) => voice.localService) ||
+      ) ||
+      turkishVoices.find((voice) => voice.localService) ||
       turkishVoices[0]
     );
   }
@@ -111,7 +107,7 @@
     }
   }
 
-  function scheduleRecognitionRestart(delay = 450) {
+  function scheduleRecognitionRestart(delay = 500) {
     clearRestartTimer();
 
     if (!voiceEnabled || waitingForReply || speaking) return;
@@ -211,7 +207,7 @@
       console.warn("NOVA Voice: Tarayıcı ses hatası.", event.error);
 
       if (voiceEnabled) {
-        setVoiceStatus("Ses okunamadı. Yeniden dinlemeye geçiliyor.", "error");
+        setVoiceStatus("Ses okunamadı. Tekrar deneyebilirsin.", "error");
         scheduleRecognitionRestart(800);
       }
     };
@@ -264,6 +260,7 @@
       }
 
       const text = finalText.trim();
+
       if (!text || !voiceEnabled || waitingForReply || speaking) return;
 
       input.value = text;
@@ -297,7 +294,6 @@
         voiceEnabled = false;
         waitingForReply = false;
         updateButtons();
-
         setVoiceStatus(
           "Mikrofon izni verilmedi. Tarayıcı ayarlarından mikrofon iznini aç.",
           "error"
@@ -317,7 +313,7 @@
 
       if (event.error === "network") {
         setVoiceStatus(
-          "Konuşma tanıma bağlantı hatası verdi. İnternet gerekebilir.",
+          "Konuşma tanıma bağlantı hatası verdi. İnternet bağlantını kontrol et.",
           "error"
         );
       }
@@ -341,13 +337,14 @@
     waitingForReply = false;
     updateButtons();
 
-    setVoiceStatus("Mikrofon izni bekleniyor…", "listening");
+    setVoiceStatus("Mikrofon başlatılıyor…", "listening");
     startRecognition();
   }
 
   function stopVoiceChat() {
     voiceEnabled = false;
     waitingForReply = false;
+
     clearRestartTimer();
     stopSpeech();
 
@@ -373,20 +370,23 @@
 
   stopButton.addEventListener("click", stopVoiceChat);
 
-  // /api/chat yanıtını kopyadan okuyup tarayıcının sesiyle seslendirir.
+  /*
+   * /api/chat yanıtını yakalar.
+   * Beklenen JSON biçimi: { "reply": "NOVA yanıtı" }
+   * Yanıtın kendisini değiştirmeden döndürür.
+   */
   const originalFetch = window.fetch.bind(window);
 
   window.fetch = async (...args) => {
-    const requestUrl =
-      args[0] instanceof Request ? args[0].url : String(args[0]);
-
     let isChatRequest = false;
 
     try {
+      const requestUrl =
+        args[0] instanceof Request ? args[0].url : String(args[0]);
       const url = new URL(requestUrl, window.location.href);
       isChatRequest = url.pathname.endsWith("/api/chat");
     } catch {
-      isChatRequest = requestUrl.includes("/api/chat");
+      return originalFetch(...args);
     }
 
     let response;
@@ -413,8 +413,7 @@
         typeof data?.reply === "string" &&
         data.reply.trim()
       ) {
-        // Seslendirme sohbet yanıtının ekranda görünmesini geciktirmez.
-        void speakReply(data.reply);
+        speakReply(data.reply);
       } else {
         waitingForReply = false;
         setVoiceStatus(
@@ -424,9 +423,10 @@
         scheduleRecognitionRestart(900);
       }
     } catch (error) {
-      console.warn("NOVA Voice: Yanıt sesli sohbete aktarılamadı.", error);
+      console.warn("NOVA Voice: Yanıt seslendirilemedi.", error);
       waitingForReply = false;
       speaking = false;
+      setVoiceStatus("Yanıt okunamadı. Tekrar deneyebilirsin.", "error");
       scheduleRecognitionRestart(900);
     }
 
@@ -462,6 +462,6 @@
     }
   });
 
-  console.info("✦ NOVA Voice — ücretsiz tarayıcı sesi yüklendi.");
+  console.info("NOVA Voice: Ücretsiz tarayıcı sesi yüklendi.");
 })();
 ```
