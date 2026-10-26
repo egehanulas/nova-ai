@@ -1,15 +1,14 @@
-// NOVA AI — Sohbet uygulaması
-// API: POST /api/chat
-// Sohbet geçmişi tarayıcının localStorage alanında tutulur.
 
 const STORAGE_KEY = "nova_ai_chats_v1";
 const MAX_CHATS = 50;
 const MAX_LENGTH = 4000;
 const REQUEST_TIMEOUT = 90000;
 
-// Üç ters tırnak (kod bloğu işareti)
 const FENCE = "`".repeat(3);
-const CODE_BLOCK = new RegExp(FENCE + "([\\w+#-]*)[ \\t]*\\n?([\\s\\S]*?)" + FENCE, "g");
+const CODE_BLOCK = new RegExp(
+  FENCE + "([\\w+#.-]*)[ \\t]*\\n?([\\s\\S]*?)" + FENCE,
+  "g"
+);
 
 const el = {
   layout: document.getElementById("layout"),
@@ -30,8 +29,7 @@ const el = {
 let chats = loadChats();
 let activeChatId = chats[0]?.id ?? null;
 let busy = false;
-
-/* ---------- Yardımcılar ---------- */
+let requestId = 0;
 
 function createId() {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -41,8 +39,31 @@ function loadChats() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
     if (!Array.isArray(saved)) return [];
+
     return saved
-      .filter((c) => c && typeof c.id === "string" && Array.isArray(c.messages))
+      .filter(c =>
+        c &&
+        typeof c.id === "string" &&
+        Array.isArray(c.messages)
+      )
+      .map(c => ({
+        id: c.id,
+        title: String(c.title || "Yeni sohbet").slice(0, 100),
+        messages: c.messages
+          .filter(m =>
+            m &&
+            ["user", "assistant"].includes(m.role) &&
+            typeof m.content === "string"
+          )
+          .map(m => ({
+            role: m.role,
+            content: m.content.slice(0, MAX_LENGTH * 4),
+            ...(m.error ? { error: true } : {})
+          })),
+        createdAt: Number(c.createdAt) || Date.now(),
+        updatedAt: Number(c.updatedAt) || Date.now()
+      }))
+      .sort((a, b) => b.updatedAt - a.updatedAt)
       .slice(0, MAX_CHATS);
   } catch {
     return [];
@@ -51,41 +72,42 @@ function loadChats() {
 
 function saveChats() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(chats.slice(0, MAX_CHATS)));
+    chats.sort((a, b) => b.updatedAt - a.updatedAt);
+    chats = chats.slice(0, MAX_CHATS);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
   } catch {
-    // Depolama dolu ya da kapalıysa uygulama yine de çalışmaya devam eder.
+    setStatus("Geçmiş kaydedilemedi", true);
   }
 }
 
 function getActiveChat() {
-  return chats.find((chat) => chat.id === activeChatId) ?? null;
+  return chats.find(c => c.id === activeChatId) ?? null;
 }
 
 function escapeHTML(value = "") {
-  return String(value).replace(/[&<>"']/g, (char) => ({
+  return String(value).replace(/[&<>"']/g, char => ({
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
     '"': "&quot;",
-    "'": "&#39;",
+    "'": "&#39;"
   })[char]);
 }
-
-/* ---------- Markdown ---------- */
 
 function renderMarkdown(text = "") {
   const blocks = [];
   const inlines = [];
 
-  // Kod bloklarını ayır, böylece içlerindeki *, # gibi karakterler bozulmaz.
   let html = String(text).replace(CODE_BLOCK, (_, lang, code) => {
-    blocks.push({ lang: lang || "kod", code: code.replace(/\n$/, "") });
+    blocks.push({
+      lang: lang || "kod",
+      code: code.replace(/\n$/, "")
+    });
     return `\u0000B${blocks.length - 1}\u0000`;
   });
 
   html = escapeHTML(html);
 
-  // Satır içi kodları ayır
   html = html.replace(/`([^`\n]+)`/g, (_, code) => {
     inlines.push(code);
     return `\u0000I${inlines.length - 1}\u0000`;
@@ -100,21 +122,22 @@ function renderMarkdown(text = "") {
     .replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>")
     .replace(/^[*-] (.+)$/gm, "<li>$1</li>")
     .replace(/^\d+\. (.+)$/gm, "<li>$1</li>")
-    .replace(/(?:<li>.*<\/li>\n?)+/g, (list) => `<ul>${list.replace(/\n/g, "")}</ul>`)
+    .replace(/(?:<li>.*<\/li>\n?)+/g, list =>
+      `<ul>${list.replace(/\n/g, "")}</ul>`
+    )
     .replace(/\n?(<\/?(?:ul|h[1-3]|blockquote)>)\n?/g, "$1")
     .replace(/\n?(\u0000B\d+\u0000)\n?/g, "$1")
     .replace(/\n/g, "<br>");
 
-  // Ayırdığımız parçaları geri koy
   return html
-    .replace(/\u0000I(\d+)\u0000/g, (_, i) => `<code>${inlines[i]}</code>`)
+    .replace(/\u0000I(\d+)\u0000/g, (_, i) =>
+      `<code>${inlines[Number(i)]}</code>`
+    )
     .replace(/\u0000B(\d+)\u0000/g, (_, i) => {
-      const { lang, code } = blocks[i];
-      return `<pre class="nova-code-block"><div class="code-header">${escapeHTML(lang)}</div><code>${escapeHTML(code)}</code></pre>`;
+      const block = blocks[Number(i)];
+      return `<pre class="nova-code-block"><div class="code-header">${escapeHTML(block.lang)}</div><code>${escapeHTML(block.code)}</code></pre>`;
     });
 }
-
-/* ---------- Görünüm ---------- */
 
 function renderHistory() {
   if (!el.history) return;
@@ -123,15 +146,18 @@ function renderHistory() {
     el.historyHint.style.display = chats.length ? "none" : "";
   }
 
-  el.history.innerHTML = chats.map((chat) => `
+  el.history.innerHTML = chats.map(chat => `
     <div class="history-row ${chat.id === activeChatId ? "active" : ""}" role="listitem">
-      <button type="button" class="history-item" data-chat-id="${escapeHTML(chat.id)}"
-              title="${escapeHTML(chat.title)}"${chat.id === activeChatId ? ' aria-current="true"' : ""}>
+      <button type="button" class="history-item"
+        data-chat-id="${escapeHTML(chat.id)}"
+        title="${escapeHTML(chat.title)}"
+        ${chat.id === activeChatId ? 'aria-current="true"' : ""}>
         <span class="history-icon" aria-hidden="true">◷</span>
         <span class="history-title">${escapeHTML(chat.title)}</span>
       </button>
-      <button type="button" class="history-delete" data-delete-id="${escapeHTML(chat.id)}"
-              aria-label="Sohbeti sil" title="Sohbeti sil">×</button>
+      <button type="button" class="history-delete"
+        data-delete-id="${escapeHTML(chat.id)}"
+        aria-label="Sohbeti sil" title="Sohbeti sil">×</button>
     </div>
   `).join("");
 }
@@ -141,12 +167,17 @@ function renderMessages() {
 
   const chat = getActiveChat();
 
-  if (!chat || (chat.messages.length === 0 && !busy)) {
+  if (!chat || (!chat.messages.length && !busy)) {
     el.messages.innerHTML = `
       <div class="welcome">
         <div class="welcome-icon">✦</div>
         <h1>Merhaba, ben NOVA.</h1>
         <p>Bugün sana nasıl yardımcı olabilirim?</p>
+        <div class="nova-quick-actions">
+          <button type="button" data-prompt="Bana yeni fikirler öner.">✦ Fikir üret</button>
+          <button type="button" data-prompt="/oyun">🎮 Mini oyunlar</button>
+          <button type="button" data-prompt="/ara Bugünün önemli teknoloji haberleri">🌐 İnternette araştır</button>
+        </div>
       </div>
     `;
     return;
@@ -156,18 +187,21 @@ function renderMessages() {
 
   let html = chat.messages.map((message, index) => {
     const isUser = message.role === "user";
-    const classes = ["message", isUser ? "user-message" : "assistant-message"];
+    const classes = [
+      "message",
+      isUser ? "user-message" : "assistant-message"
+    ];
+
     if (message.error) classes.push("error-message");
 
     let actions = "";
-    if (!isUser) {
-      if (!message.error) {
-        actions += `<button type="button" data-copy-index="${index}" title="Yanıtı kopyala">Kopyala</button>`;
-      }
-      // "Yeniden dene" yalnızca en son yanıtta görünür.
-      if (index === lastIndex && !busy) {
-        actions += `<button type="button" data-retry-index="${index}" title="Yanıtı yeniden oluştur">Yeniden dene</button>`;
-      }
+
+    if (!isUser && !message.error) {
+      actions += `<button type="button" data-copy-index="${index}">Kopyala</button>`;
+    }
+
+    if (!isUser && index === lastIndex && !busy) {
+      actions += `<button type="button" data-retry-index="${index}">Yeniden dene</button>`;
     }
 
     const content = isUser || message.error
@@ -205,7 +239,9 @@ function renderMessages() {
 function setStatus(message, isError = false) {
   if (!el.status) return;
 
-  el.status.innerHTML = `<i aria-hidden="true"></i><span>${escapeHTML(message)}</span>`;
+  el.status.innerHTML =
+    `<i aria-hidden="true"></i><span>${escapeHTML(message)}</span>`;
+
   el.status.classList.toggle("error", isError);
   el.status.classList.toggle("busy", busy && !isError);
 }
@@ -232,40 +268,42 @@ function setBusy(value, failure = null) {
 
 function updateCount() {
   if (!el.count || !el.prompt) return;
+
   const length = el.prompt.value.length;
-  el.count.textContent = length > 3000 ? `${length} / ${MAX_LENGTH}` : "";
+  el.count.textContent = length > 3000
+    ? `${length} / ${MAX_LENGTH}`
+    : "";
 }
 
 function resizePrompt() {
   if (!el.prompt) return;
+
   el.prompt.style.height = "auto";
   el.prompt.style.height = `${Math.min(el.prompt.scrollHeight, 180)}px`;
 }
 
-/* ---------- Sohbet işlemleri ---------- */
-
 function createChat() {
   if (busy) return;
 
-  // Zaten boş bir sohbet varsa yenisini oluşturma, ona geç.
-  const empty = chats.find((chat) => chat.messages.length === 0);
+  const empty = chats.find(c => c.messages.length === 0);
 
   if (empty) {
     activeChatId = empty.id;
   } else {
+    const now = Date.now();
     const chat = {
       id: createId(),
       title: "Yeni sohbet",
       messages: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: now,
+      updatedAt: now
     };
 
     chats.unshift(chat);
     activeChatId = chat.id;
-    saveChats();
   }
 
+  saveChats();
   renderHistory();
   renderMessages();
   closeSidebar();
@@ -273,8 +311,7 @@ function createChat() {
 }
 
 function openChat(id) {
-  if (busy) return;
-  if (!chats.some((chat) => chat.id === id)) return;
+  if (busy || !chats.some(c => c.id === id)) return;
 
   activeChatId = id;
   renderHistory();
@@ -283,10 +320,10 @@ function openChat(id) {
 }
 
 function deleteChat(id) {
-  if (busy) return;
+  if (busy || !chats.some(c => c.id === id)) return;
   if (!confirm("Bu sohbet silinsin mi?")) return;
 
-  chats = chats.filter((chat) => chat.id !== id);
+  chats = chats.filter(c => c.id !== id);
 
   if (activeChatId === id) {
     activeChatId = chats[0]?.id ?? null;
@@ -300,7 +337,7 @@ function deleteChat(id) {
 function addMessage(role, content, { chat = getActiveChat(), error = false } = {}) {
   if (!chat) return;
 
-  const message = { role, content };
+  const message = { role, content: String(content) };
   if (error) message.error = true;
 
   chat.messages.push(message);
@@ -312,10 +349,10 @@ function addMessage(role, content, { chat = getActiveChat(), error = false } = {
 
   saveChats();
   renderHistory();
-  renderMessages();
+
+  if (chat.id === activeChatId) renderMessages();
 }
 
-// Hata mesajlarını modele gönderme, arka arkaya gelen kullanıcı mesajlarını birleştir.
 function buildPayload(chat) {
   const payload = [];
 
@@ -334,13 +371,35 @@ function buildPayload(chat) {
   return payload;
 }
 
-async function requestAssistant() {
+async function postJSON(url, body, signal) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      data.error ||
+      data.message ||
+      `Sunucu hatası (${response.status})`
+    );
+  }
+
+  return data;
+}
+
+async function requestAssistant({ research = false } = {}) {
   const chat = getActiveChat();
   if (!chat || busy) return;
 
   const last = chat.messages[chat.messages.length - 1];
   if (!last || last.role !== "user") return;
 
+  const thisRequest = ++requestId;
   setBusy(true);
 
   const controller = new AbortController();
@@ -348,18 +407,14 @@ async function requestAssistant() {
   let failure = null;
 
   try {
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: buildPayload(chat) }),
-      signal: controller.signal,
-    });
+    const endpoint = research ? "/api/research" : "/api/chat";
 
-    const data = await response.json().catch(() => ({}));
+    const data = await postJSON(endpoint, {
+      messages: buildPayload(chat),
+      query: last.content
+    }, controller.signal);
 
-    if (!response.ok) {
-      throw new Error(data.error || data.message || `Sunucu hatası (${response.status})`);
-    }
+    if (thisRequest !== requestId) return;
 
     const reply = data.reply ?? data.text ?? data.message;
 
@@ -367,22 +422,42 @@ async function requestAssistant() {
       throw new Error("NOVA boş yanıt döndürdü.");
     }
 
-    addMessage("assistant", reply.trim(), { chat });
+    let finalReply = reply.trim();
+
+    // Araştırma API'si sources dizisi döndürürse kaynakları ekle.
+    if (research && Array.isArray(data.sources) && data.sources.length) {
+      const sourceText = data.sources
+        .filter(s => s && typeof s.url === "string" && /^https?:\/\//i.test(s.url))
+        .slice(0, 8)
+        .map((s, i) => `${i + 1}. [${String(s.title || s.url).slice(0, 150)}](${s.url})`)
+        .join("\n");
+
+      if (sourceText) finalReply += `\n\n### Kaynaklar\n${sourceText}`;
+    }
+
+    addMessage("assistant", finalReply, { chat });
   } catch (error) {
-    let text = error.message;
+    if (thisRequest !== requestId) return;
+
     failure = "Bağlantı hatası";
+    let message = error.message || "Beklenmeyen bir hata oluştu.";
 
     if (error.name === "AbortError") {
       failure = "Zaman aşımı";
-      text = "İstek zaman aşımına uğradı. Lütfen tekrar dene.";
+      message = "İstek zaman aşımına uğradı. Tekrar deneyebilirsin.";
     } else if (error instanceof TypeError) {
-      text = "Sunucuya ulaşılamadı. İnternet bağlantını ve sunucunun çalıştığını kontrol et.";
+      message = research
+        ? "Araştırma servisine ulaşılamadı. Sunucuda /api/research endpoint'i tanımlı mı?"
+        : "Sunucuya ulaşılamadı. İnternet bağlantını ve sunucunun çalıştığını kontrol et.";
     }
 
-    addMessage("assistant", text, { chat, error: true });
+    addMessage("assistant", message, { chat, error: true });
   } finally {
     clearTimeout(timeout);
-    setBusy(false, failure);
+
+    if (thisRequest === requestId) {
+      setBusy(false, failure);
+    }
   }
 }
 
@@ -408,21 +483,140 @@ async function retryAnswer(index) {
 }
 
 function sendMessage(content) {
-  const text = content.trim();
+  const text = String(content).trim();
   if (!text || busy) return;
+
+  if (text.length > MAX_LENGTH) {
+    alert(`Mesaj en fazla ${MAX_LENGTH} karakter olabilir.`);
+    return;
+  }
 
   if (!getActiveChat()) createChat();
 
-  addMessage("user", text);
+  // Mini oyunlar sunucuya istek göndermeden çalışır.
+  if (handleLocalCommand(text)) {
+    if (el.prompt) el.prompt.value = "";
+    resizePrompt();
+    updateCount();
+    return;
+  }
+
+  const research = /^\/ara(?:\s|$)/i.test(text);
+  const actualText = research ? text.replace(/^\/ara\s*/i, "").trim() : text;
+
+  if (!actualText) {
+    addMessage("assistant", "Araştırmak istediğin konuyu `/ara konu` biçiminde yaz.");
+    return;
+  }
+
+  addMessage("user", research ? `🌐 Araştır: ${actualText}` : actualText);
 
   if (el.prompt) el.prompt.value = "";
   resizePrompt();
   updateCount();
 
-  requestAssistant();
+  requestAssistant({ research });
 }
 
-/* ---------- Menü ---------- */
+/* ---------- Mini oyunlar ---------- */
+
+function gameReply(userText, result) {
+  if (!getActiveChat()) createChat();
+
+  addMessage("user", userText);
+  addMessage("assistant", result);
+}
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function handleLocalCommand(text) {
+  const command = text.trim().toLowerCase();
+
+  if (command === "/oyun" || command === "/oyunlar") {
+    gameReply(text,
+      "## 🎮 NOVA Mini Oyun Merkezi\n\n" +
+      "- `/yazitura` — Yazı tura at\n" +
+      "- `/zar` — Zar at\n" +
+      "- `/rps taş` — Taş-kâğıt-makas oyna\n" +
+      "- `/tahmin` — 1–100 arasında sayı tahmin et\n" +
+      "- `/matematik` — Hızlı matematik sorusu\n" +
+      "- `/secenek A, B, C` — Rastgele seçenek seç\n\n" +
+      "Komutlardan birini yazıp gönder!"
+    );
+    return true;
+  }
+
+  if (command === "/yazitura" || command === "/yazı tura") {
+    gameReply(text, Math.random() < 0.5 ? "🪙 Sonuç: **YAZI!**" : "🪙 Sonuç: **TURA!**");
+    return true;
+  }
+
+  if (command === "/zar") {
+    const die = randomInt(1, 6);
+    gameReply(text, `🎲 Zar sonucu: **${die}**`);
+    return true;
+  }
+
+  if (command.startsWith("/rps")) {
+    const choice = command.replace(/^\/rps\s*/, "");
+    const choices = ["taş", "kâğıt", "makas"];
+
+    if (!choices.includes(choice)) {
+      gameReply(text, "Taş-kâğıt-makas için `/rps taş`, `/rps kâğıt` veya `/rps makas` yaz.");
+      return true;
+    }
+
+    const bot = choices[randomInt(0, 2)];
+    let result = choice === bot
+      ? "Berabere! 🤝"
+      : (
+        (choice === "taş" && bot === "makas") ||
+        (choice === "kâğıt" && bot === "taş") ||
+        (choice === "makas" && bot === "kâğıt")
+      ) ? "Kazandın! 🎉" : "Bu turu ben kazandım! 😄";
+
+    gameReply(text, `Sen: **${choice}**\n\nNOVA: **${bot}**\n\n${result}`);
+    return true;
+  }
+
+  if (command === "/tahmin") {
+    const number = randomInt(1, 100);
+    gameReply(text,
+      `🔢 Aklımdan 1 ile 100 arasında bir sayı tuttum. Bu turdaki sayı **${number}**.\n\n` +
+      "Bu basit sürümde sayı doğrudan gösterilir; sonraki geliştirmede tahminleri takip eden gerçek bir oyun arayüzü ekleyebiliriz."
+    );
+    return true;
+  }
+
+  if (command === "/matematik") {
+    const a = randomInt(2, 30);
+    const b = randomInt(2, 30);
+    const op = randomInt(0, 1) ? "+" : "×";
+    const answer = op === "+" ? a + b : a * b;
+
+    gameReply(text,
+      `🧠 **Hızlı matematik:** ${a} ${op} ${b} = ?\n\nCevap: **${answer}**`
+    );
+    return true;
+  }
+
+  if (command.startsWith("/secenek ")) {
+    const options = text.slice(9).split(",").map(s => s.trim()).filter(Boolean);
+
+    if (options.length < 2) {
+      gameReply(text, "En az iki seçenek yaz. Örnek: `/secenek pizza, hamburger, döner`");
+    } else {
+      gameReply(text, `🎯 NOVA'nın seçimi: **${options[randomInt(0, options.length - 1)]}**`);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+/* ---------- Menü ve dışa aktarma ---------- */
 
 function closeSidebar() {
   el.layout?.classList.remove("sidebar-open");
@@ -434,8 +628,6 @@ function toggleSidebar() {
   el.menu?.setAttribute("aria-expanded", String(Boolean(open)));
 }
 
-/* ---------- Dışa aktarma ---------- */
-
 function downloadText(filename, content) {
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -443,28 +635,28 @@ function downloadText(filename, content) {
 
   link.href = url;
   link.download = filename;
+  document.body.appendChild(link);
   link.click();
+  link.remove();
 
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function formatMessages(messages) {
   return messages
-    .filter((message) => !message.error)
-    .map((message) => `${message.role === "user" ? "Sen" : "NOVA AI"}:\n${message.content}`)
+    .filter(m => !m.error)
+    .map(m => `${m.role === "user" ? "Sen" : "NOVA AI"}:\n${m.content}`)
     .join("\n\n--------------------\n\n");
 }
 
 function exportChat() {
   const chat = getActiveChat();
-  if (!chat) return;
-
-  downloadText(`${chat.title || "nova-sohbet"}.txt`, formatMessages(chat.messages));
+  if (chat) downloadText(`${chat.title || "nova-sohbet"}.txt`, formatMessages(chat.messages));
 }
 
 function exportAllChats() {
   const content = chats
-    .map((chat) => `# ${chat.title}\n\n${formatMessages(chat.messages)}`)
+    .map(chat => `# ${chat.title}\n\n${formatMessages(chat.messages)}`)
     .join("\n\n====================\n\n");
 
   downloadText("nova-tum-sohbetler.txt", content);
@@ -478,12 +670,12 @@ el.scrim?.addEventListener("click", closeSidebar);
 
 if (el.form) el.form.noValidate = true;
 
-el.form?.addEventListener("submit", (event) => {
+el.form?.addEventListener("submit", event => {
   event.preventDefault();
   sendMessage(el.prompt?.value || "");
 });
 
-el.prompt?.addEventListener("keydown", (event) => {
+el.prompt?.addEventListener("keydown", event => {
   if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
     event.preventDefault();
     el.form?.requestSubmit();
@@ -495,8 +687,7 @@ el.prompt?.addEventListener("input", () => {
   updateCount();
 });
 
-// Sohbet geçmişi: aç / sil
-el.history?.addEventListener("click", (event) => {
+el.history?.addEventListener("click", event => {
   const remove = event.target.closest("[data-delete-id]");
   if (remove) return deleteChat(remove.dataset.deleteId);
 
@@ -504,8 +695,13 @@ el.history?.addEventListener("click", (event) => {
   if (open) openChat(open.dataset.chatId);
 });
 
-// Mesajlar: kopyala / yeniden dene
-el.messages?.addEventListener("click", async (event) => {
+el.messages?.addEventListener("click", async event => {
+  const quick = event.target.closest("[data-prompt]");
+  if (quick) {
+    sendMessage(quick.dataset.prompt);
+    return;
+  }
+
   const copy = event.target.closest("[data-copy-index]");
 
   if (copy) {
@@ -515,7 +711,9 @@ el.messages?.addEventListener("click", async (event) => {
     try {
       await navigator.clipboard.writeText(message.content);
       copy.textContent = "Kopyalandı ✓";
-      setTimeout(() => { copy.textContent = "Kopyala"; }, 1500);
+      setTimeout(() => {
+        if (copy.isConnected) copy.textContent = "Kopyala";
+      }, 1500);
     } catch {
       alert("Kopyalama başarısız oldu. Metni seçip kopyalayabilirsin.");
     }
@@ -526,8 +724,7 @@ el.messages?.addEventListener("click", async (event) => {
   if (retry) retryAnswer(Number(retry.dataset.retryIndex));
 });
 
-// Klavye kısayolları: Esc menüyü kapatır, N yeni sohbet açar.
-document.addEventListener("keydown", (event) => {
+document.addEventListener("keydown", event => {
   if (event.key === "Escape") closeSidebar();
 
   const active = document.activeElement;
@@ -537,7 +734,13 @@ document.addEventListener("keydown", (event) => {
     active.isContentEditable
   );
 
-  if (!typing && !event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === "n") {
+  if (
+    !typing &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey &&
+    event.key.toLowerCase() === "n"
+  ) {
     event.preventDefault();
     createChat();
   }
@@ -547,7 +750,11 @@ window.NOVA = {
   newChat: createChat,
   exportChat,
   exportAllChats,
+  research: query => sendMessage(`/ara ${query}`),
+  games: () => sendMessage("/oyun"),
 };
 
 renderHistory();
 renderMessages();
+updateCount();
+resizePrompt();
