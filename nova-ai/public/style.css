@@ -1,45 +1,38 @@
+
 /* =========================================================
    NOVA AI — PROFESYONEL ARAYÜZ
-   Mevcut index.html, app.js ve voice.js ile uyumlu
+   index.html, app.js ve voice.js ile uyumlu
    ========================================================= */
 
 :root {
   color-scheme: dark;
-
   --bg: #090b12;
   --bg-soft: #0d1019;
   --sidebar: #0b0e16;
   --panel: rgba(17, 21, 33, 0.82);
   --panel-hover: rgba(255, 255, 255, 0.055);
-
   --text: #f2f3fb;
   --text-soft: #c5c9d9;
   --muted: #858ba2;
   --muted-dark: #60677e;
-
   --accent: #a18aff;
   --accent-strong: #8b73ff;
   --accent-blue: #6c9dff;
   --accent-soft: rgba(139, 115, 255, 0.12);
-
   --border: rgba(170, 180, 220, 0.11);
   --border-strong: rgba(170, 180, 220, 0.19);
-
   --success: #70e2b0;
   --danger: #ff8495;
-
   --sidebar-width: 280px;
   --content-width: 850px;
-
   --radius-sm: 9px;
   --radius-md: 14px;
   --radius-lg: 20px;
   --radius-xl: 26px;
-
   --transition: 180ms ease;
 }
 
-/* ---------- Temel ---------- */
+/* Temel */
 
 * {
   box-sizing: border-box;
@@ -64,8 +57,7 @@ body {
     radial-gradient(ellipse at 75% 0%, rgba(78, 67, 155, 0.08), transparent 40%),
     var(--bg);
   color: var(--text);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
@@ -121,7 +113,7 @@ a {
   background: rgba(161, 138, 255, 0.45);
 }
 
-/* ---------- Arka plan ışıkları ---------- */
+/* Arka plan ışıkları */
 
 .ambient {
   position: fixed;
@@ -148,7 +140,7 @@ a {
   background: rgba(55, 111, 220, 0.075);
 }
 
-/* ---------- Ana düzen ---------- */
+/* Ana düzen */
 
 .layout {
   position: relative;
@@ -171,7 +163,7 @@ a {
   overflow: hidden;
 }
 
-/* ---------- Sol menü ---------- */
+/* Sol menü */
 
 .sidebar {
   position: relative;
@@ -197,23 +189,15 @@ a {
   text-decoration: none;
 }
 
-.logo {
-  display: grid;
+.logo-image {
+  display: block;
   flex: 0 0 43px;
   width: 43px;
   height: 43px;
-  place-items: center;
-  border: 1px solid rgba(208, 194, 255, 0.36);
-  border-radius: 15px;
-  background:
-    radial-gradient(circle at 25% 15%, rgba(255,255,255,.35), transparent 45%),
-    linear-gradient(145deg, #aa96ff 0%, #7e6bfa 48%, #527ee7 100%);
-  box-shadow:
-    0 5px 24px rgba(119, 93, 255, 0.23),
-    inset 0 1px rgba(255, 255, 255, 0.25);
-  color: #fff;
-  font-size: 25px;
-  line-height: 1;
+  object-fit: contain;
+  border: 1px solid rgba(208, 194, 255, 0.25);
+  border-radius: 14px;
+  box-shadow: 0 5px 24px rgba(119, 93, 255, 0.16);
 }
 
 .brand-copy {
@@ -252,20 +236,13 @@ a {
   padding: 10px 13px;
   border: 1px solid rgba(167, 144, 255, 0.3);
   border-radius: 13px;
-  background: linear-gradient(
-    110deg,
-    rgba(139, 115, 255, 0.15),
-    rgba(99, 132, 255, 0.07)
-  );
+  background: linear-gradient(110deg, rgba(139, 115, 255, 0.15), rgba(99, 132, 255, 0.07));
   color: #f0edff;
   font-size: 13px;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
-  transition:
-    background var(--transition),
-    border-color var(--transition),
-    transform var(--transition);
+  transition: background var(--transition), border-color var(--transition), transform var(--transition);
 }
 
 .new-chat:hover {
@@ -313,9 +290,7 @@ a {
   background: transparent;
   text-align: left;
   cursor: pointer;
-  transition:
-    background var(--transition),
-    border-color var(--transition);
+  transition: background var(--transition), border-color var(--transition);
 }
 
 .research-toggle:hover {
@@ -412,6 +387,11 @@ a {
   padding: 0 0 12px;
 }
 
+.history-row {
+  display: flex;
+  min-width: 0;
+}
+
 .history-item {
   display: block;
   width: 100%;
@@ -427,10 +407,7 @@ a {
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
-  transition:
-    color var(--transition),
-    background var(--transition),
-    border-color var(--transition);
+  transition: color var(--transition), background var(--transition), border-color var(--transition);
 }
 
 .history-item::before {
@@ -484,17 +461,14 @@ a {
 }
 
 .profile-avatar {
-  display: grid;
+  display: block;
   flex: 0 0 34px;
   width: 34px;
   height: 34px;
-  place-items: center;
-  border: 1px solid rgba(171, 151, 255, 0.28);
-  border-radius: 11px;
-  background: linear-gradient(145deg, #3d345f, #252b47);
-  color: #d5caff;
-  font-size: 14px;
-  font-weight: 800;
+  object-fit: contain;
+  border: 1px solid rgba(171, 151, 255, 0.22);
+  border-radius: 10px;
+  background: transparent;
 }
 
 .profile-copy {
@@ -542,7 +516,7 @@ a {
   color: #626980;
 }
 
-/* ---------- Üst çubuk ---------- */
+/* Üst çubuk */
 
 .topbar {
   position: relative;
@@ -606,8 +580,6 @@ a {
   color: #b4a3ff;
   font-size: 14px;
 }
-
-/* Mobil menü butonu */
 
 .menu {
   display: none;
@@ -674,7 +646,7 @@ a {
   box-shadow: 0 0 9px rgba(255, 132, 149, 0.5);
 }
 
-/* ---------- Mesaj alanı ---------- */
+/* Mesaj alanı */
 
 .messages {
   position: relative;
@@ -693,8 +665,9 @@ a {
   scrollbar-gutter: stable;
 }
 
-/* Boş sohbet karşılama ekranı */
+/* Karşılama ekranı: app.js hem .welcome hem .welcome-message kullanabilir */
 
+.welcome,
 .welcome-message {
   position: relative;
   display: flex;
@@ -714,31 +687,41 @@ a {
   animation: nova-appear 0.45s ease both;
 }
 
-.welcome-message::before {
-  content: "✦";
+.welcome-icon {
   display: grid;
   width: 64px;
   height: 64px;
   margin-bottom: 24px;
   place-items: center;
+  overflow: hidden;
   border: 1px solid rgba(185, 167, 255, 0.3);
   border-radius: 22px;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(255,255,255,.17), transparent 50%),
-    linear-gradient(145deg, rgba(139,115,255,.2), rgba(80,116,225,.12));
-  box-shadow:
-    0 12px 40px rgba(94, 72, 200, 0.12),
-    inset 0 1px rgba(255,255,255,.1);
+  background: linear-gradient(145deg, rgba(139, 115, 255, 0.2), rgba(80, 116, 225, 0.12));
+  box-shadow: 0 12px 40px rgba(94, 72, 200, 0.12), inset 0 1px rgba(255, 255, 255, 0.1);
   color: #c4b6ff;
   font-size: 31px;
   letter-spacing: 0;
 }
 
-.welcome-message::after {
-  content: "Sorularını sor, fikirlerini geliştir ve birlikte yeni şeyler keşfet.";
+.welcome-icon img {
   display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.welcome h1 {
+  margin: 0;
+  color: #e8e7f5;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+
+.welcome p {
   max-width: 390px;
-  margin-top: 14px;
+  margin: 14px 0 0;
   color: #858ba2;
   font-size: 13px;
   font-weight: 400;
@@ -777,11 +760,7 @@ a {
   padding: 13px 17px;
   border: 1px solid rgba(163, 146, 255, 0.17);
   border-radius: 19px 19px 5px 19px;
-  background: linear-gradient(
-    135deg,
-    rgba(115, 96, 219, 0.22),
-    rgba(78, 104, 181, 0.16)
-  );
+  background: linear-gradient(135deg, rgba(115, 96, 219, 0.22), rgba(78, 104, 181, 0.16));
   color: #f0efff;
   line-height: 1.75;
 }
@@ -792,32 +771,61 @@ a {
   line-height: 1.9;
 }
 
+/* NOVA AI etiketi sadece ayrı bir isim öğesi yoksa gösterilir */
 .message.assistant .message-content::before {
-  content: "✦  NOVA AI";
-  display: block;
-  margin-bottom: 10px;
+  content: none;
+}
+
+.message-name {
+  margin-bottom: 7px;
   color: #b5a6ff;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.3px;
 }
 
-.message.loading .message-content,
-.message.assistant.loading {
-  color: #aaa2d3;
+.message-avatar {
+  display: grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(171, 151, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(139, 115, 255, 0.1);
+  color: #c4b6ff;
+  font-size: 15px;
 }
 
-.message.loading .message-content {
-  animation: nova-loading 1.4s ease-in-out infinite;
+.message-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
-/* Kopyalama butonu */
+.message-main {
+  min-width: 0;
+  flex: 1;
+}
 
-.copy-message {
+.message.assistant-message,
+.message.assistant {
+  display: flex;
+  gap: 12px;
+}
+
+.message-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.copy-message,
+.message-actions button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 10px;
   padding: 5px 9px;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -825,10 +833,7 @@ a {
   color: #838aa1;
   font-size: 11px;
   cursor: pointer;
-  transition:
-    color var(--transition),
-    background var(--transition),
-    border-color var(--transition);
+  transition: color var(--transition), background var(--transition), border-color var(--transition);
 }
 
 .copy-message::before {
@@ -836,13 +841,19 @@ a {
   font-size: 13px;
 }
 
-.copy-message:hover {
+.copy-message:hover,
+.message-actions button:hover {
   border-color: var(--border);
   background: rgba(255, 255, 255, 0.035);
   color: #dedaff;
 }
 
-/* ---------- Mesaj yazma alanı ---------- */
+.message.loading .message-content {
+  color: #aaa2d3;
+  animation: nova-loading 1.4s ease-in-out infinite;
+}
+
+/* Mesaj yazma alanı */
 
 .composer-area {
   position: relative;
@@ -850,12 +861,7 @@ a {
   flex-shrink: 0;
   width: 100%;
   padding: 14px 24px 18px;
-  background: linear-gradient(
-    to bottom,
-    rgba(9, 11, 18, 0),
-    rgba(9, 11, 18, 0.92) 15%,
-    rgba(9, 11, 18, 0.98)
-  );
+  background: linear-gradient(to bottom, rgba(9, 11, 18, 0), rgba(9, 11, 18, 0.92) 15%, rgba(9, 11, 18, 0.98));
 }
 
 .composer-shell {
@@ -874,19 +880,13 @@ a {
   border: 1px solid rgba(161, 138, 255, 0.2);
   border-radius: 20px;
   background: rgba(17, 20, 31, 0.96);
-  box-shadow:
-    0 12px 45px rgba(0, 0, 0, 0.18),
-    inset 0 1px rgba(255, 255, 255, 0.025);
-  transition:
-    border-color var(--transition),
-    box-shadow var(--transition);
+  box-shadow: 0 12px 45px rgba(0, 0, 0, 0.18), inset 0 1px rgba(255, 255, 255, 0.025);
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
 
 .composer:focus-within {
   border-color: rgba(161, 138, 255, 0.48);
-  box-shadow:
-    0 0 0 3px rgba(139, 115, 255, 0.06),
-    0 14px 45px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 0 3px rgba(139, 115, 255, 0.06), 0 14px 45px rgba(0, 0, 0, 0.2);
 }
 
 .composer-topline {
@@ -999,10 +999,7 @@ a {
   box-shadow: 0 4px 16px rgba(112, 88, 238, 0.19);
   color: #fff;
   cursor: pointer;
-  transition:
-    transform var(--transition),
-    filter var(--transition),
-    box-shadow var(--transition);
+  transition: transform var(--transition), filter var(--transition), box-shadow var(--transition);
 }
 
 .send-button:hover:not(:disabled) {
@@ -1032,7 +1029,7 @@ a {
   text-align: center;
 }
 
-/* ---------- Sesli sohbet ---------- */
+/* Sesli sohbet */
 
 .voice-panel {
   margin-bottom: 10px;
@@ -1059,11 +1056,7 @@ a {
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition:
-    background var(--transition),
-    border-color var(--transition),
-    color var(--transition),
-    transform var(--transition);
+  transition: background var(--transition), border-color var(--transition), color var(--transition), transform var(--transition);
 }
 
 .voice-button:hover:not(:disabled) {
@@ -1105,11 +1098,13 @@ a {
   color: #ff9ca9;
 }
 
-/* ---------- Mobil menü ---------- */
+/* Mobil menü */
 
 .scrim {
   display: none;
 }
+
+/* Animasyonlar */
 
 @keyframes nova-appear {
   from {
@@ -1145,7 +1140,7 @@ a {
   }
 }
 
-/* ---------- Küçük masaüstü ---------- */
+/* Küçük masaüstü */
 
 @media (max-width: 1050px) {
   :root {
@@ -1169,7 +1164,7 @@ a {
   }
 }
 
-/* ---------- Tablet ve telefon ---------- */
+/* Tablet ve telefon */
 
 @media (max-width: 760px) {
   .sidebar {
@@ -1239,12 +1234,13 @@ a {
     max-width: 100%;
   }
 
+  .welcome,
   .welcome-message {
     min-height: 260px;
     font-size: 25px;
   }
 
-  .welcome-message::before {
+  .welcome-icon {
     width: 56px;
     height: 56px;
     border-radius: 19px;
@@ -1271,7 +1267,7 @@ a {
   }
 }
 
-/* ---------- Dar telefon ekranı ---------- */
+/* Dar telefon ekranı */
 
 @media (max-width: 480px) {
   .topbar {
@@ -1316,11 +1312,12 @@ a {
     line-height: 1.8;
   }
 
-  .message.assistant .message-content::before {
-    margin-bottom: 7px;
+  .message-name {
+    margin-bottom: 5px;
     font-size: 10px;
   }
 
+  .welcome,
   .welcome-message {
     min-height: 225px;
     padding-right: 5px;
@@ -1328,7 +1325,7 @@ a {
     font-size: 23px;
   }
 
-  .welcome-message::after {
+  .welcome p {
     max-width: 300px;
     font-size: 12px;
   }
@@ -1398,16 +1395,4 @@ a {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-}/* NOVA AI özel marka simgesi */
-.logo-image {
-  display: block;
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
-  object-fit: contain;
-  border-radius: 12px;
-}
-
-.profile-avatar {
-  object-fit: contain;
 }
