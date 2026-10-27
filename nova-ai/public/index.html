@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="tr">
 <head>
@@ -9,13 +10,14 @@
 
   <title>NOVA AI — Yapay zekâ asistanın</title>
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='25' fill='%238b78ff'/%3E%3Ctext x='50' y='70' font-size='66' text-anchor='middle' fill='white'%3E✦%3C/text%3E%3C/svg%3E">
+  <!-- NOVA AI özel favicon -->
+  <link rel="icon" type="image/png" href="/favicon.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="/style.css">
 </head>
 
 <body>
@@ -27,7 +29,14 @@
 
     <aside class="sidebar" id="sidebar" aria-label="Ana menü">
       <a class="brand" href="/" aria-label="NOVA AI ana sayfa">
-        <span class="logo" aria-hidden="true">✦</span>
+        <img
+          class="logo-image"
+          src="/nova-icon.png"
+          alt=""
+          width="42"
+          height="42"
+        >
+
         <span class="brand-copy">
           <span class="brand-name">NOVA<span> AI</span></span>
           <span class="brand-caption">Yapay zekân, yeni bir bakış açısı.</span>
@@ -40,8 +49,13 @@
         <kbd class="new-chat-shortcut">N</kbd>
       </button>
 
-      <button class="research-toggle" id="research" type="button"
-              aria-pressed="false" title="Araştırma modunu aç veya kapat">
+      <button
+        class="research-toggle"
+        id="research"
+        type="button"
+        aria-pressed="false"
+        title="Araştırma modunu aç veya kapat"
+      >
         <span class="research-icon" aria-hidden="true">⌕</span>
         <span class="research-copy">
           <span class="research-title">Araştırma modu</span>
@@ -56,8 +70,12 @@
           <span class="history-heading-dot" aria-hidden="true"></span>
         </div>
 
-        <div id="history" class="history" role="list"
-             aria-label="Kayıtlı konuşmalar"></div>
+        <div
+          id="history"
+          class="history"
+          role="list"
+          aria-label="Kayıtlı konuşmalar"
+        ></div>
 
         <div class="history-empty-hint" id="historyHint">
           <span aria-hidden="true">☰</span>
@@ -67,12 +85,24 @@
 
       <div class="sidebar-bottom">
         <div class="sidebar-profile">
-          <div class="profile-avatar" aria-hidden="true">N</div>
+          <img
+            class="profile-avatar"
+            src="/nova-icon.png"
+            alt=""
+            width="36"
+            height="36"
+          >
+
           <div class="profile-copy">
             <strong>NOVA AI</strong>
             <span>Kişisel asistanın</span>
           </div>
-          <span class="profile-status" title="Arayüz hazır"></span>
+
+          <span
+            class="profile-status"
+            title="Arayüz hazır"
+            aria-label="Arayüz hazır"
+          ></span>
         </div>
 
         <div class="sidebar-footer">
@@ -85,14 +115,27 @@
     <main class="main-panel">
       <header class="topbar">
         <div class="topbar-left">
-          <button class="menu" id="menu" type="button"
-                  aria-label="Menüyü aç veya kapat"
-                  aria-controls="sidebar" aria-expanded="false">
-            <svg width="20" height="20" viewBox="0 0 24 24"
-                 fill="none" aria-hidden="true">
-              <path d="M4 7H20M4 12H20M4 17H20"
-                    stroke="currentColor" stroke-width="1.7"
-                    stroke-linecap="round"/>
+          <button
+            class="menu"
+            id="menu"
+            type="button"
+            aria-label="Menüyü aç veya kapat"
+            aria-controls="sidebar"
+            aria-expanded="false"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 7H20M4 12H20M4 17H20"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+              />
             </svg>
           </button>
 
@@ -109,37 +152,58 @@
             Yapay zekâ asistanı
           </div>
 
-          <div class="status" id="connectionStatus" title="Uygulama durumu">
+          <div
+            class="status"
+            id="connectionStatus"
+            title="Uygulama durumu"
+          >
             <i aria-hidden="true"></i>
             <span>Hazır</span>
           </div>
         </div>
       </header>
 
-      <section class="messages" id="messages"
-               aria-label="Mesajlar" aria-live="polite"
-               aria-relevant="additions text"></section>
+      <section
+        class="messages"
+        id="messages"
+        aria-label="Mesajlar"
+        aria-live="polite"
+        aria-relevant="additions text"
+      ></section>
 
       <footer class="composer-area">
         <div class="composer-shell">
           <div class="voice-panel">
             <div class="voice-controls" aria-label="Sesli sohbet kontrolleri">
-              <button class="voice-button primary" id="voiceToggle"
-                      type="button" aria-pressed="false"
-                      aria-label="Sesli sohbeti başlat">
+              <button
+                class="voice-button primary"
+                id="voiceToggle"
+                type="button"
+                aria-pressed="false"
+                aria-label="Sesli sohbeti başlat"
+              >
                 <span aria-hidden="true">🎙</span>
                 <span id="voiceToggleLabel">Sesli sohbeti başlat</span>
               </button>
 
-              <button class="voice-button" id="voiceStop" type="button"
-                      aria-label="Sesli sohbeti durdur" disabled>
+              <button
+                class="voice-button"
+                id="voiceStop"
+                type="button"
+                aria-label="Sesli sohbeti durdur"
+                disabled
+              >
                 <span aria-hidden="true">■</span>
                 <span>Durdur</span>
               </button>
 
-              <span class="voice-status" id="voiceStatus"
-                    role="status" aria-live="polite"
-                    data-state="idle">Sesli sohbet kapalı</span>
+              <span
+                class="voice-status"
+                id="voiceStatus"
+                role="status"
+                aria-live="polite"
+                data-state="idle"
+              >Sesli sohbet kapalı</span>
             </div>
           </div>
 
@@ -149,16 +213,21 @@
                 <span class="composer-context-dot"></span>
                 NOVA AI ile sohbet et
               </span>
-              <span class="character-count" id="characterCount"></span>
+
+              <span class="character-count" id="characterCount">0/4000</span>
             </div>
 
             <div class="composer-main">
-              <textarea id="prompt" name="prompt" maxlength="4000"
-                        rows="1"
-                        placeholder="Ne düşünüyorsun? Bana sor..."
-                        aria-label="NOVA AI'ye mesaj yaz"
-                        aria-describedby="composerHelp"
-                        required></textarea>
+              <textarea
+                id="prompt"
+                name="prompt"
+                maxlength="4000"
+                rows="1"
+                placeholder="Ne düşünüyorsun? Bana sor..."
+                aria-label="NOVA AI'ye mesaj yaz"
+                aria-describedby="composerHelp"
+                required
+              ></textarea>
             </div>
 
             <div class="composer-actions">
@@ -168,14 +237,27 @@
                 <kbd>Shift</kbd> + <kbd>Enter</kbd> yeni satır
               </span>
 
-              <button class="send-button" id="send" type="submit"
-                      aria-label="Mesajı gönder" title="Mesajı gönder">
-                <svg width="19" height="19" viewBox="0 0 24 24"
-                     fill="none" aria-hidden="true">
-                  <path d="M12 19V5M6 11L12 5L18 11"
-                        stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"/>
+              <button
+                class="send-button"
+                id="send"
+                type="submit"
+                aria-label="Mesajı gönder"
+                title="Mesajı gönder"
+              >
+                <svg
+                  width="19"
+                  height="19"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 19V5M6 11L12 5L18 11"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
                 </svg>
               </button>
             </div>
@@ -189,7 +271,7 @@
     </main>
   </div>
 
-  <script src="app.js" defer></script>
-  <script src="voice.js" defer></script>
+  <script src="/app.js" defer></script>
+  <script src="/voice.js" defer></script>
 </body>
 </html>
