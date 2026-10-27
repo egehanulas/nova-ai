@@ -4,49 +4,86 @@
 
   const $ = (selector) => document.querySelector(selector);
 
-  const form = $("#form") || $("#chat-form");
-  const prompt = $("#prompt") || $("#message-input");
-  const messagesEl = $("#messages") || $("#chat-messages");
-  const sendButton = $("#send") || $("#send-button");
+  const form = $("#form");
+  const prompt = $("#prompt");
+  const messagesEl = $("#messages");
+  const sendButton = $("#send");
   const historyEl = $("#history");
-  const newChatButton = $("#newChat") || $("#new-chat");
+  const newChatButton = $("#newChat");
   const researchButton = $("#research");
   const menuButton = $("#menu");
   const scrim = $("#scrim");
   const layout = $("#layout");
 
+  const authScreen = $("#authScreen");
+  const authForm = $("#authForm");
+  const authEmail = $("#authEmail");
+  const authPassword = $("#authPassword");
+  const authMessage = $("#authMessage");
+  const authSubmit = $("#authSubmit");
+  const loginTab = $("#loginTab");
+  const registerTab = $("#registerTab");
+  const authTitle = $("#authTitle");
+  const authDescription = $("#authDescription");
+  const logoutButton = $("#logoutButton");
+  const profileEmail = $("#profileEmail");
+  const profileName = $("#profileName");
+
   if (!form || !prompt || !messagesEl) {
-    console.error(
-      "NOVA AI: #form, #prompt ve #messages bulunamadı. index.html dosyasındaki ID'leri kontrol et."
-    );
+    console.error("NOVA AI: Sohbet arayüzü bulunamadı.");
     return;
   }
 
-  const STORAGE_KEY = "nova_ai_conversations_v1";
+  // Supabase Dashboard > Connect / API Keys bölümündeki
+  // Publishable key değerini buraya gir.
+  const SUPABASE_URL = "https://rjwjgopzrjnpjwhdccqs.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_qjORMs4iC1ZQ72FmpnSWnA_ciB6adJu";
+
+  if (!window.supabase?.createClient) {
+    console.error("Supabase istemcisi yüklenemedi.");
+    if (authMessage) authMessage.textContent =
+      "Bağlantı kütüphanesi yüklenemedi. Sayfayı yenile.";
+    return;
+  }
+
+  if (
+    !SUPABASE_PUBLISHABLE_KEY ||
+    SUPABASE_PUBLISHABLE_KEY === "BURAYA_SUPABASE_PUBLISHABLE_KEY"
+  ) {
+    console.error("Supabase Publishable key ayarlanmadı.");
+    if (authMessage) authMessage.textContent =
+      "Supabase Publishable key değerini app.js içine ekle.";
+    return;
+  }
+
+  const supabase = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
   const NOVA_ICON = "/nova-icon.png";
 
-  let conversations = loadConversations();
+  let conversations = [];
   let currentId = null;
   let busy = false;
   let researchMode = false;
+  let currentUser = null;
+  let authMode = "login";
 
   function createId() {
-    return (
-      Date.now().toString(36) +
-      Math.random().toString(36).slice(2, 8)
+    return crypto.randomUUID();
+  }
+
+  function currentConversation() {
+    return conversations.find((item) => item.id === currentId);
+  }
+
+  function sortConversations() {
+    conversations.sort(
+      (a, b) => (Number(b.updatedAt) || 0) - (Number(a.updatedAt) || 0)
     );
   }
 
-  // Sohbetleri en son güncellenen en üstte olacak şekilde sırala.
-  function sortConversations() {
-    conversations.sort((a, b) => {
-      const timeA = Number(a.updatedAt) || 0;
-      const timeB = Number(b.updatedAt) || 0;
-      return timeB - timeA;
-    });
-  }
-
-  // NOVA logosunu kullanan ortak simge oluşturucu.
   function createNovaAvatar(className = "message-avatar") {
     const avatar = document.createElement("div");
     avatar.className = className;
@@ -56,162 +93,254 @@
     image.src = NOVA_ICON;
     image.alt = "";
     image.className = "nova-avatar-image";
-    image.draggable = false;
 
-    image.addEventListener(
-      "error",
-      () => {
-        image.remove();
-        avatar.textContent = "✦";
-      },
-      { once: true }
-    );
+    image.addEventListener("error", () => {
+      image.remove();
+      avatar.textContent = "✦";
+    }, { once: true });
 
     avatar.appendChild(image);
     return avatar;
   }
 
-  function loadConversations() {
-    try {
-      const data = JSON.parse(
-        localStorage.getItem(STORAGE_KEY) || "[]"
-      );
-
-      if (!Array.isArray(data)) return [];
-
-      const validConversations = data.filter(
-        (item) =>
-          item &&
-          typeof item.id === "string" &&
-          Array.isArray(item.messages)
-      );
-
-      validConversations.forEach((conversation) => {
-        if (!Number.isFinite(Number(conversation.updatedAt))) {
-          conversation.updatedAt = 0;
-        }
-      });
-
-      validConversations.sort((a, b) => {
-        return (
-          (Number(b.updatedAt) || 0) -
-          (Number(a.updatedAt) || 0)
-        );
-      });
-
-      return validConversations;
-    } catch (error) {
-      console.warn(
-        "NOVA AI: Sohbet geçmişi okunamadı.",
-        error
-      );
-      return [];
-    }
-  }
-
-  function save() {
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(conversations)
-      );
-      return true;
-    } catch (error) {
-      console.warn(
-        "NOVA AI: Sohbet geçmişi kaydedilemedi.",
-        error
-      );
-      return false;
-    }
-  }
-
-  function currentConversation() {
-    return conversations.find(
-      (item) => item.id === currentId
-    );
-  }
-
   function closeMenu() {
     document.body.classList.remove("menu-open");
+    layout?.classList.remove("sidebar-open");
+    menuButton?.setAttribute("aria-expanded", "false");
+  }
 
-    if (layout) {
-      layout.classList.remove("sidebar-open");
+  function setAuthenticatedUI(isAuthenticated) {
+    if (authScreen) authScreen.hidden = isAuthenticated;
+
+    document.body.classList.toggle("authenticated", isAuthenticated);
+
+    if (profileName) profileName.textContent = currentUser
+      ? (currentUser.user_metadata?.name || "NOVA AI")
+      : "NOVA AI";
+
+    if (profileEmail) profileEmail.textContent =
+      currentUser?.email || "Kişisel asistanın";
+  }
+
+  function setAuthMode(mode) {
+    authMode = mode;
+
+    const isLogin = mode === "login";
+    if (loginTab) loginTab.classList.toggle("active", isLogin);
+    if (registerTab) registerTab.classList.toggle("active", !isLogin);
+
+    if (authTitle) authTitle.textContent =
+      isLogin ? "Tekrar hoş geldin" : "NOVA AI'ye katıl";
+
+    if (authDescription) authDescription.textContent = isLogin
+      ? "Hesabına giriş yap ve sohbetlerine devam et."
+      : "Yeni hesabını oluştur ve NOVA AI ile tanış.";
+
+    if (authSubmit) authSubmit.textContent =
+      isLogin ? "Giriş yap" : "Hesap oluştur";
+
+    if (authPassword) authPassword.autocomplete =
+      isLogin ? "current-password" : "new-password";
+
+    if (authMessage) authMessage.textContent = "";
+  }
+
+  loginTab?.addEventListener("click", () => setAuthMode("login"));
+  registerTab?.addEventListener("click", () => setAuthMode("register"));
+
+  authForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+
+    if (!email || !password) return;
+
+    if (authSubmit) {
+      authSubmit.disabled = true;
+      authSubmit.textContent = "İşleniyor...";
     }
+    if (authMessage) authMessage.textContent = "";
 
-    if (menuButton) {
-      menuButton.setAttribute("aria-expanded", "false");
+    try {
+      if (authMode === "register") {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password
+        });
+
+        if (error) throw error;
+
+        if (data.session) {
+          currentUser = data.user;
+          await initializeApp();
+        } else {
+          if (authMessage) authMessage.textContent =
+            "Kayıt isteği gönderildi. E-posta doğrulaması isteniyorsa gelen kutunu kontrol et; ardından giriş yap.";
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) throw error;
+
+        currentUser = data.user;
+        await initializeApp();
+      }
+    } catch (error) {
+      console.error("NOVA AI hesap hatası:", error);
+      if (authMessage) authMessage.textContent =
+        error.message || "İşlem başarısız oldu.";
+    } finally {
+      if (authSubmit) {
+        authSubmit.disabled = false;
+        authSubmit.textContent =
+          authMode === "login" ? "Giriş yap" : "Hesap oluştur";
+      }
+    }
+  });
+
+  logoutButton?.addEventListener("click", async () => {
+    if (busy) return;
+
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      currentUser = null;
+      conversations = [];
+      currentId = null;
+      setAuthenticatedUI(false);
+      if (authMessage) authMessage.textContent = "";
+      if (authPassword) authPassword.value = "";
+      setAuthMode("login");
+    } catch (error) {
+      console.error("Çıkış yapılamadı:", error);
+      alert("Çıkış yapılamadı: " + error.message);
+    }
+  });
+
+  // Sohbetleri Supabase'den yalnızca oturum açmış kullanıcının
+  // RLS politikaları kapsamında getirir.
+  async function loadConversations() {
+    const { data, error } = await supabase
+      .from("conversations")
+      .select("id, title, messages, created_at, updated_at")
+      .order("updated_at", { ascending: false });
+
+    if (error) throw error;
+
+    conversations = (data || []).map((row) => ({
+      id: row.id,
+      title: row.title || "Yeni sohbet",
+      messages: Array.isArray(row.messages) ? row.messages : [],
+      updatedAt: Date.parse(row.updated_at) || Date.now()
+    }));
+
+    currentId = conversations[0]?.id || null;
+    renderHistory();
+    renderMessages();
+  }
+
+  async function persistConversation(conversation) {
+    if (!currentUser) throw new Error("Önce giriş yapmalısın.");
+
+    const payload = {
+      user_id: currentUser.id,
+      title: conversation.title || "Yeni sohbet",
+      messages: conversation.messages,
+      updated_at: new Date(conversation.updatedAt || Date.now()).toISOString()
+    };
+
+    if (conversation._isNew) {
+      const { data, error } = await supabase
+        .from("conversations")
+        .insert(payload)
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      conversation.id = data.id;
+      delete conversation._isNew;
+    } else {
+      const { error } = await supabase
+        .from("conversations")
+        .update(payload)
+        .eq("id", conversation.id);
+
+      if (error) throw error;
     }
   }
 
-  function newChat() {
-    currentId = createId();
+  async function save(conversation = currentConversation()) {
+    if (!conversation || !currentUser) return;
+    await persistConversation(conversation);
+  }
 
-    conversations.unshift({
-      id: currentId,
+  async function newChat() {
+    if (!currentUser || busy) return;
+
+    const conversation = {
+      id: createId(),
       title: "Yeni sohbet",
       messages: [],
-      updatedAt: Date.now()
-    });
+      updatedAt: Date.now(),
+      _isNew: true
+    };
 
+    conversations.unshift(conversation);
+    currentId = conversation.id;
     sortConversations();
-    save();
     renderMessages();
     renderHistory();
     closeMenu();
     prompt.focus();
   }
 
-  function ensureConversation() {
+  async function ensureConversation() {
     let conversation = currentConversation();
 
     if (!conversation) {
-      newChat();
+      await newChat();
       conversation = currentConversation();
     }
 
+    if (conversation?._isNew) await save(conversation);
     return conversation;
   }
 
-  // Seçilen sohbeti sil.
-  function deleteConversation(conversationId) {
-    const conversation = conversations.find(
-      (item) => item.id === conversationId
-    );
-
+  async function deleteConversation(conversationId) {
+    const conversation = conversations.find((item) => item.id === conversationId);
     if (!conversation) return;
 
-    const title = conversation.title || "Yeni sohbet";
+    if (!window.confirm(
+      `"${conversation.title || "Yeni sohbet"}" sohbetini silmek istiyor musun?`
+    )) return;
 
-    const confirmed = window.confirm(
-      `"${title}" sohbetini silmek istediğine emin misin?\n\nBu işlem geri alınamaz.`
-    );
+    try {
+      if (!conversation._isNew) {
+        const { error } = await supabase
+          .from("conversations")
+          .delete()
+          .eq("id", conversationId);
 
-    if (!confirmed) return;
-
-    const wasCurrent = currentId === conversationId;
-
-    conversations = conversations.filter(
-      (item) => item.id !== conversationId
-    );
-
-    if (wasCurrent) {
-      currentId = null;
-    }
-
-    sortConversations();
-    save();
-
-    if (wasCurrent) {
-      if (conversations.length > 0) {
-        currentId = conversations[0].id;
-        renderMessages();
-        renderHistory();
-        prompt.focus();
-      } else {
-        newChat();
+        if (error) throw error;
       }
-    } else {
+
+      conversations = conversations.filter((item) => item.id !== conversationId);
+
+      if (currentId === conversationId) {
+        currentId = conversations[0]?.id || null;
+      }
+
       renderHistory();
+      renderMessages();
+    } catch (error) {
+      console.error("Sohbet silinemedi:", error);
+      alert("Sohbet silinemedi: " + error.message);
     }
   }
 
@@ -224,29 +353,19 @@
     conversations.forEach((conversation) => {
       const row = document.createElement("div");
       row.className = "history-row";
-
-      if (conversation.id === currentId) {
-        row.classList.add("active");
-      }
+      if (conversation.id === currentId) row.classList.add("active");
 
       const button = document.createElement("button");
       button.type = "button";
       button.className = "history-item";
       button.setAttribute("role", "listitem");
-      button.textContent =
-        conversation.title || "Yeni sohbet";
-      button.setAttribute("data-chat-id", conversation.id);
-
-      if (conversation.id === currentId) {
-        button.setAttribute("aria-current", "true");
-      }
+      button.textContent = conversation.title || "Yeni sohbet";
 
       button.addEventListener("click", () => {
         if (busy) return;
-
         currentId = conversation.id;
-        renderMessages();
         renderHistory();
+        renderMessages();
         closeMenu();
       });
 
@@ -255,11 +374,7 @@
       deleteButton.className = "history-delete";
       deleteButton.textContent = "×";
       deleteButton.title = "Sohbeti sil";
-      deleteButton.setAttribute(
-        "aria-label",
-        `"${conversation.title || "Yeni sohbet"}" sohbetini sil`
-      );
-
+      deleteButton.setAttribute("aria-label", "Sohbeti sil");
       deleteButton.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -271,22 +386,16 @@
     });
 
     const hint = $("#historyHint");
-
-    if (hint) {
-      hint.hidden = conversations.length > 0;
-    }
+    if (hint) hint.hidden = conversations.length > 0;
   }
 
   function renderMessages() {
     const conversation = currentConversation();
-
     messagesEl.replaceChildren();
 
-    if (!conversation || conversation.messages.length === 0) {
+    if (!conversation || !conversation.messages.length) {
       const welcome = document.createElement("div");
       welcome.className = "welcome";
-
-      const icon = createNovaAvatar("welcome-icon");
 
       const heading = document.createElement("h1");
       heading.textContent = "Merhaba, ben NOVA AI.";
@@ -295,27 +404,25 @@
       description.textContent =
         "Aklındaki soruları sor, fikirlerini geliştir veya yeni bir şey keşfet. Sana nasıl yardımcı olabilirim?";
 
-      welcome.append(icon, heading, description);
+      welcome.append(createNovaAvatar("welcome-icon"), heading, description);
       messagesEl.appendChild(welcome);
       return;
     }
 
     conversation.messages.forEach((item) => {
       const isUser = item.role === "user";
-
       const wrapper = document.createElement("article");
       wrapper.className = isUser
         ? "message user-message user"
         : "message assistant-message assistant";
 
-      const avatar = isUser
-        ? document.createElement("div")
-        : createNovaAvatar();
-
+      let avatar;
       if (isUser) {
+        avatar = document.createElement("div");
         avatar.className = "message-avatar";
-        avatar.setAttribute("aria-hidden", "true");
         avatar.textContent = "S";
+      } else {
+        avatar = createNovaAvatar();
       }
 
       const main = document.createElement("div");
@@ -327,10 +434,7 @@
 
       const content = document.createElement("div");
       content.className = "message-content";
-      content.textContent =
-        typeof item.content === "string"
-          ? item.content
-          : "";
+      content.textContent = typeof item.content === "string" ? item.content : "";
 
       main.append(name, content);
 
@@ -341,42 +445,34 @@
         const copyButton = document.createElement("button");
         copyButton.type = "button";
         copyButton.textContent = "Kopyala";
-        copyButton.setAttribute(
-          "aria-label",
-          "Yanıtı kopyala"
-        );
 
         copyButton.addEventListener("click", async () => {
           try {
-            await navigator.clipboard.writeText(
-              typeof item.content === "string"
-                ? item.content
-                : ""
-            );
-
+            await navigator.clipboard.writeText(content.textContent);
             copyButton.textContent = "Kopyalandı";
-
-            setTimeout(() => {
-              copyButton.textContent = "Kopyala";
-            }, 1500);
-          } catch (error) {
-            console.warn(
-              "NOVA AI: Metin kopyalanamadı.",
-              error
-            );
+            setTimeout(() => { copyButton.textContent = "Kopyala"; }, 1500);
+          } catch {
             copyButton.textContent = "Kopyalanamadı";
           }
         });
 
-        actions.appendChild(copyButton);
+        const speakButton = document.createElement("button");
+        speakButton.type = "button";
+        speakButton.textContent = "Seslendir";
+        speakButton.addEventListener("click", async () => {
+          try {
+            await window.NOVA.speak(content.textContent);
+          } catch (error) {
+            alert("Ses oluşturulamadı: " + error.message);
+          }
+        });
+
+        actions.append(copyButton, speakButton);
         main.appendChild(actions);
       }
 
-      if (isUser) {
-        wrapper.append(main);
-      } else {
-        wrapper.append(avatar, main);
-      }
+      if (isUser) wrapper.appendChild(main);
+      else wrapper.append(avatar, main);
 
       messagesEl.appendChild(wrapper);
     });
@@ -384,27 +480,18 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  function addMessage(role, content) {
-    const conversation = ensureConversation();
+  async function addMessage(role, content) {
+    const conversation = await ensureConversation();
 
-    conversation.messages.push({
-      role,
-      content
-    });
-
+    conversation.messages.push({ role, content });
     conversation.updatedAt = Date.now();
 
-    if (
-      role === "user" &&
-      conversation.title === "Yeni sohbet"
-    ) {
+    if (role === "user" && conversation.title === "Yeni sohbet") {
       conversation.title = content.slice(0, 45);
     }
 
-    // Etkin sohbeti en üste taşı.
+    await save(conversation);
     sortConversations();
-
-    save();
     renderMessages();
     renderHistory();
   }
@@ -412,100 +499,77 @@
   function setBusy(value) {
     busy = value;
     prompt.disabled = value;
-
     if (sendButton) {
       sendButton.disabled = value;
       sendButton.classList.toggle("is-busy", value);
     }
-
     form.setAttribute("aria-busy", String(value));
   }
 
   async function sendMessage(rawText) {
     const text = String(rawText || "").trim();
-
-    if (!text || busy) return;
-
-    ensureConversation();
-
-    addMessage("user", text);
-    prompt.value = "";
-    prompt.style.height = "";
-
-    const conversation = currentConversation();
-
-    const endpoint = researchMode
-      ? "/api/research"
-      : "/api/chat";
+    if (!text || busy || !currentUser) return;
 
     setBusy(true);
-
-    const loading = document.createElement("div");
-    loading.className =
-      "message assistant-message assistant loading";
-
-    const loadingAvatar = createNovaAvatar();
-
-    const loadingMain = document.createElement("div");
-    loadingMain.className = "message-main";
-
-    const loadingName = document.createElement("div");
-    loadingName.className = "message-name";
-    loadingName.textContent = "NOVA AI";
-
-    const loadingText = document.createElement("div");
-    loadingText.className = "message-content typing";
-    loadingText.textContent = "Yanıt hazırlanıyor...";
-
-    loadingMain.append(loadingName, loadingText);
-    loading.append(loadingAvatar, loadingMain);
-    messagesEl.appendChild(loading);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    let loading;
 
     try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          messages: conversation.messages
-        })
-      });
+      const conversation = await ensureConversation();
+      await addMessage("user", text);
+
+      prompt.value = "";
+      prompt.style.height = "";
+
+      loading = document.createElement("div");
+      loading.className = "message assistant-message assistant loading";
+
+      const loadingMain = document.createElement("div");
+      loadingMain.className = "message-main";
+
+      const loadingName = document.createElement("div");
+      loadingName.className = "message-name";
+      loadingName.textContent = "NOVA AI";
+
+      const loadingText = document.createElement("div");
+      loadingText.className = "message-content typing";
+      loadingText.textContent = "Yanıt hazırlanıyor...";
+
+      loadingMain.append(loadingName, loadingText);
+      loading.append(createNovaAvatar(), loadingMain);
+      messagesEl.appendChild(loading);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      if (!token) throw new Error("Oturum süren dolmuş. Yeniden giriş yap.");
+
+      const response = await fetch(
+        researchMode ? "/api/research" : "/api/chat",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ messages: conversation.messages })
+        }
+      );
 
       const data = await response.json().catch(() => ({}));
-
       if (!response.ok) {
-        throw new Error(
-          data.error ||
-          `Sunucu isteği başarısız oldu (${response.status}).`
-        );
+        throw new Error(data.error || `Sunucu hatası (${response.status}).`);
       }
 
-      if (
-        !data.success ||
-        typeof data.answer !== "string"
-      ) {
-        throw new Error(
-          data.error ||
-          "Sunucu yanıt verdi ancak beklenen cevap formatı alınamadı."
-        );
+      if (!data.success || typeof data.answer !== "string") {
+        throw new Error(data.error || "Sunucudan geçerli yanıt alınamadı.");
       }
 
-      addMessage("assistant", data.answer);
+      await addMessage("assistant", data.answer);
     } catch (error) {
-      console.error(
-        "NOVA AI isteği başarısız:",
-        error
-      );
-
-      addMessage(
-        "assistant",
-        `Bir hata oluştu: ${error.message}\n\n` +
-        "Sunucu loglarını ve API sağlayıcısının durumunu kontrol et."
-      );
+      console.error("NOVA AI mesaj hatası:", error);
+      alert("Mesaj gönderilemedi: " + error.message);
     } finally {
-      loading.remove();
+      loading?.remove();
       setBusy(false);
       prompt.focus();
     }
@@ -513,148 +577,131 @@
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-
-    if (busy) return;
-
     sendMessage(prompt.value);
   });
 
   prompt.addEventListener("keydown", (event) => {
-    if (
-      event.key !== "Enter" ||
-      event.shiftKey ||
-      event.isComposing
-    ) {
-      return;
-    }
-
-    event.preventDefault();
-
-    if (!busy && prompt.value.trim()) {
-      if (typeof form.requestSubmit === "function") {
-        form.requestSubmit();
-      } else {
-        sendMessage(prompt.value);
-      }
+    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+      event.preventDefault();
+      if (!busy && prompt.value.trim()) form.requestSubmit();
     }
   });
 
   prompt.addEventListener("input", () => {
     prompt.style.height = "auto";
+    prompt.style.height = Math.min(prompt.scrollHeight, 180) + "px";
 
-    const maxHeight = 180;
-    prompt.style.height =
-      Math.min(prompt.scrollHeight, maxHeight) + "px";
+    const count = $("#characterCount");
+    if (count) count.textContent = `${prompt.value.length}/4000`;
   });
 
-  if (newChatButton) {
-    newChatButton.addEventListener("click", () => {
-      if (busy) return;
-      newChat();
-    });
-  }
+  newChatButton?.addEventListener("click", () => newChat());
 
-  if (researchButton) {
-    researchButton.addEventListener("click", () => {
-      researchMode = !researchMode;
+  researchButton?.addEventListener("click", () => {
+    researchMode = !researchMode;
+    researchButton.classList.toggle("active", researchMode);
+    researchButton.setAttribute("aria-pressed", String(researchMode));
+  });
 
-      researchButton.classList.toggle(
-        "active",
-        researchMode
-      );
+  menuButton?.addEventListener("click", () => {
+    const isOpen = layout
+      ? layout.classList.toggle("sidebar-open")
+      : document.body.classList.toggle("menu-open");
 
-      researchButton.setAttribute(
-        "aria-pressed",
-        String(researchMode)
-      );
+    menuButton.setAttribute("aria-expanded", String(isOpen));
+  });
 
-      researchButton.title = researchMode
-        ? "Araştırma modu açık"
-        : "Araştırma modu kapalı";
-    });
-  }
-
-  if (menuButton) {
-    menuButton.addEventListener("click", () => {
-      const isOpen = layout
-        ? layout.classList.toggle("sidebar-open")
-        : document.body.classList.toggle("menu-open");
-
-      menuButton.setAttribute(
-        "aria-expanded",
-        String(isOpen)
-      );
-    });
-  }
-
-  if (scrim) {
-    scrim.addEventListener("click", closeMenu);
-  }
-
+  scrim?.addEventListener("click", closeMenu);
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      closeMenu();
-    }
+    if (event.key === "Escape") closeMenu();
   });
 
   window.NOVA = {
     sendMessage,
+    newChat,
 
     async speak(text) {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+
       const response = await fetch("/api/tts", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ text })
       });
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-
-        throw new Error(
-          data.error || "Ses oluşturulamadı."
-        );
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || "Ses oluşturulamadı.");
       }
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(await response.blob());
       const audio = new Audio(url);
-
-      audio.addEventListener(
-        "ended",
-        () => URL.revokeObjectURL(url),
-        { once: true }
-      );
-
-      audio.addEventListener(
-        "error",
-        () => URL.revokeObjectURL(url),
-        { once: true }
-      );
-
-      try {
-        await audio.play();
-      } catch (error) {
-        URL.revokeObjectURL(url);
-        throw error;
-      }
-
+      audio.addEventListener("ended", () => URL.revokeObjectURL(url), { once: true });
+      audio.addEventListener("error", () => URL.revokeObjectURL(url), { once: true });
+      await audio.play();
       return audio;
-    },
-
-    newChat
+    }
   };
 
-  sortConversations();
+  async function initializeApp() {
+    try {
+      setAuthenticatedUI(true);
+      await loadConversations();
 
-  if (conversations.length > 0) {
-    currentId = conversations[0].id;
-    renderMessages();
-    renderHistory();
-  } else {
-    newChat();
+      if (!currentId) {
+        const conversation = {
+          id: createId(),
+          title: "Yeni sohbet",
+          messages: [],
+          updatedAt: Date.now(),
+          _isNew: true
+        };
+        conversations.push(conversation);
+        currentId = conversation.id;
+        renderHistory();
+        renderMessages();
+      }
+    } catch (error) {
+      console.error("Sohbetler yüklenemedi:", error);
+      if (authMessage) authMessage.textContent =
+        "Sohbetler yüklenemedi: " + error.message;
+      setAuthenticatedUI(false);
+    }
   }
 
-  console.log("NOVA AI arayüz kodu yüklendi.");
+  async function start() {
+    setAuthMode("login");
+
+    const { data, error } = await supabase.auth.getSession();
+    if (error) console.error(error);
+
+    currentUser = data.session?.user || null;
+
+    if (currentUser) {
+      await initializeApp();
+    } else {
+      setAuthenticatedUI(false);
+    }
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      const nextUser = session?.user || null;
+
+      if (nextUser?.id !== currentUser?.id) {
+        currentUser = nextUser;
+        if (currentUser) {
+          setTimeout(() => initializeApp(), 0);
+        } else {
+          conversations = [];
+          currentId = null;
+          setAuthenticatedUI(false);
+        }
+      }
+    });
+  }
+
+  start();
 })();
