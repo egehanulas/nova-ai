@@ -1398,4 +1398,16 @@ a {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}/* NOVA AI özel marka simgesi */
+.logo-image {
+  display: block;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+.profile-avatar {
+  object-fit: contain;
 }
