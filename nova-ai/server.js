@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const express = require("express");
@@ -16,9 +15,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.disable("x-powered-by");
+
+// Render proxy ayarı
+app.set("trust proxy", 1);
+
 app.use(express.json({ limit: "1mb" }));
 
-// CSS, JavaScript ve diğer ön yüz dosyalarını public klasöründen sun.
+// Ön yüz dosyaları
 app.use(express.static(path.join(__dirname, "public")));
 
 if (helmet) {
@@ -29,6 +32,7 @@ if (helmet) {
   );
 }
 
+// API istek sınırı
 app.use(
   "/api/",
   rateLimit({
@@ -43,7 +47,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 const GEMINI_MODEL =
-  process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 const OPENROUTER_MODEL =
   process.env.OPENROUTER_MODEL || "openrouter/free";
@@ -75,15 +79,8 @@ Canlı internet araması gerçekten yapılmadıysa arama yaptığını iddia etm
 Kaynak veya bağlantı uydurma.
 `;
 
-const PROVIDER_NOTES = {
-  gemini: "Google Gemini",
-  openrouter: "OpenRouter",
-};
-
 function normalizeMessages(messages) {
-  if (!Array.isArray(messages)) {
-    return [];
-  }
+  if (!Array.isArray(messages)) return [];
 
   return messages
     .filter(
@@ -128,10 +125,7 @@ function makeConversation(messages, extraInstruction = "") {
       content: message.content,
     }));
 
-  return {
-    systemText,
-    conversation,
-  };
+  return { systemText, conversation };
 }
 
 async function callGemini(messages, extraInstruction = "") {
@@ -208,10 +202,7 @@ async function callOpenRouter(messages, extraInstruction = "") {
   );
 
   const apiMessages = [
-    {
-      role: "system",
-      content: systemText,
-    },
+    { role: "system", content: systemText },
     ...conversation,
   ];
 
@@ -275,9 +266,7 @@ async function generateAnswer(messages, extraInstruction = "") {
   ];
 
   for (const provider of providers) {
-    if (!provider.enabled) {
-      continue;
-    }
+    if (!provider.enabled) continue;
 
     try {
       return await provider.run();
@@ -339,7 +328,6 @@ app.post(
   "/api/chat",
   asyncRoute(async (req, res) => {
     const { messages, message } = req.body || {};
-
     let conversation = normalizeMessages(messages);
 
     if (!conversation.length && typeof message === "string") {
@@ -382,7 +370,6 @@ app.post(
   "/api/research",
   asyncRoute(async (req, res) => {
     const { messages, message } = req.body || {};
-
     let conversation = normalizeMessages(messages);
 
     if (!conversation.length && typeof message === "string") {
@@ -412,16 +399,14 @@ app.post(
         provider: result.provider,
         model: result.model,
         searched: false,
-        note:
-          "Bu yanıt canlı internet araması yapıldığı anlamına gelmez.",
+        note: "Bu yanıt canlı internet araması yapıldığı anlamına gelmez.",
       });
     } catch (error) {
       console.error("[NOVA AI] Araştırma hatası:", error.message);
 
       return res.status(503).json({
         success: false,
-        error:
-          "Araştırma yanıtı oluşturulamadı. API ayarlarını kontrol et.",
+        error: "Araştırma yanıtı oluşturulamadı. API ayarlarını kontrol et.",
       });
     }
   })
@@ -521,10 +506,7 @@ app.use((error, req, res, next) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`NOVA AI sunucusu ${PORT} portunda çalışıyor.`);
   console.log("Gemini:", GEMINI_API_KEY ? "Ayarlı" : "Ayarlı değil");
-  console.log(
-    "OpenRouter:",
-    OPENROUTER_API_KEY ? "Ayarlı" : "Ayarlı değil"
-  );
+  console.log("OpenRouter:", OPENROUTER_API_KEY ? "Ayarlı" : "Ayarlı değil");
   console.log(
     "ElevenLabs:",
     ELEVENLABS_API_KEY && ELEVENLABS_VOICE_ID
