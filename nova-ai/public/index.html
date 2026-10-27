@@ -1,109 +1,21 @@
-
 <!doctype html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#080910">
-  <meta name="description" content="NOVA AI — Sorularını keşfet, fikirlerini geliştir ve üretkenliğini artır.">
+  <meta name="theme-color" content="#090b12">
+  <meta name="description" content="NOVA AI — Ege tarafından geliştirilen yapay zekâ asistanı.">
   <meta name="color-scheme" content="dark">
-  <meta name="application-name" content="NOVA AI">
 
-  <title>NOVA AI — Yeni nesil yapay zekâ asistanı</title>
+  <title>NOVA AI — Yapay zekâ asistanın</title>
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='25' fill='%238b78ff'/%3E%3Ctext x='50' y='69' font-size='66' text-anchor='middle' fill='white'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='25' fill='%238b78ff'/%3E%3Ctext x='50' y='70' font-size='66' text-anchor='middle' fill='white'%3E✦%3C/text%3E%3C/svg%3E">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="style.css">
-
-  <style>
-    .voice-controls {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 10px;
-      margin: 0 0 12px;
-    }
-
-    .voice-button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      min-height: 40px;
-      padding: 9px 14px;
-      border: 1px solid rgba(177, 163, 255, .24);
-      border-radius: 12px;
-      background: rgba(139, 120, 255, .10);
-      color: #e9e5ff;
-      font: inherit;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background .18s ease, border-color .18s ease, transform .18s ease;
-    }
-
-    .voice-button:hover {
-      background: rgba(139, 120, 255, .20);
-      border-color: rgba(177, 163, 255, .48);
-    }
-
-    .voice-button:active {
-      transform: scale(.98);
-    }
-
-    .voice-button:focus-visible {
-      outline: 2px solid #a99aff;
-      outline-offset: 3px;
-    }
-
-    .voice-button:disabled {
-      opacity: .5;
-      cursor: not-allowed;
-    }
-
-    .voice-button.primary {
-      background: #8b78ff;
-      color: white;
-      border-color: #8b78ff;
-    }
-
-    .voice-button.primary[aria-pressed="true"] {
-      background: #cf5269;
-      border-color: #cf5269;
-    }
-
-    .voice-status {
-      color: #a7a5bf;
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    .voice-status[data-state="listening"] {
-      color: #8fe0b1;
-    }
-
-    .voice-status[data-state="speaking"] {
-      color: #c2b5ff;
-    }
-
-    .voice-status[data-state="error"] {
-      color: #ff9da9;
-    }
-
-    @media (max-width: 520px) {
-      .voice-controls {
-        gap: 8px;
-      }
-
-      .voice-button {
-        flex: 1 1 auto;
-      }
-    }
-  </style>
 </head>
 
 <body>
@@ -114,32 +26,59 @@
     <div class="scrim" id="scrim" aria-hidden="true"></div>
 
     <aside class="sidebar" id="sidebar" aria-label="Ana menü">
-      <a class="brand" href="/" aria-label="NOVA AI ana sayfa" style="text-decoration:none">
+      <a class="brand" href="/" aria-label="NOVA AI ana sayfa">
         <span class="logo" aria-hidden="true">✦</span>
-        <div class="brand-copy">
-          <div class="brand-name">NOVA AI</div>
-          <div class="brand-caption">Your AI companion</div>
-        </div>
+        <span class="brand-copy">
+          <span class="brand-name">NOVA<span> AI</span></span>
+          <span class="brand-caption">Yapay zekân, yeni bir bakış açısı.</span>
+        </span>
       </a>
 
       <button class="new-chat" id="newChat" type="button">
         <span class="new-chat-icon" aria-hidden="true">＋</span>
         <span>Yeni sohbet</span>
-        <kbd class="new-chat-shortcut" aria-hidden="true">N</kbd>
+        <kbd class="new-chat-shortcut">N</kbd>
+      </button>
+
+      <button class="research-toggle" id="research" type="button"
+              aria-pressed="false" title="Araştırma modunu aç veya kapat">
+        <span class="research-icon" aria-hidden="true">⌕</span>
+        <span class="research-copy">
+          <span class="research-title">Araştırma modu</span>
+          <span class="research-subtitle">Derinlemesine yanıtlar</span>
+        </span>
+        <span class="research-indicator" aria-hidden="true"></span>
       </button>
 
       <section class="history-section" aria-label="Sohbet geçmişi">
-        <div class="history-label history-heading">Son konuşmalar</div>
-        <div id="history" class="history" role="list" aria-label="Kayıtlı konuşmalar"></div>
+        <div class="history-heading">
+          <span>SON KONUŞMALAR</span>
+          <span class="history-heading-dot" aria-hidden="true"></span>
+        </div>
+
+        <div id="history" class="history" role="list"
+             aria-label="Kayıtlı konuşmalar"></div>
+
         <div class="history-empty-hint" id="historyHint">
+          <span aria-hidden="true">☰</span>
           Sohbetlerin burada görünecek.
         </div>
       </section>
 
       <div class="sidebar-bottom">
-        <div class="sidebar-divider"></div>
-        <div class="side-note">Sohbetler bu tarayıcıda saklanır.</div>
-        <div class="sidebar-footer">NOVA AI önizleme sürümü</div>
+        <div class="sidebar-profile">
+          <div class="profile-avatar" aria-hidden="true">N</div>
+          <div class="profile-copy">
+            <strong>NOVA AI</strong>
+            <span>Kişisel asistanın</span>
+          </div>
+          <span class="profile-status" title="Arayüz hazır"></span>
+        </div>
+
+        <div class="sidebar-footer">
+          <span class="footer-sparkle" aria-hidden="true">✦</span>
+          <span>NOVA AI <span class="footer-version">· Önizleme</span></span>
+        </div>
       </div>
     </aside>
 
@@ -149,20 +88,27 @@
           <button class="menu" id="menu" type="button"
                   aria-label="Menüyü aç veya kapat"
                   aria-controls="sidebar" aria-expanded="false">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24"
+                 fill="none" aria-hidden="true">
               <path d="M4 7H20M4 12H20M4 17H20"
-                    stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                    stroke="currentColor" stroke-width="1.7"
+                    stroke-linecap="round"/>
             </svg>
           </button>
 
           <div class="top-title">
             <span class="top-title-main">NOVA AI</span>
-            <span class="top-title-divider" aria-hidden="true">/</span>
+            <span class="top-title-divider">/</span>
             <span class="top-title-section">Sohbet</span>
           </div>
         </div>
 
         <div class="topbar-right">
+          <div class="topbar-badge">
+            <span class="topbar-badge-icon" aria-hidden="true">✧</span>
+            Yapay zekâ asistanı
+          </div>
+
           <div class="status" id="connectionStatus" title="Uygulama durumu">
             <i aria-hidden="true"></i>
             <span>Hazır</span>
@@ -170,46 +116,66 @@
         </div>
       </header>
 
-      <section class="messages" id="messages" aria-label="Mesajlar"
-               aria-live="polite" aria-relevant="additions text"></section>
+      <section class="messages" id="messages"
+               aria-label="Mesajlar" aria-live="polite"
+               aria-relevant="additions text"></section>
 
       <footer class="composer-area">
         <div class="composer-shell">
+          <div class="voice-panel">
+            <div class="voice-controls" aria-label="Sesli sohbet kontrolleri">
+              <button class="voice-button primary" id="voiceToggle"
+                      type="button" aria-pressed="false"
+                      aria-label="Sesli sohbeti başlat">
+                <span aria-hidden="true">🎙</span>
+                <span id="voiceToggleLabel">Sesli sohbeti başlat</span>
+              </button>
 
-          <div class="voice-controls" aria-label="Sesli sohbet kontrolleri">
-            <button class="voice-button primary" id="voiceToggle" type="button"
-                    aria-pressed="false" aria-label="Sesli sohbeti başlat">
-              <span aria-hidden="true">🎙️</span>
-              <span id="voiceToggleLabel">Sesli sohbeti başlat</span>
-            </button>
+              <button class="voice-button" id="voiceStop" type="button"
+                      aria-label="Sesli sohbeti durdur" disabled>
+                <span aria-hidden="true">■</span>
+                <span>Durdur</span>
+              </button>
 
-            <button class="voice-button" id="voiceStop" type="button"
-                    aria-label="Sesli sohbeti durdur" disabled>
-              <span aria-hidden="true">⏹</span>
-              <span>Durdur</span>
-            </button>
-
-            <span class="voice-status" id="voiceStatus" role="status" aria-live="polite"
-                  data-state="idle">Sesli sohbet kapalı</span>
+              <span class="voice-status" id="voiceStatus"
+                    role="status" aria-live="polite"
+                    data-state="idle">Sesli sohbet kapalı</span>
+            </div>
           </div>
 
           <form id="form" class="composer" autocomplete="off">
+            <div class="composer-topline">
+              <span class="composer-context">
+                <span class="composer-context-dot"></span>
+                NOVA AI ile sohbet et
+              </span>
+              <span class="character-count" id="characterCount"></span>
+            </div>
+
             <div class="composer-main">
-              <textarea id="prompt" name="prompt" maxlength="4000" rows="1"
-                        placeholder="Aklındaki soruyu buraya yaz..."
+              <textarea id="prompt" name="prompt" maxlength="4000"
+                        rows="1"
+                        placeholder="Ne düşünüyorsun? Bana sor..."
                         aria-label="NOVA AI'ye mesaj yaz"
-                        aria-describedby="composerHelp" required></textarea>
+                        aria-describedby="composerHelp"
+                        required></textarea>
             </div>
 
             <div class="composer-actions">
-              <span class="character-count" id="characterCount" aria-live="off"></span>
+              <span class="composer-hint">
+                <kbd>Enter</kbd> gönder
+                <span class="hint-separator">·</span>
+                <kbd>Shift</kbd> + <kbd>Enter</kbd> yeni satır
+              </span>
 
               <button class="send-button" id="send" type="submit"
                       aria-label="Mesajı gönder" title="Mesajı gönder">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg width="19" height="19" viewBox="0 0 24 24"
+                     fill="none" aria-hidden="true">
                   <path d="M12 19V5M6 11L12 5L18 11"
                         stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"/>
+                        stroke-linecap="round"
+                        stroke-linejoin="round"/>
                 </svg>
               </button>
             </div>
@@ -217,13 +183,12 @@
         </div>
 
         <p class="composer-meta" id="composerHelp">
-          Enter gönderir, Shift + Enter yeni satır açar. Yapay zekâ hata yapabilir.
+          NOVA AI yanıtlarında hata yapabilir. Önemli bilgileri doğrulamayı unutma.
         </p>
       </footer>
     </main>
   </div>
 
-  <!-- Sıralama önemli: önce mevcut sohbet uygulaması, sonra ses modülü -->
   <script src="app.js" defer></script>
   <script src="voice.js" defer></script>
 </body>
