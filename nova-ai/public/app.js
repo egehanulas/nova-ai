@@ -23,6 +23,7 @@
   }
 
   const STORAGE_KEY = "nova_ai_conversations_v1";
+  const NOVA_ICON = "/nova-icon.png";
 
   let conversations = loadConversations();
   let currentId = null;
@@ -32,6 +33,28 @@
   function createId() {
     return Date.now().toString(36) +
       Math.random().toString(36).slice(2, 8);
+  }
+
+  // NOVA logosunu kullanan ortak simge oluşturucu.
+  function createNovaAvatar(className = "message-avatar") {
+    const avatar = document.createElement("div");
+    avatar.className = className;
+    avatar.setAttribute("aria-hidden", "true");
+
+    const image = document.createElement("img");
+    image.src = NOVA_ICON;
+    image.alt = "";
+    image.className = "nova-avatar-image";
+    image.draggable = false;
+
+    // Görsel yüklenemezse yıldız simgesine geri dön.
+    image.addEventListener("error", () => {
+      image.remove();
+      avatar.textContent = "✦";
+    }, { once: true });
+
+    avatar.appendChild(image);
+    return avatar;
   }
 
   function loadConversations() {
@@ -165,10 +188,7 @@
       const welcome = document.createElement("div");
       welcome.className = "welcome";
 
-      const icon = document.createElement("div");
-      icon.className = "welcome-icon";
-      icon.textContent = "✦";
-      icon.setAttribute("aria-hidden", "true");
+      const icon = createNovaAvatar("welcome-icon");
 
       const heading = document.createElement("h1");
       heading.textContent = "Merhaba, ben NOVA AI.";
@@ -190,10 +210,15 @@
         ? "message user-message user"
         : "message assistant-message assistant";
 
-      const avatar = document.createElement("div");
-      avatar.className = "message-avatar";
-      avatar.setAttribute("aria-hidden", "true");
-      avatar.textContent = isUser ? "S" : "✦";
+      const avatar = isUser
+        ? document.createElement("div")
+        : createNovaAvatar();
+
+      if (isUser) {
+        avatar.className = "message-avatar";
+        avatar.setAttribute("aria-hidden", "true");
+        avatar.textContent = "S";
+      }
 
       const main = document.createElement("div");
       main.className = "message-main";
@@ -204,8 +229,6 @@
 
       const content = document.createElement("div");
       content.className = "message-content";
-
-      // Kullanıcı metni güvenli şekilde metin olarak gösterilir.
       content.textContent =
         typeof item.content === "string" ? item.content : "";
 
@@ -296,8 +319,6 @@
 
     addMessage("user", text);
     prompt.value = "";
-
-    // Metin alanının yüksekliğini sıfırla.
     prompt.style.height = "";
 
     const conversation = currentConversation();
@@ -311,10 +332,7 @@
     loading.className =
       "message assistant-message assistant loading";
 
-    const loadingAvatar = document.createElement("div");
-    loadingAvatar.className = "message-avatar";
-    loadingAvatar.textContent = "✦";
-    loadingAvatar.setAttribute("aria-hidden", "true");
+    const loadingAvatar = createNovaAvatar();
 
     const loadingMain = document.createElement("div");
     loadingMain.className = "message-main";
@@ -375,7 +393,6 @@
     }
   }
 
-  // Form gönderimi: butona basmak ve Enter aynı işlemi kullanır.
   form.addEventListener("submit", (event) => {
     event.preventDefault();
 
@@ -384,7 +401,6 @@
     sendMessage(prompt.value);
   });
 
-  // Enter gönderir; Shift + Enter yeni satır açar.
   prompt.addEventListener("keydown", (event) => {
     if (
       event.key !== "Enter" ||
@@ -405,7 +421,6 @@
     }
   });
 
-  // Yazdıkça metin alanının yüksekliğini ayarla.
   prompt.addEventListener("input", () => {
     prompt.style.height = "auto";
 
@@ -434,7 +449,6 @@
     });
   }
 
-  // Mobil menü: mevcut CSS sınıflarıyla uyumlu.
   if (menuButton) {
     menuButton.addEventListener("click", () => {
       const isOpen = layout
@@ -458,7 +472,6 @@
     }
   });
 
-  // ElevenLabs metinden sese özelliği.
   window.NOVA = {
     sendMessage,
 
