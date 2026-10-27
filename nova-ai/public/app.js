@@ -31,8 +31,19 @@
   let researchMode = false;
 
   function createId() {
-    return Date.now().toString(36) +
-      Math.random().toString(36).slice(2, 8);
+    return (
+      Date.now().toString(36) +
+      Math.random().toString(36).slice(2, 8)
+    );
+  }
+
+  // Sohbetleri en son güncellenen en üstte olacak şekilde sırala.
+  function sortConversations() {
+    conversations.sort((a, b) => {
+      const timeA = Number(a.updatedAt) || 0;
+      const timeB = Number(b.updatedAt) || 0;
+      return timeB - timeA;
+    });
   }
 
   // NOVA logosunu kullanan ortak simge oluşturucu.
@@ -47,11 +58,14 @@
     image.className = "nova-avatar-image";
     image.draggable = false;
 
-    // Görsel yüklenemezse yıldız simgesine geri dön.
-    image.addEventListener("error", () => {
-      image.remove();
-      avatar.textContent = "✦";
-    }, { once: true });
+    image.addEventListener(
+      "error",
+      () => {
+        image.remove();
+        avatar.textContent = "✦";
+      },
+      { once: true }
+    );
 
     avatar.appendChild(image);
     return avatar;
@@ -65,14 +79,32 @@
 
       if (!Array.isArray(data)) return [];
 
-      return data.filter(
+      const validConversations = data.filter(
         (item) =>
           item &&
           typeof item.id === "string" &&
           Array.isArray(item.messages)
       );
+
+      validConversations.forEach((conversation) => {
+        if (!Number.isFinite(Number(conversation.updatedAt))) {
+          conversation.updatedAt = 0;
+        }
+      });
+
+      validConversations.sort((a, b) => {
+        return (
+          (Number(b.updatedAt) || 0) -
+          (Number(a.updatedAt) || 0)
+        );
+      });
+
+      return validConversations;
     } catch (error) {
-      console.warn("NOVA AI: Sohbet geçmişi okunamadı.", error);
+      console.warn(
+        "NOVA AI: Sohbet geçmişi okunamadı.",
+        error
+      );
       return [];
     }
   }
@@ -83,11 +115,13 @@
         STORAGE_KEY,
         JSON.stringify(conversations)
       );
+      return true;
     } catch (error) {
       console.warn(
         "NOVA AI: Sohbet geçmişi kaydedilemedi.",
         error
       );
+      return false;
     }
   }
 
@@ -119,6 +153,7 @@
       updatedAt: Date.now()
     });
 
+    sortConversations();
     save();
     renderMessages();
     renderHistory();
@@ -137,9 +172,53 @@
     return conversation;
   }
 
+  // Seçilen sohbeti sil.
+  function deleteConversation(conversationId) {
+    const conversation = conversations.find(
+      (item) => item.id === conversationId
+    );
+
+    if (!conversation) return;
+
+    const title = conversation.title || "Yeni sohbet";
+
+    const confirmed = window.confirm(
+      `"${title}" sohbetini silmek istediğine emin misin?\n\nBu işlem geri alınamaz.`
+    );
+
+    if (!confirmed) return;
+
+    const wasCurrent = currentId === conversationId;
+
+    conversations = conversations.filter(
+      (item) => item.id !== conversationId
+    );
+
+    if (wasCurrent) {
+      currentId = null;
+    }
+
+    sortConversations();
+    save();
+
+    if (wasCurrent) {
+      if (conversations.length > 0) {
+        currentId = conversations[0].id;
+        renderMessages();
+        renderHistory();
+        prompt.focus();
+      } else {
+        newChat();
+      }
+    } else {
+      renderHistory();
+    }
+  }
+
   function renderHistory() {
     if (!historyEl) return;
 
+    sortConversations();
     historyEl.replaceChildren();
 
     conversations.forEach((conversation) => {
@@ -154,7 +233,8 @@
       button.type = "button";
       button.className = "history-item";
       button.setAttribute("role", "listitem");
-      button.textContent = conversation.title || "Yeni sohbet";
+      button.textContent =
+        conversation.title || "Yeni sohbet";
       button.setAttribute("data-chat-id", conversation.id);
 
       if (conversation.id === currentId) {
@@ -162,13 +242,31 @@
       }
 
       button.addEventListener("click", () => {
+        if (busy) return;
+
         currentId = conversation.id;
         renderMessages();
         renderHistory();
         closeMenu();
       });
 
-      row.appendChild(button);
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "history-delete";
+      deleteButton.textContent = "×";
+      deleteButton.title = "Sohbeti sil";
+      deleteButton.setAttribute(
+        "aria-label",
+        `"${conversation.title || "Yeni sohbet"}" sohbetini sil`
+      );
+
+      deleteButton.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        deleteConversation(conversation.id);
+      });
+
+      row.append(button, deleteButton);
       historyEl.appendChild(row);
     });
 
@@ -230,7 +328,9 @@
       const content = document.createElement("div");
       content.className = "message-content";
       content.textContent =
-        typeof item.content === "string" ? item.content : "";
+        typeof item.content === "string"
+          ? item.content
+          : "";
 
       main.append(name, content);
 
@@ -241,12 +341,17 @@
         const copyButton = document.createElement("button");
         copyButton.type = "button";
         copyButton.textContent = "Kopyala";
-        copyButton.setAttribute("aria-label", "Yanıtı kopyala");
+        copyButton.setAttribute(
+          "aria-label",
+          "Yanıtı kopyala"
+        );
 
         copyButton.addEventListener("click", async () => {
           try {
             await navigator.clipboard.writeText(
-              typeof item.content === "string" ? item.content : ""
+              typeof item.content === "string"
+                ? item.content
+                : ""
             );
 
             copyButton.textContent = "Kopyalandı";
@@ -255,7 +360,10 @@
               copyButton.textContent = "Kopyala";
             }, 1500);
           } catch (error) {
-            console.warn("NOVA AI: Metin kopyalanamadı.", error);
+            console.warn(
+              "NOVA AI: Metin kopyalanamadı.",
+              error
+            );
             copyButton.textContent = "Kopyalanamadı";
           }
         });
@@ -293,6 +401,9 @@
       conversation.title = content.slice(0, 45);
     }
 
+    // Etkin sohbeti en üste taşı.
+    sortConversations();
+
     save();
     renderMessages();
     renderHistory();
@@ -322,6 +433,7 @@
     prompt.style.height = "";
 
     const conversation = currentConversation();
+
     const endpoint = researchMode
       ? "/api/research"
       : "/api/chat";
@@ -370,7 +482,10 @@
         );
       }
 
-      if (!data.success || typeof data.answer !== "string") {
+      if (
+        !data.success ||
+        typeof data.answer !== "string"
+      ) {
         throw new Error(
           data.error ||
           "Sunucu yanıt verdi ancak beklenen cevap formatı alınamadı."
@@ -379,7 +494,10 @@
 
       addMessage("assistant", data.answer);
     } catch (error) {
-      console.error("NOVA AI isteği başarısız:", error);
+      console.error(
+        "NOVA AI isteği başarısız:",
+        error
+      );
 
       addMessage(
         "assistant",
@@ -430,14 +548,21 @@
   });
 
   if (newChatButton) {
-    newChatButton.addEventListener("click", newChat);
+    newChatButton.addEventListener("click", () => {
+      if (busy) return;
+      newChat();
+    });
   }
 
   if (researchButton) {
     researchButton.addEventListener("click", () => {
       researchMode = !researchMode;
 
-      researchButton.classList.toggle("active", researchMode);
+      researchButton.classList.toggle(
+        "active",
+        researchMode
+      );
+
       researchButton.setAttribute(
         "aria-pressed",
         String(researchMode)
@@ -486,6 +611,7 @@
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
+
         throw new Error(
           data.error || "Ses oluşturulamadı."
         );
@@ -519,6 +645,8 @@
 
     newChat
   };
+
+  sortConversations();
 
   if (conversations.length > 0) {
     currentId = conversations[0].id;
