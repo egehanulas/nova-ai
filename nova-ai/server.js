@@ -5,6 +5,7 @@ const rateLimit = require("express-rate-limit");
 const path = require("path");
 
 let helmet;
+
 try {
   helmet = require("helmet");
 } catch {
@@ -24,6 +25,7 @@ app.use(express.json({ limit: "1mb" }));
 // Ön yüz dosyaları
 app.use(express.static(path.join(__dirname, "public")));
 
+// Güvenlik başlıkları
 if (helmet) {
   app.use(
     helmet({
@@ -43,18 +45,26 @@ app.use(
   })
 );
 
+// API anahtarları
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
+// Modeller
 const GEMINI_MODEL =
   process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 const OPENROUTER_MODEL =
   process.env.OPENROUTER_MODEL || "openrouter/free";
 
+const GROQ_MODEL =
+  process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+
+// ElevenLabs
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID;
 
+// NOVA AI ana talimatları
 const BASE_INSTRUCTION = `
 Sen NOVA AI'sın. Türkçe konuşan, doğal, zeki, dikkatli ve güvenilir
 bir yapay zekâ asistanısın.
@@ -79,8 +89,11 @@ Canlı internet araması gerçekten yapılmadıysa arama yaptığını iddia etm
 Kaynak veya bağlantı uydurma.
 `;
 
+// Mesajları doğrula
 function normalizeMessages(messages) {
-  if (!Array.isArray(messages)) return [];
+  if (!Array.isArray(messages)) {
+    return [];
+  }
 
   return messages
     .filter(
@@ -95,6 +108,7 @@ function normalizeMessages(messages) {
     }));
 }
 
+// Son kullanıcı mesajını bul
 function getLatestUserMessage(messages) {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === "user") {
@@ -105,6 +119,7 @@ function getLatestUserMessage(messages) {
   return "";
 }
 
+// Konuşmayı hazırla
 function makeConversation(messages, extraInstruction = "") {
   const safeMessages = normalizeMessages(messages);
 
@@ -125,9 +140,13 @@ function makeConversation(messages, extraInstruction = "") {
       content: message.content,
     }));
 
-  return { systemText, conversation };
+  return {
+    systemText,
+    conversation,
+  };
 }
 
+// Gemini API
 async function callGemini(messages, extraInstruction = "") {
   if (!GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY tanımlanmamış.");
@@ -144,7 +163,7 @@ async function callGemini(messages, extraInstruction = "") {
   }));
 
   const url =
-    `https://generativelanguage.googleapis.com/v1beta/models/` +
+    "https://generativelanguage.googleapis.com/v1beta/models/" +
     `${encodeURIComponent(GEMINI_MODEL)}:generateContent`;
 
   const response = await fetch(url, {
@@ -171,6 +190,7 @@ async function callGemini(messages, extraInstruction = "") {
     const error = new Error(
       data?.error?.message || `Gemini HTTP ${response.status}`
     );
+
     error.status = response.status;
     throw error;
   }
@@ -191,6 +211,7 @@ async function callGemini(messages, extraInstruction = "") {
   };
 }
 
+// OpenRouter API
 async function callOpenRouter(messages, extraInstruction = "") {
   if (!OPENROUTER_API_KEY) {
     throw new Error("OPENROUTER_API_KEY tanımlanmamış.");
@@ -202,7 +223,10 @@ async function callOpenRouter(messages, extraInstruction = "") {
   );
 
   const apiMessages = [
-    { role: "system", content: systemText },
+    {
+      role: "system",
+      content: systemText,
+    },
     ...conversation,
   ];
 
@@ -214,7 +238,8 @@ async function callOpenRouter(messages, extraInstruction = "") {
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
         "HTTP-Referer":
-          process.env.APP_URL || "https://nova-ai-xxid.onrender.com",
+          process.env.APP_URL ||
+          "https://nova-ai-xxid.onrender.com",
         "X-Title": "NOVA AI",
       },
       body: JSON.stringify({
@@ -232,6 +257,7 @@ async function callOpenRouter(messages, extraInstruction = "") {
     const error = new Error(
       data?.error?.message || `OpenRouter HTTP ${response.status}`
     );
+
     error.status = response.status;
     throw error;
   }
@@ -249,6 +275,65 @@ async function callOpenRouter(messages, extraInstruction = "") {
   };
 }
 
+// Groq API
+async function callGroq(messages, extraInstruction = "") {
+  if (!GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY tanımlanmamış.");
+  }
+
+  const { systemText, conversation } = makeConversation(
+    messages,
+    extraInstruction
+  );
+
+  const response = await fetch(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: systemText,
+          },
+          ...conversation,
+        ],
+        temperature: 0.7,
+        max_tokens: 4096,
+      }),
+    }
+  );
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(
+      data?.error?.message || `Groq HTTP ${response.status}`
+    );
+
+    error.status = response.status;
+    throw error;
+  }
+
+  const answer = data?.choices?.[0]?.message?.content;
+
+  if (typeof answer !== "string" || !answer.trim()) {
+    throw new Error("Groq boş yanıt döndürdü.");
+  }
+
+  return {
+    answer: answer.trim(),
+    provider: "groq",
+    model: data?.model || GROQ_MODEL,
+  };
+}
+
+// Sağlayıcıları sırayla dene
 async function generateAnswer(messages, extraInstruction = "") {
   const failures = [];
 
@@ -263,10 +348,17 @@ async function generateAnswer(messages, extraInstruction = "") {
       enabled: Boolean(OPENROUTER_API_KEY),
       run: () => callOpenRouter(messages, extraInstruction),
     },
+    {
+      name: "groq",
+      enabled: Boolean(GROQ_API_KEY),
+      run: () => callGroq(messages, extraInstruction),
+    },
   ];
 
   for (const provider of providers) {
-    if (!provider.enabled) continue;
+    if (!provider.enabled) {
+      continue;
+    }
 
     try {
       return await provider.run();
@@ -294,6 +386,7 @@ async function generateAnswer(messages, extraInstruction = "") {
   throw error;
 }
 
+// Asenkron hata yakalama
 function asyncRoute(handler) {
   return (req, res, next) => {
     Promise.resolve(handler(req, res, next)).catch(next);
@@ -302,11 +395,14 @@ function asyncRoute(handler) {
 
 // Ana sayfa
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"), (error) => {
-    if (error && !res.headersSent) {
-      res.status(200).send("NOVA AI sunucusu çalışıyor.");
+  res.sendFile(
+    path.join(__dirname, "public", "index.html"),
+    (error) => {
+      if (error && !res.headersSent) {
+        res.status(200).send("NOVA AI sunucusu çalışıyor.");
+      }
     }
-  });
+  );
 });
 
 // Sağlık kontrolü
@@ -318,12 +414,13 @@ app.get("/health", (req, res) => {
     providers: {
       gemini: Boolean(GEMINI_API_KEY),
       openrouter: Boolean(OPENROUTER_API_KEY),
+      groq: Boolean(GROQ_API_KEY),
       elevenlabs: Boolean(ELEVENLABS_API_KEY),
     },
   });
 });
 
-// Sohbet
+// Sohbet API'si
 app.post(
   "/api/chat",
   asyncRoute(async (req, res) => {
@@ -359,13 +456,14 @@ app.post(
 
       return res.status(503).json({
         success: false,
-        error: "Şu anda yanıt oluşturulamıyor. Lütfen daha sonra tekrar dene.",
+        error:
+          "Şu anda yanıt oluşturulamıyor. Lütfen daha sonra tekrar dene.",
       });
     }
   })
 );
 
-// Araştırma modu
+// Araştırma modu API'si
 app.post(
   "/api/research",
   asyncRoute(async (req, res) => {
@@ -399,14 +497,16 @@ app.post(
         provider: result.provider,
         model: result.model,
         searched: false,
-        note: "Bu yanıt canlı internet araması yapıldığı anlamına gelmez.",
+        note:
+          "Bu yanıt canlı internet araması yapıldığı anlamına gelmez.",
       });
     } catch (error) {
       console.error("[NOVA AI] Araştırma hatası:", error.message);
 
       return res.status(503).json({
         success: false,
-        error: "Araştırma yanıtı oluşturulamadı. API ayarlarını kontrol et.",
+        error:
+          "Araştırma yanıtı oluşturulamadı. API ayarlarını kontrol et.",
       });
     }
   })
@@ -418,7 +518,8 @@ app.post(
   asyncRoute(async (req, res) => {
     if (!ELEVENLABS_API_KEY || !ELEVENLABS_VOICE_ID) {
       return res.status(503).json({
-        error: "ElevenLabs API anahtarı veya Voice ID tanımlanmamış.",
+        error:
+          "ElevenLabs API anahtarı veya Voice ID tanımlanmamış.",
       });
     }
 
@@ -462,6 +563,7 @@ app.post(
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
+
       console.error(
         "[NOVA AI] ElevenLabs hatası:",
         response.status,
@@ -469,7 +571,8 @@ app.post(
       );
 
       return res.status(502).json({
-        error: "Ses oluşturulamadı. ElevenLabs ayarlarını kontrol et.",
+        error:
+          "Ses oluşturulamadı. ElevenLabs ayarlarını kontrol et.",
       });
     }
 
@@ -503,10 +606,16 @@ app.use((error, req, res, next) => {
   });
 });
 
+// Sunucuyu başlat
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`NOVA AI sunucusu ${PORT} portunda çalışıyor.`);
   console.log("Gemini:", GEMINI_API_KEY ? "Ayarlı" : "Ayarlı değil");
-  console.log("OpenRouter:", OPENROUTER_API_KEY ? "Ayarlı" : "Ayarlı değil");
+  console.log(
+    "OpenRouter:",
+    OPENROUTER_API_KEY ? "Ayarlı" : "Ayarlı değil"
+  );
+  console.log("Groq:", GROQ_API_KEY ? "Ayarlı" : "Ayarlı değil");
+
   console.log(
     "ElevenLabs:",
     ELEVENLABS_API_KEY && ELEVENLABS_VOICE_ID
