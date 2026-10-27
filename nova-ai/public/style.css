@@ -1396,3 +1396,76 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* =========================================================
+   NOVA AI — SOHBET SİLME BUTONU
+   ========================================================= */
+
+.history-row {
+  align-items: center;
+  gap: 4px;
+  padding-right: 3px;
+  border-radius: 10px;
+}
+
+.history-row .history-item {
+  flex: 1;
+  width: 0;
+}
+.history-delete {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 32px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #777e94;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 180ms ease,
+    color 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease;
+}
+
+/* Fare sohbet satırına geldiğinde silme butonunu göster. */
+.history-row:hover .history-delete,
+.history-row:focus-within .history-delete {
+  opacity: 1;
+}
+
+.history-delete:hover {
+  border-color: rgba(255, 132, 149, 0.22);
+  background: rgba(255, 132, 149, 0.1);
+  color: #ff8495;
+}
+
+.history-delete:active {
+  transform: scale(0.94);
+}
+
+.history-delete:focus-visible {
+  outline: 2px solid #a18aff;
+  outline-offset: 2px;
+}
+
+/* Dokunmatik ekranlarda buton sürekli görünür olsun. */
+@media (hover: none) {
+  .history-delete {
+    opacity: 1;
+    color: #999fb4;
+  }
+}
+
+/* Hareket azaltma tercihi. */
+@media (prefers-reduced-motion: reduce) {
+  .history-delete {
+    transition: none;
+  }
+}
