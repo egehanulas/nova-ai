@@ -2,6 +2,7 @@
 /* =========================================================
    NOVA AI — PREMIUM INTERFACE
    index.html, app.js ve voice.js ile uyumlu
+   Geniş ekran düzenlemesi
    ========================================================= */
 
 :root {
@@ -24,7 +25,7 @@
   --success: #72e3b4;
   --danger: #ff8499;
   --sidebar-width: 280px;
-  --content-width: 850px;
+  --content-width: 1180px;
   --radius-sm: 9px;
   --radius-md: 14px;
   --radius-lg: 20px;
@@ -736,7 +737,7 @@ a:hover {
   box-shadow: 0 0 9px rgba(255, 132, 149, 0.5);
 }
 
-/* Mesaj alanı */
+/* Mesaj alanı — geniş ekranlarda daha geniş */
 
 .messages {
   position: relative;
@@ -816,7 +817,7 @@ a:hover {
 }
 
 .welcome p {
-  max-width: 390px;
+  max-width: 520px;
   margin: 14px 0 0;
   color: #9296ac;
   font-size: 13px;
@@ -836,7 +837,7 @@ a:hover {
 
 .message.user {
   align-self: flex-end;
-  max-width: min(82%, 650px);
+  max-width: min(82%, 800px);
 }
 
 .message.assistant {
@@ -1349,7 +1350,7 @@ a:hover {
   color: #ff9ca9;
 }
 
-/* Giriş / kayıt ekranı: index.html içindeki auth stilleriyle uyum */
+/* Giriş / kayıt ekranı */
 
 .auth-screen {
   color: var(--text);
@@ -1509,6 +1510,8 @@ a:hover {
   }
 
   .messages {
+    width: 100%;
+    max-width: 100%;
     gap: 20px;
     padding: 26px 20px 28px;
   }
@@ -1547,6 +1550,11 @@ a:hover {
   .composer-meta {
     margin-top: 8px;
     font-size: 9px;
+  }
+
+  .composer-shell,
+  .composer-meta {
+    max-width: 100%;
   }
 
   .voice-controls {
