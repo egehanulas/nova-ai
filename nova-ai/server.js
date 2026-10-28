@@ -136,6 +136,21 @@ YANIT KURALLARI:
   dahili sınıflandırma etiketlerini yanıta ekleme.
 - İç değerlendirmeleri ve teknik metaverileri gösterme.
 - Yanıtı güvenlik etiketleriyle başlatma.
+
+BİÇİMLENDİRME KURALLARI:
+- Yanıtları düzgün, okunabilir Markdown biçiminde yaz.
+- Matematik işlemlerini mümkünse normal metinle göster.
+  Örnek: 10 × 1,20 = 12 ürün.
+- Matematiksel LaTeX kullanıyorsan doğru biçimde yaz:
+  \(10 \times 1{,}20 = 12\)
+- Markdown işaretlerini gereksiz yere kaçırma.
+  **Kalın metin** için \*\* yerine ** kullan.
+- Gereksiz numaralı listeler oluşturma.
+- Liste gerekiyorsa her maddeyi ayrı satırda göster.
+- Başlıkları, listeleri ve matematik işlemlerini tutarlı biçimlendir.
+- Kullanıcıya gösterilen yanıtta bozuk Markdown,
+  gereksiz ters eğik çizgiler veya yarım kalmış formüller bırakma.
+- Yanıtı göndermeden önce biçimlendirmeyi kontrol et.
 `;
 
 // Mantık ve analiz talimatları
