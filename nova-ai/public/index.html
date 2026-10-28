@@ -159,8 +159,193 @@
 
     [hidden] { display: none !important; }
 
+    /* Yeni sohbet yazma alanı */
+    .composer {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 15px 16px 12px;
+      border: 1px solid rgba(166, 151, 255, .2);
+      border-radius: 24px;
+      background: rgba(17, 19, 31, .96);
+      box-shadow: 0 8px 35px rgba(0, 0, 0, .18);
+      transition: border-color .2s ease, box-shadow .2s ease;
+    }
+
+    .composer:focus-within {
+      border-color: rgba(156, 140, 255, .65);
+      box-shadow: 0 8px 35px rgba(0, 0, 0, .22),
+                  0 0 0 3px rgba(156, 140, 255, .07);
+    }
+
+    .composer-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .composer-context {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #c5c4d7;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .composer-context-dot {
+      width: 7px;
+      height: 7px;
+      flex: 0 0 7px;
+      border-radius: 50%;
+      background: #a394ff;
+      box-shadow: 0 0 10px rgba(163, 148, 255, .45);
+    }
+
+    .character-count {
+      color: #74798d;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .composer-main {
+      width: 100%;
+    }
+
+    #prompt {
+      display: block;
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 54px;
+      max-height: 220px;
+      padding: 12px 2px;
+      border: 0;
+      outline: none;
+      resize: none;
+      color: #f4f3ff;
+      background: transparent;
+      font: inherit;
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    #prompt::placeholder {
+      color: #777c91;
+    }
+
+    .composer-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 5px;
+    }
+
+    .composer-hint {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 5px;
+      color: #85899c;
+      font-size: 11px;
+    }
+
+    .composer-hint kbd {
+      padding: 3px 5px;
+      border: 1px solid #303346;
+      border-radius: 5px;
+      color: #b8bbcd;
+      background: #171a28;
+      font: inherit;
+      font-size: 10px;
+    }
+
+    .hint-separator {
+      margin: 0 3px;
+      color: #53586b;
+    }
+
+    .send-button {
+      display: inline-flex;
+      width: 42px;
+      height: 42px;
+      flex: 0 0 42px;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: 0;
+      border-radius: 15px;
+      color: #fff;
+      background: linear-gradient(135deg, #9b83ff, #7157e8);
+      box-shadow: 0 4px 16px rgba(120, 101, 232, .25);
+      cursor: pointer;
+      transition: transform .15s ease, filter .15s ease, opacity .15s ease;
+    }
+
+    .send-button:hover {
+      filter: brightness(1.12);
+      transform: translateY(-1px);
+    }
+
+    .send-button:active {
+      transform: scale(.96);
+    }
+
+    .send-button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .composer-meta {
+      max-width: 700px;
+      margin: 12px auto 0;
+      padding: 0 10px;
+      color: #73788c;
+      font-size: 11px;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    .voice-controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 9px;
+    }
+
     @media (max-width: 480px) {
       .auth-card { padding: 24px 20px; }
+
+      .composer {
+        padding: 12px;
+        border-radius: 20px;
+      }
+
+      #prompt {
+        min-height: 52px;
+        font-size: 14px;
+      }
+
+      .composer-hint {
+        max-width: calc(100% - 52px);
+        font-size: 10px;
+      }
+
+      .send-button {
+        width: 40px;
+        height: 40px;
+        flex-basis: 40px;
+        border-radius: 13px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .composer,
+      .send-button {
+        transition: none;
+      }
     }
   </style>
 </head>
@@ -328,7 +513,16 @@
             </div>
 
             <div class="composer-main">
-              <textarea id="prompt" name="prompt" maxlength="4000" rows="1" placeholder="Ne düşünüyorsun? Bana sor..." aria-label="NOVA AI'ye mesaj yaz" aria-describedby="composerHelp" required></textarea>
+              <textarea
+                id="prompt"
+                name="prompt"
+                maxlength="4000"
+                rows="1"
+                placeholder="NOVA AI'ye ne sormak istersin?"
+                aria-label="NOVA AI'ye mesaj yaz"
+                aria-describedby="composerHelp"
+                required
+              ></textarea>
             </div>
 
             <div class="composer-actions">
@@ -337,6 +531,7 @@
                 <span class="hint-separator">·</span>
                 <kbd>Shift</kbd> + <kbd>Enter</kbd> yeni satır
               </span>
+
               <button class="send-button" id="send" type="submit" aria-label="Mesajı gönder" title="Mesajı gönder">
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M12 19V5M6 11L12 5L18 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -353,7 +548,6 @@
     </main>
   </div>
 
-  <!-- Supabase istemcisi; giriş/kayıt davranışı app.js ile bağlanacak. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/app.js" defer></script>
   <script src="/voice.js" defer></script>
