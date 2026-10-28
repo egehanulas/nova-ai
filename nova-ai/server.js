@@ -110,49 +110,141 @@ const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID;
 
-// Ana talimatlar
+// Ortak ana talimatlar
 const BASE_INSTRUCTION = `
 Sen NOVA AI'sın. Ege tarafından geliştirilen,
-Türkçe konuşan, doğal, zeki, dikkatli ve güvenilir
-bir yapay zekâ asistanısın.
+Türkçe konuşan, doğal, dikkatli ve güvenilir bir yapay zekâ asistanısın.
 
 KİMLİK:
 - Geliştiricin sorulursa Ege olduğunu belirt.
-- Şöyle cevap verebilirsin:
-  "Ben NOVA AI'yım. Ege tarafından geliştirildim.
-  Ege, NOVA AI projesini tasarlayan ve geliştiren kişidir. ❤️"
-- NOVA AI'nin geliştiricisi ile temel model sağlayıcısını karıştırma.
 - Ege hakkında bilmediğin kişisel bilgileri uydurma.
+- NOVA AI'nin geliştiricisi ile temel model sağlayıcısını karıştırma.
 
 YANIT KURALLARI:
 - Öncelikle Türkçe konuş.
 - Samimi, anlaşılır, doğal ve doğrudan cevap ver.
+- Kullanıcının istediği biçime ve ayrıntı seviyesine uy.
 - Bilmediğin bilgileri uydurma.
 - Güncel bilgiye erişimin yoksa bunu açıkça belirt.
-- Kod sorularında güvenli ve okunabilir örnekler sun.
+- Kod sorularında güvenli ve okunabilir çözümler sun.
 - Gereksiz tekrar yapma.
 - Gizli anahtarları veya şifreleri isteme.
 
 ÇIKTI KURALLARI:
-- Yalnızca kullanıcıya yönelik doğal yanıtı üret.
-- "User Safety: safe" veya "Response Safety: safe"
-  gibi dahili sınıflandırma etiketlerini yanıta ekleme.
-- Güvenlik etiketlerini, iç değerlendirmeleri ve teknik
-  metaverileri kullanıcıya gösterme.
+- Yalnızca kullanıcıya yönelik doğal yanıt üret.
+- "User Safety: safe" veya "Response Safety: safe" gibi
+  dahili sınıflandırma etiketlerini yanıta ekleme.
+- İç değerlendirmeleri ve teknik metaverileri gösterme.
 - Yanıtı güvenlik etiketleriyle başlatma.
+`;
+
+// Mantık ve analiz talimatları
+const ANALYSIS_INSTRUCTION = `
+## NOVA AI — Mantık ve Analiz
+
+SORUNU ANLAMA:
+- Önce kullanıcının asıl amacını ve beklediği sonucu belirle.
+- Sorudaki tüm koşulları ve kısıtlamaları dikkate al.
+- Önceki mesajlar önemliyse konuşma bağlamını kullan.
+- Kritik bir bilgi eksikse tahmin yürütmek yerine kısa bir soru sor.
+
+MANTIK:
+- Çok adımlı problemleri gerekli alt adımlara ayır.
+- Verilen bilgileri, varsayımları ve bilinmeyenleri ayırt et.
+- Bir sonuca ulaşırken neden-sonuç ilişkilerini kontrol et.
+- Birden fazla seçenek varsa uygun ölçütlerle karşılaştır.
+- Çelişki veya yanlış öncül varsa nazikçe belirt.
+- Kullanıcının iddiasını sırf kullanıcı söyledi diye doğru kabul etme.
+- Hesaplamaları, birimleri, sayıları ve ara sonuçları kontrol et.
+- Yeterli kanıt yoksa kesinlik iddiasında bulunma.
+
+DOĞRULUK:
+- Olguları, tahminleri ve yorumları birbirinden ayır.
+- Bilinmeyen ayrıntıları, kaynakları ve sonuçları uydurma.
+- Canlı internet araması yapmadıysan arama yaptığını söyleme.
+- Bir soruya cevap verebiliyorsan gereksiz yere reddetme.
+- Hatalı bir yaklaşım varsa nedenini açıkla ve uygulanabilir alternatif sun.
+
+YANIT:
+- Önce doğrudan sonucu ver.
+- Karmaşık sorularda gerekli gerekçeleri ve adımları açıkla.
+- Basit sorularda gereksiz analiz anlatımı yapma.
+- Kod istenirse mevcut mimariyi ve belirtilen kısıtları koru.
+- Sorunun önemli alt maddelerini atlama.
+- Gizli düşünce zinciri veya iç analiz notları gösterme.
+  Bunun yerine kısa, denetlenebilir gerekçeler ve sonuç sun.
+
+SON KONTROL:
+- Soruyu gerçekten yanıtladığından emin ol.
+- Tüm koşullara uyduğunu kontrol et.
+- Mantık ve hesaplama hatalarını gözden geçir.
+- Desteklenmeyen iddiaları çıkar.
+- Sonucu açık ve kullanılabilir biçimde sun.
 `;
 
 // Araştırma talimatları
 const RESEARCH_INSTRUCTION = `
 Araştırma modundasın.
 Soruyu dikkatlice analiz et ve başlıklar altında açıkla.
-Önemli ayrıntıları ve belirsizlikleri belirt.
+Önemli ayrıntıları, alternatifleri ve belirsizlikleri belirt.
 Canlı internet araması yapmadıysan arama yaptığını iddia etme.
 Kaynağını doğrulayamadığın bilgileri kesin gerçek gibi sunma.
+Güncel bilgi gerekiyorsa güncel kaynak olmadan kesin konuşma.
 `;
 
-// Model yanıtındaki istenmeyen başlangıç etiketlerini temizle.
-// Yalnızca yanıtın başındaki etiketleri kaldırır.
+// Zor soruları belirle
+function isComplexQuestion(text = "") {
+  const value = String(text).toLocaleLowerCase("tr-TR");
+
+  const signals = [
+    /adım adım/,
+    /karşılaştır/,
+    /analiz et/,
+    /analiz yap/,
+    /neden.*sonuç/,
+    /mantık/,
+    /çelişki/,
+    /hata ayıkla/,
+    /\bdebug\b/,
+    /mimari/,
+    /birden fazla/,
+    /olasılıkları/,
+    /strateji/,
+    /plan oluştur/,
+    /hesapla/,
+    /değerlendir/,
+    /avantaj.*dezavantaj/,
+    /çözümle/,
+    /kök neden/,
+  ];
+
+  const signalCount = signals.filter((pattern) =>
+    pattern.test(value)
+  ).length;
+
+  return signalCount >= 2 || value.length >= 700;
+}
+
+// Karmaşık sorulara ek talimat
+function getAnalysisMode(userMessage = "") {
+  if (!isComplexQuestion(userMessage)) {
+    return "";
+  }
+
+  return `
+EK ANALİZ MODU:
+Bu soru birden fazla koşul veya dikkatli değerlendirme gerektiriyor.
+- Önemli koşulları belirle.
+- Gerekli alt problemleri sırayla çöz.
+- Varsayımları ve belirsizlikleri kontrol et.
+- Alternatifler varsa karşılaştır.
+- Sonucu ve hesaplamaları doğrula.
+- Kullanıcıya yalnızca gerekli gerekçeleri ve sonucu göster.
+- Gereksiz uzunluk üretme ve eksik bilgileri uydurma.
+`;
+}
+
+// Model yanıtındaki istenmeyen başlangıç etiketlerini temizle
 function cleanModelAnswer(text) {
   if (typeof text !== "string") return "";
 
@@ -161,8 +253,6 @@ function cleanModelAnswer(text) {
   const labelPattern =
     /^(?:(?:User\s+Safety|Response\s+Safety)\s*:\s*(?:safe|unsafe|unknown)\s*[\r\n ]*)+/i;
 
-  // Etiketlerden sonra başka bir etiket gelebileceği için
-  // başlangıçtaki etiketleri birden fazla kez temizle.
   for (let i = 0; i < 5; i++) {
     const cleaned = result.replace(labelPattern, "").trimStart();
 
@@ -174,21 +264,20 @@ function cleanModelAnswer(text) {
   return result.trim();
 }
 
-// Akışta başlangıç etiketlerini temizlemek için tampon.
-// Başlangıç kesinleşene kadar metin ön yüze gönderilmez.
+// Streaming yanıtlarında başlangıç etiketlerini temizle
 function createStreamingTextCleaner(onText) {
   let pending = "";
   let decided = false;
 
-  const labelStart =
-    /^\s*(?:(?:User\s+Safety|Response\s+Safety)\s*:\s*(?:safe|unsafe|unknown)\b[\s\r\n]*)+/i;
+  const labelPattern =
+    /^(?:(?:User\s+Safety|Response\s+Safety)\s*:\s*(?:safe|unsafe|unknown)\s*[\r\n ]*)+/i;
 
   function flush(force = false) {
     if (decided) return;
 
     const trimmed = pending.trimStart();
 
-    // Henüz etiketin tamamı gelmediyse bekle.
+    // Başlangıçtaki olası etiket tamamlanana kadar bekle.
     const possibleLabel =
       /^\s*(?:(?:User\s+Safety|Response\s+Safety)\s*:\s*(?:safe|unsafe|unknown)?\s*)*$/i;
 
@@ -196,7 +285,7 @@ function createStreamingTextCleaner(onText) {
       return;
     }
 
-    pending = pending.replace(labelStart, "").trimStart();
+    pending = trimmed.replace(labelPattern, "").trimStart();
     decided = true;
 
     if (pending) onText(pending);
@@ -215,8 +304,6 @@ function createStreamingTextCleaner(onText) {
 
       pending += text;
 
-      // İlk metin bir etiketle başlıyorsa ikinci etiketi de
-      // temizleyebilmek için kısa süre daha bekle.
       const beginsWithLabel =
         /^\s*(?:User\s+Safety|Response\s+Safety)\s*:/i.test(pending);
 
@@ -235,7 +322,8 @@ function createStreamingTextCleaner(onText) {
   };
 }
 
-// Mesajları doğrula
+// İstek mesajlarını doğrula.
+// İstemciden gelen system mesajları güvenilir kabul edilmez.
 function normalizeMessages(messages) {
   if (!Array.isArray(messages)) return [];
 
@@ -244,7 +332,7 @@ function normalizeMessages(messages) {
       (message) =>
         message &&
         typeof message.content === "string" &&
-        ["system", "user", "assistant"].includes(message.role)
+        ["user", "assistant"].includes(message.role)
     )
     .map((message) => ({
       role: message.role,
@@ -266,23 +354,23 @@ function getLatestUserMessage(messages) {
 // Konuşmayı hazırla
 function makeConversation(messages, extraInstruction = "") {
   const safeMessages = normalizeMessages(messages);
+  const latestUserMessage = getLatestUserMessage(safeMessages);
+
+  const analysisMode = getAnalysisMode(latestUserMessage);
 
   const systemText = [
     BASE_INSTRUCTION,
+    ANALYSIS_INSTRUCTION,
+    analysisMode,
     extraInstruction,
-    ...safeMessages
-      .filter((message) => message.role === "system")
-      .map((message) => message.content),
   ]
     .filter(Boolean)
     .join("\n\n");
 
-  const conversation = safeMessages
-    .filter((message) => message.role !== "system")
-    .map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
+  const conversation = safeMessages.map((message) => ({
+    role: message.role,
+    content: message.content,
+  }));
 
   return { systemText, conversation };
 }
@@ -335,7 +423,7 @@ async function callGemini(messages, extraInstruction = "") {
       systemInstruction: { parts: [{ text: systemText }] },
       contents,
       generationConfig: {
-        temperature: 0.7,
+        temperature: 0.4,
         maxOutputTokens: 4096,
       },
     }),
@@ -385,7 +473,7 @@ async function callOpenRouter(messages, extraInstruction = "") {
       body: JSON.stringify({
         model: OPENROUTER_MODEL,
         messages: [{ role: "system", content: systemText }, ...conversation],
-        temperature: 0.7,
+        temperature: 0.4,
         max_tokens: 4096,
       }),
     }
@@ -431,7 +519,7 @@ async function callGroq(messages, extraInstruction = "") {
       body: JSON.stringify({
         model: GROQ_MODEL,
         messages: [{ role: "system", content: systemText }, ...conversation],
-        temperature: 0.7,
+        temperature: 0.4,
         max_tokens: 4096,
       }),
     }
@@ -531,7 +619,7 @@ async function streamOpenAIProvider({
     body: JSON.stringify({
       model,
       messages: [{ role: "system", content: systemText }, ...conversation],
-      temperature: 0.7,
+      temperature: 0.4,
       max_tokens: 4096,
       stream: true,
     }),
@@ -671,7 +759,7 @@ async function streamGemini({
       systemInstruction: { parts: [{ text: systemText }] },
       contents,
       generationConfig: {
-        temperature: 0.7,
+        temperature: 0.4,
         maxOutputTokens: 4096,
       },
     }),
@@ -946,8 +1034,8 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               error.message
             );
 
-            // Metin gönderildikten sonra başka sağlayıcıya geçmek
-            // aynı yanıtın iki kez görünmesine neden olabilir.
+            // Yanıt kullanıcıya ulaşmaya başladıysa başka sağlayıcıya
+            // geçmek aynı yanıtın iki kez görünmesine neden olabilir.
             if (answer.length > 0 || firstChunkSent) {
               const partialError = new Error(
                 "Yanıt akışı kesildi. Lütfen yeniden dene."
