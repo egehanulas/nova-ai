@@ -228,12 +228,10 @@
         if (data.session) {
           currentUser = data.user;
           await initializeApp();
-        } else {
-          if (authMessage) {
-            authMessage.textContent =
-              "Kayıt isteği gönderildi. E-posta doğrulaması " +
-              "isteniyorsa gelen kutunu kontrol et; ardından giriş yap.";
-          }
+        } else if (authMessage) {
+          authMessage.textContent =
+            "Kayıt isteği gönderildi. E-posta doğrulaması " +
+            "isteniyorsa gelen kutunu kontrol et; ardından giriş yap.";
         }
       } else {
         const { data, error } =
@@ -289,6 +287,8 @@
       }
 
       setAuthMode("login");
+      renderHistory();
+      renderMessages();
     } catch (error) {
       console.error("Çıkış yapılamadı:", error);
 
@@ -354,11 +354,9 @@
 
       if (error) throw error;
 
-      // Önemli: Supabase'in gerçek ID'sini kullan.
       conversation.id = data.id;
       delete conversation._isNew;
 
-      // Seçili sohbetin ID'sini de güncelle.
       if (currentId === temporaryId) {
         currentId = data.id;
       }
@@ -402,8 +400,7 @@
     prompt.focus();
   }
 
-  // Seçili sohbet yoksa busy durumundan bağımsız oluştur.
-  // Böylece mesaj gönderilirken newChat() engeline takılmaz.
+  // Seçili sohbet yoksa oluştur
   async function ensureConversation() {
     let conversation = currentConversation();
 
@@ -686,7 +683,151 @@
     form.setAttribute("aria-busy", String(value));
   }
 
-  // Mesaj gönderme ve NOVA AI yanıtını alma
+  // Akış sırasında ekranda gösterilecek yanıt alanı
+  function createStreamingMessage() {
+    const wrapper = document.createElement("article");
+    wrapper.className =
+      "message assistant-message assistant loading";
+
+    const main = document.createElement("div");
+    main.className = "message-main";
+
+    const name = document.createElement("div");
+    name.className = "message-name";
+    name.textContent = "NOVA AI";
+
+    const content = document.createElement("div");
+    content.className = "message-content typing";
+    content.textContent = "Yanıt hazırlanıyor...";
+
+    main.append(name, content);
+    wrapper.append(createNovaAvatar(), main);
+    messagesEl.appendChild(wrapper);
+
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    return { wrapper, content };
+  }
+
+  // SSE olayını işle
+  function parseStreamEvent(eventText) {
+    const dataLines = eventText
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).replace(/^ /, ""));
+
+    if (!dataLines.length) return null;
+
+    try {
+      return JSON.parse(dataLines.join("\n"));
+    } catch {
+      return null;
+    }
+  }
+
+  // Sunucudan gelen akışı okuyup yanıtı anlık göster
+  async function readStreamingResponse(response, onChunk) {
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+
+      throw new Error(
+        data.error || `Sunucu hatası (${response.status}).`
+      );
+    }
+
+    if (!response.body) {
+      throw new Error(
+        "Tarayıcı yanıt akışını okuyamadı. Sayfayı yenileyip tekrar dene."
+      );
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    let buffer = "";
+    let fullAnswer = "";
+    let finished = false;
+    let streamError = null;
+    let provider = null;
+    let model = null;
+
+    function handleEvent(eventText) {
+      const event = parseStreamEvent(eventText);
+
+      if (!event) return;
+
+      if (event.type === "start") {
+        provider = event.provider || provider;
+        model = event.model || model;
+      } else if (event.type === "chunk") {
+        if (typeof event.text === "string" && event.text.length) {
+          fullAnswer += event.text;
+          onChunk(event.text, fullAnswer);
+        }
+      } else if (event.type === "done") {
+        finished = true;
+        provider = event.provider || provider;
+        model = event.model || model;
+      } else if (event.type === "error") {
+        streamError = new Error(
+          event.error || "Yanıt akışı sırasında hata oluştu."
+        );
+        streamError.partial = Boolean(event.partial);
+      }
+    }
+
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+
+        buffer += decoder.decode(
+          value || new Uint8Array(),
+          { stream: !done }
+        );
+
+        const events = buffer.split(/\r?\n\r?\n/);
+        buffer = events.pop() || "";
+
+        for (const eventText of events) {
+          handleEvent(eventText);
+
+          if (streamError) break;
+        }
+
+        if (streamError || done) break;
+      }
+
+      if (!streamError && buffer.trim()) {
+        handleEvent(buffer);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    if (streamError) {
+      throw streamError;
+    }
+
+    if (!finished) {
+      throw new Error(
+        fullAnswer
+          ? "Yanıt akışı beklenmedik şekilde kesildi."
+          : "Sunucudan tamamlanmış bir yanıt alınamadı."
+      );
+    }
+
+    if (!fullAnswer.trim()) {
+      throw new Error("NOVA AI boş yanıt döndürdü.");
+    }
+
+    return {
+      answer: fullAnswer.trim(),
+      provider,
+      model
+    };
+  }
+
+  // Mesaj gönderme — gerçek zamanlı akış
   async function sendMessage(rawText) {
     const text = String(rawText || "").trim();
 
@@ -694,7 +835,8 @@
 
     setBusy(true);
 
-    let loading;
+    let loading = null;
+    let streamedAnswer = "";
 
     try {
       const conversation = await ensureConversation();
@@ -704,24 +846,13 @@
       prompt.value = "";
       prompt.style.height = "";
 
-      loading = document.createElement("div");
-      loading.className =
-        "message assistant-message assistant loading";
+      const count = $("#characterCount");
 
-      const loadingMain = document.createElement("div");
-      loadingMain.className = "message-main";
+      if (count) {
+        count.textContent = "0/4000";
+      }
 
-      const loadingName = document.createElement("div");
-      loadingName.className = "message-name";
-      loadingName.textContent = "NOVA AI";
-
-      const loadingText = document.createElement("div");
-      loadingText.className = "message-content typing";
-      loadingText.textContent = "Yanıt hazırlanıyor...";
-
-      loadingMain.append(loadingName, loadingText);
-      loading.append(createNovaAvatar(), loadingMain);
-      messagesEl.appendChild(loading);
+      loading = createStreamingMessage();
 
       const { data: sessionData, error: sessionError } =
         await supabase.auth.getSession();
@@ -736,42 +867,53 @@
         );
       }
 
-      const response = await fetch(
-        researchMode ? "/api/research" : "/api/chat",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            messages: conversation.messages
-          })
+      const endpoint = researchMode
+        ? "/api/research/stream"
+        : "/api/chat/stream";
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          messages: conversation.messages
+        })
+      });
+
+      const result = await readStreamingResponse(
+        response,
+        (chunk, fullAnswer) => {
+          streamedAnswer = fullAnswer;
+
+          loading.content.classList.remove("typing");
+          loading.content.textContent = fullAnswer;
+
+          messagesEl.scrollTop = messagesEl.scrollHeight;
         }
       );
 
-      const data = await response.json().catch(() => ({}));
+      // Tamamlanan yanıtı bir kez kaydet.
+      await addMessage("assistant", result.answer);
 
-      if (!response.ok) {
-        throw new Error(
-          data.error || `Sunucu hatası (${response.status}).`
-        );
-      }
-
-      if (
-        !data.success ||
-        typeof data.answer !== "string"
-      ) {
-        throw new Error(
-          data.error || "Sunucudan geçerli yanıt alınamadı."
-        );
-      }
-
-      await addMessage("assistant", data.answer);
+      console.info(
+        "[NOVA AI] Yanıt tamamlandı.",
+        result.provider || "",
+        result.model || ""
+      );
     } catch (error) {
       console.error("NOVA AI mesaj hatası:", error);
 
-      alert("Mesaj gönderilemedi: " + error.message);
+      if (loading) {
+        loading.remove();
+      }
+
+      const message = streamedAnswer
+        ? "Yanıt tamamlanmadan kesildi. Kısmi yanıt kaydedilmedi; lütfen tekrar dene."
+        : error.message || "Mesaj gönderilemedi.";
+
+      alert("NOVA AI: " + message);
     } finally {
       loading?.remove();
 
@@ -861,13 +1003,15 @@
 
       const token = data.session?.access_token;
 
+      if (!token) {
+        throw new Error("Seslendirmek için giriş yapmalısın.");
+      }
+
       const response = await fetch("/api/tts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token
-            ? { "Authorization": `Bearer ${token}` }
-            : {})
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({ text })
       });
