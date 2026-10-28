@@ -21,7 +21,7 @@ app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "1mb" }));
 
-// Supabase: oturum doğrulama
+// Supabase
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
 
@@ -36,7 +36,7 @@ const supabase =
       })
     : null;
 
-// Giriş yapan kullanıcıyı doğrula
+// Oturum doğrulama
 async function requireAuth(req, res, next) {
   if (!supabase) {
     return res.status(503).json({
@@ -110,44 +110,130 @@ const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID;
 
-// NOVA AI ana talimatları
+// Ana talimatlar
 const BASE_INSTRUCTION = `
 Sen NOVA AI'sın. Ege tarafından geliştirilen,
 Türkçe konuşan, doğal, zeki, dikkatli ve güvenilir
 bir yapay zekâ asistanısın.
 
-Geliştiricin Ege'dir. Kullanıcı "Seni kim yaptı?",
-"Kim tarafından geliştirildin?" veya benzer bir soru
-sorduğunda şu şekilde cevap ver:
+KİMLİK:
+- Geliştiricin sorulursa Ege olduğunu belirt.
+- Şöyle cevap verebilirsin:
+  "Ben NOVA AI'yım. Ege tarafından geliştirildim.
+  Ege, NOVA AI projesini tasarlayan ve geliştiren kişidir. ❤️"
+- NOVA AI'nin geliştiricisi ile temel model sağlayıcısını karıştırma.
+- Ege hakkında bilmediğin kişisel bilgileri uydurma.
 
-"Ben NOVA AI'yım. Ege tarafından geliştirildim.
-Ege, NOVA AI projesini tasarlayan ve geliştiren kişidir. ❤️"
-
-Kimliğinle ilgili kurallar:
-- NOVA AI'nin geliştiricisi sorulursa Ege olduğunu belirt.
-- OpenAI'nin seni geliştirdiğini söyleyerek NOVA AI projesinin
-  geliştiricisini karıştırma.
-- NOVA AI projesini Ege geliştirmiştir; kullandığın temel
-  yapay zekâ modelleri farklı şirketlere ait olabilir.
-- Ege'nin bilmediğin kişisel bilgilerini uydurma.
-- Kullanıcıyla öncelikle Türkçe konuş.
-- Samimi, anlaşılır ve doğal cevaplar ver.
-- Sorulara doğrudan cevap ver.
+YANIT KURALLARI:
+- Öncelikle Türkçe konuş.
+- Samimi, anlaşılır, doğal ve doğrudan cevap ver.
 - Bilmediğin bilgileri uydurma.
 - Güncel bilgiye erişimin yoksa bunu açıkça belirt.
-- Kod sorularında çalışan, okunabilir ve güvenli örnekler sun.
-- Gizli anahtarları, şifreleri veya özel bilgileri isteme.
-- Gereksiz yere aynı bilgiyi tekrar etme.
+- Kod sorularında güvenli ve okunabilir örnekler sun.
+- Gereksiz tekrar yapma.
+- Gizli anahtarları veya şifreleri isteme.
+
+ÇIKTI KURALLARI:
+- Yalnızca kullanıcıya yönelik doğal yanıtı üret.
+- "User Safety: safe" veya "Response Safety: safe"
+  gibi dahili sınıflandırma etiketlerini yanıta ekleme.
+- Güvenlik etiketlerini, iç değerlendirmeleri ve teknik
+  metaverileri kullanıcıya gösterme.
+- Yanıtı güvenlik etiketleriyle başlatma.
 `;
 
-// Araştırma modu talimatı
+// Araştırma talimatları
 const RESEARCH_INSTRUCTION = `
 Araştırma modundasın.
-Soruyu dikkatlice analiz et, konuyu başlıklar altında açıkla,
-önemli ayrıntıları ve belirsizlikleri belirt.
-Canlı internet araması yapmadıysan internette arama yaptığını iddia etme.
+Soruyu dikkatlice analiz et ve başlıklar altında açıkla.
+Önemli ayrıntıları ve belirsizlikleri belirt.
+Canlı internet araması yapmadıysan arama yaptığını iddia etme.
 Kaynağını doğrulayamadığın bilgileri kesin gerçek gibi sunma.
 `;
+
+// Model yanıtındaki istenmeyen başlangıç etiketlerini temizle.
+// Yalnızca yanıtın başındaki etiketleri kaldırır.
+function cleanModelAnswer(text) {
+  if (typeof text !== "string") return "";
+
+  let result = text.trimStart();
+
+  const labelPattern =
+    /^(?:(?:User\s+Safety|Response\s+Safety)\s*:\s*(?:safe|unsafe|unknown)\s*[\r\n ]*)+/i;
+
+  // Etiketlerden sonra başka bir etiket gelebileceği için
+  // başlangıçtaki etiketleri birden fazla kez temizle.
+  for (let i = 0; i < 5; i++) {
+    const cleaned = result.replace(labelPattern, "").trimStart();
+
+    if (cleaned === result) break;
+
+    result = cleaned;
+  }
+
+  return result.trim();
+}
+
+// Akışta başlangıç etiketlerini temizlemek için tampon.
+// Başlangıç kesinleşene kadar metin ön yüze gönderilmez.
+function createStreamingTextCleaner(onText) {
+  let pending = "";
+  let decided = false;
+
+  const labelStart =
+    /^\s*(?:(?:User\s+Safety|Response\s+Safety)\s*:\s*(?:safe|unsafe|unknown)\b[\s\r\n]*)+/i;
+
+  function flush(force = false) {
+    if (decided) return;
+
+    const trimmed = pending.trimStart();
+
+    // Henüz etiketin tamamı gelmediyse bekle.
+    const possibleLabel =
+      /^\s*(?:(?:User\s+Safety|Response\s+Safety)\s*:\s*(?:safe|unsafe|unknown)?\s*)*$/i;
+
+    if (!force && pending.length < 120 && possibleLabel.test(pending)) {
+      return;
+    }
+
+    pending = pending.replace(labelStart, "").trimStart();
+    decided = true;
+
+    if (pending) onText(pending);
+
+    pending = "";
+  }
+
+  return {
+    push(text) {
+      if (!text) return;
+
+      if (decided) {
+        onText(text);
+        return;
+      }
+
+      pending += text;
+
+      // İlk metin bir etiketle başlıyorsa ikinci etiketi de
+      // temizleyebilmek için kısa süre daha bekle.
+      const beginsWithLabel =
+        /^\s*(?:User\s+Safety|Response\s+Safety)\s*:/i.test(pending);
+
+      if (
+        pending.length >= 120 ||
+        pending.includes("\n") ||
+        !beginsWithLabel
+      ) {
+        flush(false);
+      }
+    },
+
+    finish() {
+      flush(true);
+    },
+  };
+}
 
 // Mesajları doğrula
 function normalizeMessages(messages) {
@@ -169,7 +255,9 @@ function normalizeMessages(messages) {
 // Son kullanıcı mesajını bul
 function getLatestUserMessage(messages) {
   for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "user") return messages[i].content;
+    if (messages[i].role === "user") {
+      return messages[i].content;
+    }
   }
 
   return "";
@@ -199,14 +287,14 @@ function makeConversation(messages, extraInstruction = "") {
   return { systemText, conversation };
 }
 
-// Ortak hata oluşturucu
+// HTTP hatası oluştur
 function makeHttpError(message, status) {
   const error = new Error(message);
   error.status = status;
   return error;
 }
 
-// Sağlayıcıların hata mesajlarını güvenli biçimde oku
+// Sağlayıcı hata mesajını oku
 async function readProviderError(response, providerName) {
   const data = await response.json().catch(() => ({}));
   const message =
@@ -217,7 +305,7 @@ async function readProviderError(response, providerName) {
   return makeHttpError(message, response.status);
 }
 
-// Gemini API — normal yanıt
+// Gemini normal yanıt
 async function callGemini(messages, extraInstruction = "") {
   if (!GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY tanımlanmamış.");
@@ -259,17 +347,20 @@ async function callGemini(messages, extraInstruction = "") {
 
   const data = await response.json();
 
-  const answer = (data?.candidates?.[0]?.content?.parts || [])
+  const rawAnswer = (data?.candidates?.[0]?.content?.parts || [])
     .map((part) => part.text || "")
-    .join("")
-    .trim();
+    .join("");
 
-  if (!answer) throw new Error("Gemini boş yanıt döndürdü.");
+  const answer = cleanModelAnswer(rawAnswer);
+
+  if (!answer) {
+    throw new Error("Gemini boş yanıt döndürdü.");
+  }
 
   return { answer, provider: "gemini", model: GEMINI_MODEL };
 }
 
-// OpenRouter API — normal yanıt
+// OpenRouter normal yanıt
 async function callOpenRouter(messages, extraInstruction = "") {
   if (!OPENROUTER_API_KEY) {
     throw new Error("OPENROUTER_API_KEY tanımlanmamış.");
@@ -305,20 +396,20 @@ async function callOpenRouter(messages, extraInstruction = "") {
   }
 
   const data = await response.json();
-  const answer = data?.choices?.[0]?.message?.content;
+  const rawAnswer = data?.choices?.[0]?.message?.content;
 
-  if (typeof answer !== "string" || !answer.trim()) {
+  if (typeof rawAnswer !== "string" || !rawAnswer.trim()) {
     throw new Error("OpenRouter boş yanıt döndürdü.");
   }
 
   return {
-    answer: answer.trim(),
+    answer: cleanModelAnswer(rawAnswer),
     provider: "openrouter",
     model: data?.model || OPENROUTER_MODEL,
   };
 }
 
-// Groq API — normal yanıt
+// Groq normal yanıt
 async function callGroq(messages, extraInstruction = "") {
   if (!GROQ_API_KEY) {
     throw new Error("GROQ_API_KEY tanımlanmamış.");
@@ -351,20 +442,20 @@ async function callGroq(messages, extraInstruction = "") {
   }
 
   const data = await response.json();
-  const answer = data?.choices?.[0]?.message?.content;
+  const rawAnswer = data?.choices?.[0]?.message?.content;
 
-  if (typeof answer !== "string" || !answer.trim()) {
+  if (typeof rawAnswer !== "string" || !rawAnswer.trim()) {
     throw new Error("Groq boş yanıt döndürdü.");
   }
 
   return {
-    answer: answer.trim(),
+    answer: cleanModelAnswer(rawAnswer),
     provider: "groq",
     model: data?.model || GROQ_MODEL,
   };
 }
 
-// Sağlayıcıları sırayla dene — normal yanıtlar için
+// Sağlayıcıları sırayla dene
 async function generateAnswer(messages, extraInstruction = "") {
   const failures = [];
 
@@ -412,7 +503,7 @@ async function generateAnswer(messages, extraInstruction = "") {
   throw error;
 }
 
-// OpenAI uyumlu sağlayıcıdan SSE akışını oku
+// OpenAI uyumlu sağlayıcının SSE akışını oku
 async function streamOpenAIProvider({
   url,
   apiKey,
@@ -456,8 +547,11 @@ async function streamOpenAIProvider({
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+
   let buffer = "";
   let answer = "";
+
+  const cleaner = createStreamingTextCleaner(onText);
 
   async function processLine(line) {
     const trimmed = line.trim();
@@ -466,7 +560,8 @@ async function streamOpenAIProvider({
 
     const dataText = trimmed.slice(5).trim();
 
-    if (!dataText || dataText === "[DONE]") return dataText === "[DONE]";
+    if (!dataText) return false;
+    if (dataText === "[DONE]") return true;
 
     let data;
 
@@ -486,7 +581,7 @@ async function streamOpenAIProvider({
 
     if (typeof text === "string" && text.length > 0) {
       answer += text;
-      onText(text);
+      cleaner.push(text);
     }
 
     return false;
@@ -496,17 +591,22 @@ async function streamOpenAIProvider({
     while (true) {
       const { value, done } = await reader.read();
 
-      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      buffer += decoder.decode(value || new Uint8Array(), {
+        stream: !done,
+      });
 
       const lines = buffer.split(/\r?\n/);
       buffer = lines.pop() || "";
 
       for (const line of lines) {
         const finished = await processLine(line);
+
         if (finished) {
+          cleaner.finish();
           await reader.cancel().catch(() => {});
+
           return {
-            answer,
+            answer: cleanModelAnswer(answer),
             provider: providerName,
             model,
           };
@@ -520,6 +620,7 @@ async function streamOpenAIProvider({
       await processLine(buffer);
     }
   } finally {
+    cleaner.finish();
     reader.releaseLock();
   }
 
@@ -528,7 +629,7 @@ async function streamOpenAIProvider({
   }
 
   return {
-    answer: answer.trim(),
+    answer: cleanModelAnswer(answer),
     provider: providerName,
     model,
   };
@@ -586,23 +687,26 @@ async function streamGemini({
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+
   let buffer = "";
   let answer = "";
+
+  const cleaner = createStreamingTextCleaner(onText);
 
   async function processLine(line) {
     const trimmed = line.trim();
 
-    if (!trimmed.startsWith("data:")) return false;
+    if (!trimmed.startsWith("data:")) return;
 
     const dataText = trimmed.slice(5).trim();
-    if (!dataText) return false;
+    if (!dataText) return;
 
     let data;
 
     try {
       data = JSON.parse(dataText);
     } catch {
-      return false;
+      return;
     }
 
     if (data?.error) {
@@ -614,18 +718,18 @@ async function streamGemini({
     for (const part of parts) {
       if (typeof part.text === "string" && part.text.length > 0) {
         answer += part.text;
-        onText(part.text);
+        cleaner.push(part.text);
       }
     }
-
-    return false;
   }
 
   try {
     while (true) {
       const { value, done } = await reader.read();
 
-      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      buffer += decoder.decode(value || new Uint8Array(), {
+        stream: !done,
+      });
 
       const lines = buffer.split(/\r?\n/);
       buffer = lines.pop() || "";
@@ -641,6 +745,7 @@ async function streamGemini({
       await processLine(buffer);
     }
   } finally {
+    cleaner.finish();
     reader.releaseLock();
   }
 
@@ -649,181 +754,10 @@ async function streamGemini({
   }
 
   return {
-    answer: answer.trim(),
+    answer: cleanModelAnswer(answer),
     provider: "gemini",
     model: GEMINI_MODEL,
   };
-}
-
-// Sağlayıcıdan gerçek zamanlı yanıt al
-async function generateStreamingAnswer({
-  messages,
-  extraInstruction = "",
-  signal,
-  onText,
-}) {
-  const providers = [
-    {
-      name: "gemini",
-      enabled: Boolean(GEMINI_API_KEY),
-      run: () =>
-        streamGemini({
-          messages,
-          extraInstruction,
-          signal,
-          onText,
-        }),
-    },
-    {
-      name: "openrouter",
-      enabled: Boolean(OPENROUTER_API_KEY),
-      run: () =>
-        streamOpenAIProvider({
-          url: "https://openrouter.ai/api/v1/chat/completions",
-          apiKey: OPENROUTER_API_KEY,
-          model: OPENROUTER_MODEL,
-          messages,
-          extraInstruction,
-          providerName: "openrouter",
-          headers: {
-            "HTTP-Referer":
-              process.env.APP_URL || "https://nova-ai-xxid.onrender.com",
-            "X-Title": "NOVA AI",
-          },
-          signal,
-          onText,
-        }),
-    },
-    {
-      name: "groq",
-      enabled: Boolean(GROQ_API_KEY),
-      run: () =>
-        streamOpenAIProvider({
-          url: "https://api.groq.com/openai/v1/chat/completions",
-          apiKey: GROQ_API_KEY,
-          model: GROQ_MODEL,
-          messages,
-          extraInstruction,
-          providerName: "groq",
-          signal,
-          onText,
-        }),
-    },
-  ];
-
-  const failures = [];
-
-  for (const provider of providers) {
-    if (!provider.enabled) continue;
-
-    let providerSentText = false;
-
-    try {
-      const result = await provider.runWithTextTracking?.();
-
-      if (result) return result;
-    } catch (error) {
-      failures.push({
-        provider: provider.name,
-        message: error.message,
-      });
-    }
-
-    // Akışın her sağlayıcı için ayrı takip edilmesi aşağıdaki
-    // deneme fonksiyonuyla yapılır.
-    try {
-      const result = await tryStreamingProvider(
-        provider,
-        messages,
-        extraInstruction,
-        signal,
-        (text) => {
-          providerSentText = true;
-          onText(text);
-        }
-      );
-
-      return result;
-    } catch (error) {
-      failures.push({
-        provider: provider.name,
-        message: error.message,
-      });
-
-      console.error(
-        `[NOVA AI] ${provider.name} akış hatası:`,
-        error.message
-      );
-
-      if (providerSentText) {
-        const partialError = new Error(
-          "Yanıt akışı kesildi. Lütfen yeniden dene."
-        );
-        partialError.partial = true;
-        throw partialError;
-      }
-    }
-  }
-
-  const error = new Error(
-    failures.length
-      ? "Kullanılabilir sağlayıcılardan akış yanıtı alınamadı."
-      : "Sunucuda hiçbir yapay zekâ API anahtarı tanımlanmamış."
-  );
-
-  error.failures = failures;
-  throw error;
-}
-
-// Bir sağlayıcı için akış başlat
-async function tryStreamingProvider(
-  provider,
-  messages,
-  extraInstruction,
-  signal,
-  onText
-) {
-  if (provider.name === "gemini") {
-    return streamGemini({
-      messages,
-      extraInstruction,
-      signal,
-      onText,
-    });
-  }
-
-  if (provider.name === "openrouter") {
-    return streamOpenAIProvider({
-      url: "https://openrouter.ai/api/v1/chat/completions",
-      apiKey: OPENROUTER_API_KEY,
-      model: OPENROUTER_MODEL,
-      messages,
-      extraInstruction,
-      providerName: "openrouter",
-      headers: {
-        "HTTP-Referer":
-          process.env.APP_URL || "https://nova-ai-xxid.onrender.com",
-        "X-Title": "NOVA AI",
-      },
-      signal,
-      onText,
-    });
-  }
-
-  if (provider.name === "groq") {
-    return streamOpenAIProvider({
-      url: "https://api.groq.com/openai/v1/chat/completions",
-      apiKey: GROQ_API_KEY,
-      model: GROQ_MODEL,
-      messages,
-      extraInstruction,
-      providerName: "groq",
-      signal,
-      onText,
-    });
-  }
-
-  throw new Error("Bilinmeyen yapay zekâ sağlayıcısı.");
 }
 
 // Asenkron hata yakalama
@@ -839,7 +773,12 @@ function getValidatedMessages(req, res, customError) {
   let conversation = normalizeMessages(messages);
 
   if (!conversation.length && typeof message === "string") {
-    conversation = [{ role: "user", content: message.slice(0, 20000) }];
+    conversation = [
+      {
+        role: "user",
+        content: message.slice(0, 20000),
+      },
+    ];
   }
 
   if (!conversation.length || !getLatestUserMessage(conversation)) {
@@ -850,7 +789,7 @@ function getValidatedMessages(req, res, customError) {
   return conversation;
 }
 
-// SSE yanıtı için yardımcı
+// SSE yanıtı gönder
 function sendSSE(res, payload) {
   if (res.writableEnded || res.destroyed) return;
 
@@ -867,9 +806,12 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
       if (!messages) return;
 
       const controller = new AbortController();
+
       let clientDisconnected = false;
       let hasSentHeaders = false;
       let answer = "";
+      let firstChunkSent = false;
+      let providerInfo = null;
 
       res.on("close", () => {
         if (!res.writableEnded) {
@@ -878,100 +820,113 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
         }
       });
 
-      try {
-        // Sağlayıcı seçimi başlamadan önce SSE başlıklarını gönderme.
-        // İlk sağlayıcı HTTP hatası verirse diğer sağlayıcı denenebilir.
-        let firstChunkSent = false;
-        let providerInfo = null;
+      function startSSE() {
+        if (hasSentHeaders) return;
 
-        const onText = (text) => {
-          if (clientDisconnected || res.destroyed) return;
+        res.status(200);
+        res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+        res.setHeader("Cache-Control", "no-cache, no-transform");
+        res.setHeader("Connection", "keep-alive");
+        res.setHeader("X-Accel-Buffering", "no");
 
-          if (!hasSentHeaders) {
-            res.status(200);
-            res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-            res.setHeader("Cache-Control", "no-cache, no-transform");
-            res.setHeader("Connection", "keep-alive");
-            res.setHeader("X-Accel-Buffering", "no");
-            res.flushHeaders?.();
-            hasSentHeaders = true;
-          }
+        res.flushHeaders?.();
+        hasSentHeaders = true;
+      }
 
-          if (!firstChunkSent) {
-            firstChunkSent = true;
-            sendSSE(res, {
-              type: "start",
-              provider: providerInfo?.provider || null,
-              model: providerInfo?.model || null,
+      const onText = (text) => {
+        if (clientDisconnected || res.destroyed) return;
+
+        startSSE();
+
+        if (!firstChunkSent) {
+          firstChunkSent = true;
+
+          sendSSE(res, {
+            type: "start",
+            provider: providerInfo?.provider || null,
+            model: providerInfo?.model || null,
+          });
+        }
+
+        answer += text;
+
+        sendSSE(res, {
+          type: "chunk",
+          text,
+        });
+      };
+
+      const providers = [
+        {
+          name: "gemini",
+          enabled: Boolean(GEMINI_API_KEY),
+          run: () => {
+            providerInfo = {
+              provider: "gemini",
+              model: GEMINI_MODEL,
+            };
+
+            return streamGemini({
+              messages,
+              extraInstruction,
+              signal: controller.signal,
+              onText,
             });
-          }
-
-          answer += text;
-          sendSSE(res, { type: "chunk", text });
-        };
-
-        // Sağlayıcı metaverisi, sağlayıcı seçildiğinde ayarlanır.
-        // İlk içerik gelmeden önce başarısız olursa diğer sağlayıcı denenir.
-        const providers = [
-          {
-            name: "gemini",
-            enabled: Boolean(GEMINI_API_KEY),
-            run: async () => {
-              providerInfo = { provider: "gemini", model: GEMINI_MODEL };
-              return streamGemini({
-                messages,
-                extraInstruction,
-                signal: controller.signal,
-                onText,
-              });
-            },
           },
-          {
-            name: "openrouter",
-            enabled: Boolean(OPENROUTER_API_KEY),
-            run: async () => {
-              providerInfo = {
-                provider: "openrouter",
-                model: OPENROUTER_MODEL,
-              };
-              return streamOpenAIProvider({
-                url: "https://openrouter.ai/api/v1/chat/completions",
-                apiKey: OPENROUTER_API_KEY,
-                model: OPENROUTER_MODEL,
-                messages,
-                extraInstruction,
-                providerName: "openrouter",
-                headers: {
-                  "HTTP-Referer":
-                    process.env.APP_URL ||
-                    "https://nova-ai-xxid.onrender.com",
-                  "X-Title": "NOVA AI",
-                },
-                signal: controller.signal,
-                onText,
-              });
-            },
-          },
-          {
-            name: "groq",
-            enabled: Boolean(GROQ_API_KEY),
-            run: async () => {
-              providerInfo = { provider: "groq", model: GROQ_MODEL };
-              return streamOpenAIProvider({
-                url: "https://api.groq.com/openai/v1/chat/completions",
-                apiKey: GROQ_API_KEY,
-                model: GROQ_MODEL,
-                messages,
-                extraInstruction,
-                providerName: "groq",
-                signal: controller.signal,
-                onText,
-              });
-            },
-          },
-        ];
+        },
+        {
+          name: "openrouter",
+          enabled: Boolean(OPENROUTER_API_KEY),
+          run: () => {
+            providerInfo = {
+              provider: "openrouter",
+              model: OPENROUTER_MODEL,
+            };
 
-        const failures = [];
+            return streamOpenAIProvider({
+              url: "https://openrouter.ai/api/v1/chat/completions",
+              apiKey: OPENROUTER_API_KEY,
+              model: OPENROUTER_MODEL,
+              messages,
+              extraInstruction,
+              providerName: "openrouter",
+              headers: {
+                "HTTP-Referer":
+                  process.env.APP_URL ||
+                  "https://nova-ai-xxid.onrender.com",
+                "X-Title": "NOVA AI",
+              },
+              signal: controller.signal,
+              onText,
+            });
+          },
+        },
+        {
+          name: "groq",
+          enabled: Boolean(GROQ_API_KEY),
+          run: () => {
+            providerInfo = {
+              provider: "groq",
+              model: GROQ_MODEL,
+            };
+
+            return streamOpenAIProvider({
+              url: "https://api.groq.com/openai/v1/chat/completions",
+              apiKey: GROQ_API_KEY,
+              model: GROQ_MODEL,
+              messages,
+              extraInstruction,
+              providerName: "groq",
+              signal: controller.signal,
+              onText,
+            });
+          },
+        },
+      ];
+
+      const failures = [];
+
+      try {
         let result = null;
 
         for (const provider of providers) {
@@ -991,11 +946,13 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               error.message
             );
 
-            // İlk metin henüz gönderilmediyse diğer sağlayıcıyı dene.
+            // Metin gönderildikten sonra başka sağlayıcıya geçmek
+            // aynı yanıtın iki kez görünmesine neden olabilir.
             if (answer.length > 0 || firstChunkSent) {
               const partialError = new Error(
                 "Yanıt akışı kesildi. Lütfen yeniden dene."
               );
+
               partialError.partial = true;
               throw partialError;
             }
@@ -1016,15 +973,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
 
         if (clientDisconnected || res.destroyed) return;
 
-        if (!hasSentHeaders) {
-          res.status(200);
-          res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-          res.setHeader("Cache-Control", "no-cache, no-transform");
-          res.setHeader("Connection", "keep-alive");
-          res.setHeader("X-Accel-Buffering", "no");
-          res.flushHeaders?.();
-          hasSentHeaders = true;
-        }
+        startSSE();
 
         sendSSE(res, {
           type: "done",
@@ -1085,7 +1034,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Mevcut sohbet API'si — geriye dönük uyumlu
+// Normal sohbet API'si
 app.post(
   "/api/chat",
   requireAuth,
@@ -1095,6 +1044,7 @@ app.post(
       res,
       "Lütfen bir mesaj gönder."
     );
+
     if (!conversation) return;
 
     try {
@@ -1102,7 +1052,7 @@ app.post(
 
       return res.json({
         success: true,
-        answer: result.answer,
+        answer: cleanModelAnswer(result.answer),
         provider: result.provider,
         model: result.model,
       });
@@ -1111,13 +1061,14 @@ app.post(
 
       return res.status(503).json({
         success: false,
-        error: "Şu anda yanıt oluşturulamıyor. Lütfen daha sonra tekrar dene.",
+        error:
+          "Şu anda yanıt oluşturulamıyor. Lütfen daha sonra tekrar dene.",
       });
     }
   })
 );
 
-// Mevcut araştırma API'si — geriye dönük uyumlu
+// Normal araştırma API'si
 app.post(
   "/api/research",
   requireAuth,
@@ -1127,6 +1078,7 @@ app.post(
       res,
       "Lütfen araştırmak istediğin konuyu yaz."
     );
+
     if (!conversation) return;
 
     try {
@@ -1137,7 +1089,7 @@ app.post(
 
       return res.json({
         success: true,
-        answer: result.answer,
+        answer: cleanModelAnswer(result.answer),
         provider: result.provider,
         model: result.model,
         searched: false,
@@ -1154,7 +1106,7 @@ app.post(
   })
 );
 
-// Yeni gerçek zamanlı endpoint'ler
+// Gerçek zamanlı endpoint'ler
 registerStreamingEndpoint(
   "/api/chat/stream",
   "",
@@ -1167,7 +1119,7 @@ registerStreamingEndpoint(
   "Lütfen araştırmak istediğin konuyu yaz."
 );
 
-// Metinden sese — giriş zorunlu
+// ElevenLabs metinden sese
 app.post(
   "/api/tts",
   requireAuth,
@@ -1181,7 +1133,9 @@ app.post(
     const text = req.body?.text;
 
     if (typeof text !== "string" || !text.trim()) {
-      return res.status(400).json({ error: "Seslendirilecek metni gönder." });
+      return res.status(400).json({
+        error: "Seslendirilecek metni gönder.",
+      });
     }
 
     if (text.length > 5000) {
@@ -1202,7 +1156,7 @@ app.post(
           Accept: "audio/mpeg",
         },
         body: JSON.stringify({
-          text: text.trim(),
+          text: cleanModelAnswer(text),
           model_id:
             process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2",
           voice_settings: {
@@ -1239,12 +1193,14 @@ app.post(
 
 // Bulunamayan API yolları
 app.use("/api", (req, res) => {
-  res.status(404).json({ error: "API endpoint bulunamadı." });
+  res.status(404).json({
+    error: "API endpoint bulunamadı.",
+  });
 });
 
 // Genel hata yakalama
 app.use((error, req, res, next) => {
-  console.error("[NOVA AI] Sunucu hatası:", error);
+  console.error("[NOVA AI] Sunucu hatası:", error.message || error);
 
   if (res.headersSent) return next(error);
 
@@ -1262,6 +1218,8 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("Groq:", GROQ_API_KEY ? "Ayarlı" : "Ayarlı değil");
   console.log(
     "ElevenLabs:",
-    ELEVENLABS_API_KEY && ELEVENLABS_VOICE_ID ? "Ayarlı" : "Ayarlı değil"
+    ELEVENLABS_API_KEY && ELEVENLABS_VOICE_ID
+      ? "Ayarlı"
+      : "Ayarlı değil"
   );
 });
