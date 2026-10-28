@@ -1,28 +1,28 @@
 
 /* =========================================================
-   NOVA AI — PROFESYONEL ARAYÜZ
+   NOVA AI — PREMIUM INTERFACE
    index.html, app.js ve voice.js ile uyumlu
    ========================================================= */
 
 :root {
   color-scheme: dark;
-  --bg: #090b12;
-  --bg-soft: #0d1019;
-  --sidebar: #0b0e16;
-  --panel: rgba(17, 21, 33, 0.82);
+  --bg: #090a10;
+  --bg-soft: #0e1019;
+  --sidebar: #0b0d15;
+  --panel: rgba(18, 20, 32, 0.88);
   --panel-hover: rgba(255, 255, 255, 0.055);
-  --text: #f2f3fb;
-  --text-soft: #c5c9d9;
-  --muted: #858ba2;
-  --muted-dark: #60677e;
-  --accent: #a18aff;
-  --accent-strong: #8b73ff;
-  --accent-blue: #6c9dff;
-  --accent-soft: rgba(139, 115, 255, 0.12);
-  --border: rgba(170, 180, 220, 0.11);
-  --border-strong: rgba(170, 180, 220, 0.19);
-  --success: #70e2b0;
-  --danger: #ff8495;
+  --text: #f4f3fc;
+  --text-soft: #c8c9dc;
+  --muted: #8a8da5;
+  --muted-dark: #646982;
+  --accent: #a795ff;
+  --accent-strong: #8970ff;
+  --accent-blue: #7ba6ff;
+  --accent-soft: rgba(151, 126, 255, 0.12);
+  --border: rgba(177, 181, 225, 0.10);
+  --border-strong: rgba(177, 181, 225, 0.19);
+  --success: #72e3b4;
+  --danger: #ff8499;
   --sidebar-width: 280px;
   --content-width: 850px;
   --radius-sm: 9px;
@@ -42,9 +42,9 @@ html {
   width: 100%;
   height: 100%;
   min-width: 320px;
-  scrollbar-color: #34364b transparent;
-  scrollbar-width: thin;
   scroll-behavior: smooth;
+  scrollbar-color: #37374e transparent;
+  scrollbar-width: thin;
 }
 
 body {
@@ -54,7 +54,8 @@ body {
   margin: 0;
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 75% 0%, rgba(78, 67, 155, 0.08), transparent 40%),
+    radial-gradient(ellipse at 75% -10%, rgba(119, 91, 255, 0.12), transparent 42%),
+    radial-gradient(ellipse at 15% 100%, rgba(65, 100, 200, 0.045), transparent 36%),
     var(--bg);
   color: var(--text);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -66,7 +67,8 @@ body {
 
 button,
 textarea,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -76,6 +78,7 @@ button {
 
 button:focus-visible,
 textarea:focus-visible,
+input:focus-visible,
 a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
@@ -87,12 +90,18 @@ button:disabled {
 }
 
 a {
-  color: inherit;
+  color: #b6a7ff;
+  text-decoration-color: rgba(182, 167, 255, 0.4);
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  color: #d1c7ff;
 }
 
 ::selection {
   color: #fff;
-  background: rgba(139, 115, 255, 0.38);
+  background: rgba(137, 112, 255, 0.4);
 }
 
 ::-webkit-scrollbar {
@@ -105,12 +114,15 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
   border-radius: 20px;
-  background: rgba(150, 155, 190, 0.22);
+  background: rgba(150, 155, 190, 0.27);
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(161, 138, 255, 0.45);
+  background: rgba(167, 145, 255, 0.55);
+  background-clip: padding-box;
 }
 
 /* Arka plan ışıkları */
@@ -121,7 +133,7 @@ a {
   border-radius: 50%;
   pointer-events: none;
   filter: blur(110px);
-  opacity: 0.45;
+  opacity: 0.4;
 }
 
 .ambient-one {
@@ -129,7 +141,7 @@ a {
   right: 8%;
   width: 560px;
   height: 560px;
-  background: rgba(109, 80, 255, 0.12);
+  background: rgba(109, 80, 255, 0.13);
 }
 
 .ambient-two {
@@ -137,7 +149,7 @@ a {
   left: 35%;
   width: 600px;
   height: 600px;
-  background: rgba(55, 111, 220, 0.075);
+  background: rgba(55, 111, 220, 0.08);
 }
 
 /* Ana düzen */
@@ -176,9 +188,9 @@ a {
   padding: 25px 17px 15px;
   overflow: hidden;
   border-right: 1px solid var(--border);
-  background: rgba(11, 14, 22, 0.96);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: rgba(10, 12, 20, 0.94);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
 }
 
 .brand {
@@ -197,7 +209,8 @@ a {
   object-fit: contain;
   border: 1px solid rgba(208, 194, 255, 0.25);
   border-radius: 14px;
-  box-shadow: 0 5px 24px rgba(119, 93, 255, 0.16);
+  background: rgba(151, 126, 255, 0.06);
+  box-shadow: 0 5px 26px rgba(119, 93, 255, 0.17);
 }
 
 .brand-copy {
@@ -207,7 +220,7 @@ a {
 }
 
 .brand-name {
-  color: #f6f5ff;
+  color: #f8f6ff;
   font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.8px;
@@ -215,7 +228,7 @@ a {
 }
 
 .brand-name span {
-  color: #a997ff;
+  color: var(--accent);
 }
 
 .brand-caption {
@@ -234,21 +247,30 @@ a {
   width: 100%;
   min-height: 47px;
   padding: 10px 13px;
-  border: 1px solid rgba(167, 144, 255, 0.3);
+  border: 1px solid rgba(167, 144, 255, 0.32);
   border-radius: 13px;
-  background: linear-gradient(110deg, rgba(139, 115, 255, 0.15), rgba(99, 132, 255, 0.07));
-  color: #f0edff;
+  background: linear-gradient(
+    115deg,
+    rgba(139, 115, 255, 0.17),
+    rgba(99, 132, 255, 0.07)
+  );
+  color: #f2efff;
   font-size: 13px;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
-  transition: background var(--transition), border-color var(--transition), transform var(--transition);
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    transform var(--transition),
+    box-shadow var(--transition);
 }
 
 .new-chat:hover {
   transform: translateY(-1px);
-  border-color: rgba(167, 144, 255, 0.55);
-  background: rgba(139, 115, 255, 0.2);
+  border-color: rgba(167, 144, 255, 0.6);
+  background: rgba(139, 115, 255, 0.22);
+  box-shadow: 0 5px 22px rgba(108, 83, 225, 0.10);
 }
 
 .new-chat:active {
@@ -262,7 +284,7 @@ a {
   place-items: center;
   border-radius: 7px;
   background: rgba(174, 155, 255, 0.17);
-  color: #c8bbff;
+  color: #d0c5ff;
   font-size: 18px;
   line-height: 1;
 }
@@ -294,12 +316,12 @@ a {
 }
 
 .research-toggle:hover {
-  background: rgba(255, 255, 255, 0.035);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .research-toggle.active {
   border-color: rgba(161, 138, 255, 0.25);
-  background: rgba(139, 115, 255, 0.11);
+  background: rgba(139, 115, 255, 0.12);
 }
 
 .research-icon {
@@ -311,7 +333,7 @@ a {
   border: 1px solid var(--border);
   border-radius: 11px;
   background: rgba(255, 255, 255, 0.035);
-  color: #b8a9ff;
+  color: #c0b1ff;
   font-size: 23px;
   line-height: 1;
 }
@@ -324,7 +346,7 @@ a {
 }
 
 .research-title {
-  color: #e5e6f2;
+  color: #e9e8f5;
   font-size: 12px;
   font-weight: 600;
 }
@@ -364,7 +386,7 @@ a {
   align-items: center;
   justify-content: space-between;
   padding: 0 10px 12px;
-  color: #858ba3;
+  color: #898da5;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1.1px;
@@ -374,7 +396,7 @@ a {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #555b73;
+  background: #666b83;
 }
 
 .history {
@@ -389,7 +411,16 @@ a {
 
 .history-row {
   display: flex;
+  align-items: center;
+  gap: 4px;
   min-width: 0;
+  padding-right: 3px;
+  border-radius: 10px;
+}
+
+.history-row .history-item {
+  flex: 1;
+  width: 0;
 }
 
 .history-item {
@@ -401,34 +432,37 @@ a {
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
-  color: #999fb4;
+  color: #a0a4b8;
   font-size: 12px;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
-  transition: color var(--transition), background var(--transition), border-color var(--transition);
+  transition:
+    color var(--transition),
+    background var(--transition),
+    border-color var(--transition);
 }
 
 .history-item::before {
   content: "◷";
   margin-right: 9px;
-  color: #737990;
+  color: #777d95;
 }
 
 .history-item:hover {
   background: rgba(255, 255, 255, 0.045);
-  color: #e8e9f5;
+  color: #f0effa;
 }
 
 .history-item.active {
-  border-color: rgba(161, 138, 255, 0.16);
-  background: rgba(139, 115, 255, 0.1);
-  color: #e7e1ff;
+  border-color: rgba(161, 138, 255, 0.18);
+  background: rgba(139, 115, 255, 0.11);
+  color: #ece6ff;
 }
 
 .history-item.active::before {
-  color: #b3a2ff;
+  color: #b9a8ff;
 }
 
 .history-empty-hint {
@@ -440,6 +474,48 @@ a {
 
 .history:empty + .history-empty-hint {
   display: block;
+}
+
+.history-delete {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 32px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #777e94;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--transition),
+    color var(--transition),
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.history-row:hover .history-delete,
+.history-row:focus-within .history-delete {
+  opacity: 1;
+}
+
+.history-delete:hover {
+  border-color: rgba(255, 132, 149, 0.22);
+  background: rgba(255, 132, 149, 0.1);
+  color: var(--danger);
+}
+
+.history-delete:active {
+  transform: scale(0.94);
+}
+
+.history-delete:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Alt menü */
@@ -455,9 +531,15 @@ a {
   align-items: center;
   gap: 10px;
   padding: 12px 9px;
-  border: 1px solid rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 13px;
   background: rgba(255, 255, 255, 0.025);
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.sidebar-profile:hover {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .profile-avatar {
@@ -480,19 +562,26 @@ a {
 }
 
 .profile-copy strong {
-  color: #e4e5f1;
+  overflow: hidden;
+  color: #e9e8f5;
   font-size: 11px;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-copy span {
+  overflow: hidden;
   color: var(--muted);
   font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-status {
   width: 7px;
   height: 7px;
+  flex: 0 0 7px;
   border-radius: 50%;
   background: var(--success);
   box-shadow: 0 0 9px rgba(112, 226, 176, 0.35);
@@ -508,7 +597,7 @@ a {
 }
 
 .footer-sparkle {
-  color: #a995ff;
+  color: #b1a0ff;
   font-size: 13px;
 }
 
@@ -529,9 +618,9 @@ a {
   height: 68px;
   padding: 0 30px;
   border-bottom: 1px solid rgba(170, 180, 220, 0.075);
-  background: rgba(9, 11, 18, 0.78);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  background: rgba(9, 10, 17, 0.76);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
 }
 
 .topbar-left,
@@ -551,7 +640,7 @@ a {
 }
 
 .top-title-main {
-  color: #e9e9f6;
+  color: #efedfc;
   font-weight: 700;
 }
 
@@ -560,7 +649,7 @@ a {
 }
 
 .top-title-section {
-  color: #9298ad;
+  color: #969bb0;
 }
 
 .topbar-badge {
@@ -568,10 +657,10 @@ a {
   align-items: center;
   gap: 7px;
   padding: 6px 10px;
-  border: 1px solid rgba(161, 138, 255, 0.15);
+  border: 1px solid rgba(161, 138, 255, 0.16);
   border-radius: 20px;
-  background: rgba(139, 115, 255, 0.06);
-  color: #b9b1d9;
+  background: rgba(139, 115, 255, 0.065);
+  color: #c2b9e7;
   font-size: 10px;
   white-space: nowrap;
 }
@@ -592,10 +681,11 @@ a {
   background: rgba(255, 255, 255, 0.035);
   color: #e2e3f1;
   cursor: pointer;
-  transition: background var(--transition);
+  transition: background var(--transition), border-color var(--transition);
 }
 
 .menu:hover {
+  border-color: var(--border-strong);
   background: rgba(255, 255, 255, 0.085);
 }
 
@@ -653,7 +743,7 @@ a {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 24px;
+  gap: 25px;
   width: 100%;
   max-width: var(--content-width);
   min-height: 0;
@@ -665,7 +755,7 @@ a {
   scrollbar-gutter: stable;
 }
 
-/* Karşılama ekranı: app.js hem .welcome hem .welcome-message kullanabilir */
+/* Karşılama ekranı */
 
 .welcome,
 .welcome-message {
@@ -678,7 +768,7 @@ a {
   min-height: 330px;
   margin: auto 0;
   padding: 30px 15px;
-  color: #e8e7f5;
+  color: #eeecfb;
   font-size: clamp(23px, 3vw, 32px);
   font-weight: 700;
   line-height: 1.45;
@@ -689,15 +779,21 @@ a {
 
 .welcome-icon {
   display: grid;
-  width: 64px;
-  height: 64px;
+  width: 66px;
+  height: 66px;
   margin-bottom: 24px;
   place-items: center;
   overflow: hidden;
   border: 1px solid rgba(185, 167, 255, 0.3);
   border-radius: 22px;
-  background: linear-gradient(145deg, rgba(139, 115, 255, 0.2), rgba(80, 116, 225, 0.12));
-  box-shadow: 0 12px 40px rgba(94, 72, 200, 0.12), inset 0 1px rgba(255, 255, 255, 0.1);
+  background: linear-gradient(
+    145deg,
+    rgba(139, 115, 255, 0.2),
+    rgba(80, 116, 225, 0.12)
+  );
+  box-shadow:
+    0 12px 40px rgba(94, 72, 200, 0.12),
+    inset 0 1px rgba(255, 255, 255, 0.1);
   color: #c4b6ff;
   font-size: 31px;
   letter-spacing: 0;
@@ -712,7 +808,7 @@ a {
 
 .welcome h1 {
   margin: 0;
-  color: #e8e7f5;
+  color: #eeecfb;
   font-size: inherit;
   font-weight: inherit;
   line-height: inherit;
@@ -722,14 +818,14 @@ a {
 .welcome p {
   max-width: 390px;
   margin: 14px 0 0;
-  color: #858ba2;
+  color: #9296ac;
   font-size: 13px;
   font-weight: 400;
   line-height: 1.8;
   letter-spacing: 0;
 }
 
-/* Mesaj kartları */
+/* Mesajlar */
 
 .message {
   position: relative;
@@ -751,6 +847,7 @@ a {
 }
 
 .message-content {
+  min-width: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   word-break: break-word;
@@ -758,27 +855,31 @@ a {
 
 .message.user .message-content {
   padding: 13px 17px;
-  border: 1px solid rgba(163, 146, 255, 0.17);
+  border: 1px solid rgba(163, 146, 255, 0.2);
   border-radius: 19px 19px 5px 19px;
-  background: linear-gradient(135deg, rgba(115, 96, 219, 0.22), rgba(78, 104, 181, 0.16));
-  color: #f0efff;
-  line-height: 1.75;
+  background: linear-gradient(
+    135deg,
+    rgba(115, 96, 219, 0.25),
+    rgba(78, 104, 181, 0.17)
+  );
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+  color: #f3f0ff;
+  line-height: 1.8;
 }
 
 .message.assistant .message-content {
   padding: 2px 0;
-  color: #d9dceb;
+  color: #dfe0ee;
   line-height: 1.9;
 }
 
-/* NOVA AI etiketi sadece ayrı bir isim öğesi yoksa gösterilir */
 .message.assistant .message-content::before {
   content: none;
 }
 
 .message-name {
   margin-bottom: 7px;
-  color: #b5a6ff;
+  color: #b9a8ff;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.3px;
@@ -791,7 +892,7 @@ a {
   height: 32px;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgba(171, 151, 255, 0.2);
+  border: 1px solid rgba(171, 151, 255, 0.22);
   border-radius: 10px;
   background: rgba(139, 115, 255, 0.1);
   color: #c4b6ff;
@@ -799,6 +900,7 @@ a {
 }
 
 .message-avatar img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -817,6 +919,7 @@ a {
 
 .message-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 9px;
 }
@@ -830,10 +933,13 @@ a {
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  color: #838aa1;
+  color: #8b91a8;
   font-size: 11px;
   cursor: pointer;
-  transition: color var(--transition), background var(--transition), border-color var(--transition);
+  transition:
+    color var(--transition),
+    background var(--transition),
+    border-color var(--transition);
 }
 
 .copy-message::before {
@@ -844,13 +950,141 @@ a {
 .copy-message:hover,
 .message-actions button:hover {
   border-color: var(--border);
-  background: rgba(255, 255, 255, 0.035);
-  color: #dedaff;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e1d9ff;
 }
 
 .message.loading .message-content {
-  color: #aaa2d3;
+  color: #b3a8e8;
   animation: nova-loading 1.4s ease-in-out infinite;
+}
+
+/* Yanıt içindeki temel biçimlendirme */
+
+.message-content p {
+  margin: 0 0 12px;
+}
+
+.message-content p:last-child {
+  margin-bottom: 0;
+}
+
+.message-content h1,
+.message-content h2,
+.message-content h3,
+.message-content h4 {
+  margin: 22px 0 10px;
+  color: #f0edff;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.message-content h1 {
+  font-size: 1.45em;
+}
+
+.message-content h2 {
+  font-size: 1.28em;
+}
+
+.message-content h3 {
+  font-size: 1.12em;
+}
+
+.message-content ul,
+.message-content ol {
+  padding-left: 24px;
+  margin: 9px 0 15px;
+}
+
+.message-content li {
+  margin: 5px 0;
+  padding-left: 3px;
+}
+
+.message-content blockquote {
+  margin: 14px 0;
+  padding: 10px 15px;
+  border-left: 3px solid var(--accent-strong);
+  border-radius: 0 10px 10px 0;
+  background: rgba(151, 126, 255, 0.07);
+  color: #c6c6df;
+}
+
+.message-content hr {
+  height: 1px;
+  margin: 20px 0;
+  border: 0;
+  background: var(--border);
+}
+
+.message-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 12px;
+}
+
+.message-content th,
+.message-content td {
+  padding: 9px 12px;
+  border: 1px solid var(--border-strong);
+  text-align: left;
+}
+
+.message-content th {
+  background: rgba(151, 126, 255, 0.09);
+  color: #e6e1ff;
+}
+
+.message-content td {
+  color: #d0d2e4;
+}
+
+.message-content :not(pre) > code {
+  padding: 2px 6px;
+  border: 1px solid rgba(177, 181, 225, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d6caff;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+}
+
+.message-content pre {
+  max-width: 100%;
+  margin: 14px 0;
+  padding: 16px;
+  overflow-x: auto;
+  border: 1px solid rgba(177, 181, 225, 0.13);
+  border-radius: 13px;
+  background: #0c0e17;
+  color: #e4e4f4;
+  line-height: 1.65;
+  tab-size: 2;
+}
+
+.message-content pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: pre;
+}
+
+.message-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.message-content strong {
+  color: #f2efff;
+  font-weight: 700;
 }
 
 /* Mesaj yazma alanı */
@@ -861,7 +1095,12 @@ a {
   flex-shrink: 0;
   width: 100%;
   padding: 14px 24px 18px;
-  background: linear-gradient(to bottom, rgba(9, 11, 18, 0), rgba(9, 11, 18, 0.92) 15%, rgba(9, 11, 18, 0.98));
+  background: linear-gradient(
+    to bottom,
+    rgba(9, 10, 17, 0),
+    rgba(9, 10, 17, 0.92) 15%,
+    rgba(9, 10, 17, 0.98)
+  );
 }
 
 .composer-shell {
@@ -877,16 +1116,20 @@ a {
   width: 100%;
   min-height: 137px;
   padding: 13px 15px 12px;
-  border: 1px solid rgba(161, 138, 255, 0.2);
+  border: 1px solid rgba(161, 138, 255, 0.22);
   border-radius: 20px;
-  background: rgba(17, 20, 31, 0.96);
-  box-shadow: 0 12px 45px rgba(0, 0, 0, 0.18), inset 0 1px rgba(255, 255, 255, 0.025);
+  background: rgba(17, 19, 30, 0.97);
+  box-shadow:
+    0 12px 45px rgba(0, 0, 0, 0.2),
+    inset 0 1px rgba(255, 255, 255, 0.035);
   transition: border-color var(--transition), box-shadow var(--transition);
 }
 
 .composer:focus-within {
-  border-color: rgba(161, 138, 255, 0.48);
-  box-shadow: 0 0 0 3px rgba(139, 115, 255, 0.06), 0 14px 45px rgba(0, 0, 0, 0.2);
+  border-color: rgba(161, 138, 255, 0.52);
+  box-shadow:
+    0 0 0 3px rgba(139, 115, 255, 0.07),
+    0 14px 45px rgba(0, 0, 0, 0.22);
 }
 
 .composer-topline {
@@ -901,7 +1144,7 @@ a {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #aeb3c8;
+  color: #b5b8ce;
   font-size: 10px;
   font-weight: 600;
 }
@@ -915,7 +1158,7 @@ a {
 }
 
 .character-count {
-  color: #737990;
+  color: #777d94;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
@@ -936,13 +1179,13 @@ a {
   border: 0;
   outline: none;
   background: transparent;
-  color: #f2f2fb;
+  color: #f5f3ff;
   font-size: 14px;
   line-height: 1.75;
 }
 
 #prompt::placeholder {
-  color: #71778e;
+  color: #777d94;
   opacity: 1;
 }
 
@@ -965,9 +1208,10 @@ a {
 
 .composer-hint {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 5px;
-  color: #767d93;
+  color: #7d8298;
   font-size: 10px;
 }
 
@@ -976,7 +1220,7 @@ a {
   border: 1px solid rgba(170, 180, 220, 0.13);
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.025);
-  color: #9ba1b6;
+  color: #a2a7bb;
   font: 500 9px Inter, sans-serif;
 }
 
@@ -996,16 +1240,19 @@ a {
   border: 1px solid rgba(198, 184, 255, 0.35);
   border-radius: 12px;
   background: linear-gradient(135deg, #a28cff, #7866ee);
-  box-shadow: 0 4px 16px rgba(112, 88, 238, 0.19);
+  box-shadow: 0 4px 16px rgba(112, 88, 238, 0.2);
   color: #fff;
   cursor: pointer;
-  transition: transform var(--transition), filter var(--transition), box-shadow var(--transition);
+  transition:
+    transform var(--transition),
+    filter var(--transition),
+    box-shadow var(--transition);
 }
 
 .send-button:hover:not(:disabled) {
   transform: translateY(-1px);
   filter: brightness(1.08);
-  box-shadow: 0 6px 20px rgba(112, 88, 238, 0.3);
+  box-shadow: 0 6px 22px rgba(112, 88, 238, 0.32);
 }
 
 .send-button:active:not(:disabled) {
@@ -1023,7 +1270,7 @@ a {
   max-width: var(--content-width);
   margin: 10px auto 0;
   padding: 0 6px;
-  color: #656c81;
+  color: #6d7288;
   font-size: 10px;
   line-height: 1.6;
   text-align: center;
@@ -1049,20 +1296,24 @@ a {
   gap: 8px;
   min-height: 35px;
   padding: 8px 12px;
-  border: 1px solid rgba(170, 180, 220, 0.13);
+  border: 1px solid rgba(170, 180, 220, 0.14);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.035);
-  color: #c5c9dc;
+  color: #c9cbe0;
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition), border-color var(--transition), color var(--transition), transform var(--transition);
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    transform var(--transition);
 }
 
 .voice-button:hover:not(:disabled) {
-  border-color: rgba(161, 138, 255, 0.35);
-  background: rgba(139, 115, 255, 0.09);
-  color: #eeeaff;
+  border-color: rgba(161, 138, 255, 0.38);
+  background: rgba(139, 115, 255, 0.1);
+  color: #f0ecff;
 }
 
 .voice-button:active:not(:disabled) {
@@ -1070,19 +1321,19 @@ a {
 }
 
 .voice-button.primary {
-  border-color: rgba(161, 138, 255, 0.28);
-  background: rgba(139, 115, 255, 0.1);
-  color: #d8ceff;
+  border-color: rgba(161, 138, 255, 0.3);
+  background: rgba(139, 115, 255, 0.11);
+  color: #dcd3ff;
 }
 
 .voice-button.primary[aria-pressed="true"] {
-  border-color: rgba(255, 132, 149, 0.32);
-  background: rgba(255, 132, 149, 0.09);
+  border-color: rgba(255, 132, 149, 0.35);
+  background: rgba(255, 132, 149, 0.1);
   color: #ffb5c0;
 }
 
 .voice-status {
-  color: #777e94;
+  color: #82879c;
   font-size: 10px;
 }
 
@@ -1091,11 +1342,47 @@ a {
 }
 
 .voice-status[data-state="speaking"] {
-  color: #b8a7ff;
+  color: #c1b2ff;
 }
 
 .voice-status[data-state="error"] {
   color: #ff9ca9;
+}
+
+/* Giriş / kayıt ekranı: index.html içindeki auth stilleriyle uyum */
+
+.auth-screen {
+  color: var(--text);
+}
+
+.auth-card {
+  color: var(--text);
+}
+
+.auth-field input {
+  color: var(--text);
+}
+
+.auth-field input::placeholder {
+  color: var(--muted);
+}
+
+.auth-submit {
+  transition: filter var(--transition), transform var(--transition);
+}
+
+.auth-submit:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.auth-submit:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+/* Çıkış butonu */
+
+.auth-logout {
+  cursor: pointer;
 }
 
 /* Mobil menü */
@@ -1265,6 +1552,11 @@ a {
   .voice-controls {
     gap: 7px;
   }
+
+  .history-delete {
+    opacity: 1;
+    color: #999fb4;
+  }
 }
 
 /* Dar telefon ekranı */
@@ -1384,6 +1676,15 @@ a {
   }
 }
 
+/* Dokunmatik ekranlar */
+
+@media (hover: none) {
+  .history-delete {
+    opacity: 1;
+    color: #999fb4;
+  }
+}
+
 /* Hareket azaltma tercihi */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1394,78 +1695,5 @@ a {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-}
-
-/* =========================================================
-   NOVA AI — SOHBET SİLME BUTONU
-   ========================================================= */
-
-.history-row {
-  align-items: center;
-  gap: 4px;
-  padding-right: 3px;
-  border-radius: 10px;
-}
-
-.history-row .history-item {
-  flex: 1;
-  width: 0;
-}
-.history-delete {
-  display: grid;
-  flex: 0 0 30px;
-  width: 30px;
-  height: 32px;
-  padding: 0;
-  place-items: center;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: #777e94;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0;
-  transition:
-    opacity 180ms ease,
-    color 180ms ease,
-    background 180ms ease,
-    border-color 180ms ease;
-}
-
-/* Fare sohbet satırına geldiğinde silme butonunu göster. */
-.history-row:hover .history-delete,
-.history-row:focus-within .history-delete {
-  opacity: 1;
-}
-
-.history-delete:hover {
-  border-color: rgba(255, 132, 149, 0.22);
-  background: rgba(255, 132, 149, 0.1);
-  color: #ff8495;
-}
-
-.history-delete:active {
-  transform: scale(0.94);
-}
-
-.history-delete:focus-visible {
-  outline: 2px solid #a18aff;
-  outline-offset: 2px;
-}
-
-/* Dokunmatik ekranlarda buton sürekli görünür olsun. */
-@media (hover: none) {
-  .history-delete {
-    opacity: 1;
-    color: #999fb4;
-  }
-}
-
-/* Hareket azaltma tercihi. */
-@media (prefers-reduced-motion: reduce) {
-  .history-delete {
-    transition: none;
   }
 }
