@@ -1,4 +1,3 @@
-
 (() => {
   "use strict";
 
@@ -34,7 +33,6 @@
     return;
   }
 
-  // Supabase bağlantı ayarları
   const SUPABASE_URL =
     "https://rjwjgopzrjnpjwhdccqs.supabase.co";
 
@@ -116,7 +114,6 @@
     );
 
     avatar.appendChild(image);
-
     return avatar;
   }
 
@@ -153,13 +150,8 @@
 
     const isLogin = mode === "login";
 
-    if (loginTab) {
-      loginTab.classList.toggle("active", isLogin);
-    }
-
-    if (registerTab) {
-      registerTab.classList.toggle("active", !isLogin);
-    }
+    loginTab?.classList.toggle("active", isLogin);
+    registerTab?.classList.toggle("active", !isLogin);
 
     if (authTitle) {
       authTitle.textContent = isLogin
@@ -291,12 +283,11 @@
       renderMessages();
     } catch (error) {
       console.error("Çıkış yapılamadı:", error);
-
       alert("Çıkış yapılamadı: " + error.message);
     }
   });
 
-  // Kullanıcının sohbetlerini Supabase'den yükle
+  // Sohbet geçmişini yükle
   async function loadConversations() {
     if (!currentUser) {
       conversations = [];
@@ -328,7 +319,7 @@
     renderMessages();
   }
 
-  // Yeni sohbeti ekle, mevcut sohbeti güncelle
+  // Sohbeti Supabase'e kaydet
   async function persistConversation(conversation) {
     if (!currentUser) {
       throw new Error("Önce giriş yapmalısın.");
@@ -373,7 +364,6 @@
 
   async function save(conversation = currentConversation()) {
     if (!conversation || !currentUser) return;
-
     await persistConversation(conversation);
   }
 
@@ -400,7 +390,7 @@
     prompt.focus();
   }
 
-  // Seçili sohbet yoksa oluştur
+  // Sohbet yoksa oluştur
   async function ensureConversation() {
     let conversation = currentConversation();
 
@@ -468,12 +458,11 @@
       renderMessages();
     } catch (error) {
       console.error("Sohbet silinemedi:", error);
-
       alert("Sohbet silinemedi: " + error.message);
     }
   }
 
-  // Sol menüde sohbet geçmişini göster
+  // Sohbet geçmişini göster
   function renderHistory() {
     if (!historyEl) return;
 
@@ -515,7 +504,6 @@
       deleteButton.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-
         deleteConversation(conversation.id);
       });
 
@@ -644,7 +632,7 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  // Mesaj ekle ve Supabase'e kaydet
+  // Mesaj ekle ve kaydet
   async function addMessage(role, content) {
     const conversation = await ensureConversation();
 
@@ -683,7 +671,7 @@
     form.setAttribute("aria-busy", String(value));
   }
 
-  // Akış sırasında ekranda gösterilecek yanıt alanı
+  // Akış yanıtı için mesaj alanı
   function createStreamingMessage() {
     const wrapper = document.createElement("article");
     wrapper.className =
@@ -725,7 +713,7 @@
     }
   }
 
-  // Sunucudan gelen akışı okuyup yanıtı anlık göster
+  // Yanıt akışını oku
   async function readStreamingResponse(response, onChunk) {
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
@@ -760,7 +748,10 @@
         provider = event.provider || provider;
         model = event.model || model;
       } else if (event.type === "chunk") {
-        if (typeof event.text === "string" && event.text.length) {
+        if (
+          typeof event.text === "string" &&
+          event.text.length
+        ) {
           fullAnswer += event.text;
           onChunk(event.text, fullAnswer);
         }
@@ -827,7 +818,7 @@
     };
   }
 
-  // Mesaj gönderme — gerçek zamanlı akış
+  // Mesaj gönderme — düzeltilmiş bölüm
   async function sendMessage(rawText) {
     const text = String(rawText || "").trim();
 
@@ -854,8 +845,10 @@
 
       loading = createStreamingMessage();
 
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
+      const {
+        data: sessionData,
+        error: sessionError
+      } = await supabase.auth.getSession();
 
       if (sessionError) throw sessionError;
 
@@ -884,17 +877,18 @@
 
       const result = await readStreamingResponse(
         response,
-        (chunk, fullAnswer) => {
+        (_chunk, fullAnswer) => {
           streamedAnswer = fullAnswer;
 
-          loading.content.classList.remove("typing");
-          loading.content.textContent = fullAnswer;
+          if (loading?.content) {
+            loading.content.classList.remove("typing");
+            loading.content.textContent = fullAnswer;
+          }
 
           messagesEl.scrollTop = messagesEl.scrollHeight;
         }
       );
 
-      // Tamamlanan yanıtı bir kez kaydet.
       await addMessage("assistant", result.answer);
 
       console.info(
@@ -905,8 +899,8 @@
     } catch (error) {
       console.error("NOVA AI mesaj hatası:", error);
 
-      if (loading) {
-        loading.remove();
+      if (loading?.wrapper instanceof Element) {
+        loading.wrapper.remove();
       }
 
       const message = streamedAnswer
@@ -915,9 +909,14 @@
 
       alert("NOVA AI: " + message);
     } finally {
-      loading?.remove();
+      // loading bir HTML öğesi değil, { wrapper, content } nesnesi.
+      if (loading?.wrapper instanceof Element) {
+        loading.wrapper.remove();
+      }
 
+      // Gönderme işlemi hata alsa bile giriş alanını tekrar aç.
       setBusy(false);
+      prompt.disabled = false;
       prompt.focus();
     }
   }
@@ -1004,7 +1003,9 @@
       const token = data.session?.access_token;
 
       if (!token) {
-        throw new Error("Seslendirmek için giriş yapmalısın.");
+        throw new Error(
+          "Seslendirmek için giriş yapmalısın."
+        );
       }
 
       const response = await fetch("/api/tts", {
@@ -1094,7 +1095,10 @@
     const { data, error } = await supabase.auth.getSession();
 
     if (error) {
-      console.error("Oturum kontrolü başarısız:", error);
+      console.error(
+        "Oturum kontrolü başarısız:",
+        error
+      );
     }
 
     currentUser = data.session?.user || null;
