@@ -1496,7 +1496,6 @@ app.post(
 
       // Görsel istemini tek bir özel durumla ezmek yerine her isteği aynı kontrollü
       // zenginleştirme hattından geçir. Böylece kullanıcı ayrıntıları korunur.
-      const normalizedPrompt = prompt.toLocaleLowerCase("tr-TR");
       let imagePrompt = prompt;
 
       if (GEMINI_API_KEY) {
@@ -1604,8 +1603,7 @@ app.post(
       const promptGuardrails = [
         "Faithfully depict the exact subjects and actions described in the prompt.",
         "Preserve the requested number of main subjects; do not add or remove any.",
-        "Keep the main subjects visually distinct, anatomically coherent, and clearly visible.",
-        "Do not include text, letters, captions, watermarks, or logos unless the user explicitly requested visible text."
+        "Keep the main subjects visually distinct, anatomically coherent, and clearly visible."
       ];
 
       imagePrompt = `${imagePrompt.trim()}\n\nImage accuracy constraints: ${promptGuardrails.join(" ")}`;
