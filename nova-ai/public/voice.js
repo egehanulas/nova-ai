@@ -477,6 +477,7 @@
   window.NOVAVoice = Object.freeze({
     start: startVoiceChat,
     stop: stopVoiceChat,
+    speak: (text) => speakReply(text),
     get active() {
       return voiceEnabled;
     }
