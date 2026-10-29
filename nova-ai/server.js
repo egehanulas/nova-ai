@@ -1497,8 +1497,8 @@ app.post(
       // Flux modelleri İngilizce görsel tariflerini genellikle daha tutarlı izler.
       // Bilinen hayvan adlarını önce sabitle; çeviri modelinin türü insana çevirmesini engelle.
       const normalizedPrompt = prompt.toLocaleLowerCase("tr-TR");
-      const monkeyRequest = /\\bmaymun\\b/i.test(normalizedPrompt);
-      const requestedCountMatch = normalizedPrompt.match(/\\b(\\d{1,2})\\s*(?:tane|adet)?\\s*maymun\\b|\\biki\\s+(?:tane|adet\\s+)?maymun\\b/);
+      const monkeyRequest = /\bmaymun\b/i.test(normalizedPrompt);
+      const requestedCountMatch = normalizedPrompt.match(/\b(\d{1,2})\s*(?:tane|adet)?\s*maymun\b|\biki\s+(?:tane|adet\s+)?maymun\b/);
       const requestedMonkeyCount = requestedCountMatch
         ? (requestedCountMatch[0].includes("iki") ? 2 : Number(requestedCountMatch[1]) || 1)
         : 1;
