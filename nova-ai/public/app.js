@@ -847,7 +847,7 @@
   async function sendMessage(rawText) {
     const text = String(rawText || "").trim();
 
-    if (!text || busy || !currentUser) return;
+    if (!text || busy || imageBusy || !currentUser) return;
 
     setBusy(true);
 
@@ -1022,6 +1022,7 @@
 
   // NOVA AI Image Studio: custom prompt dialog, aspect presets and private gallery.
   const imageGenerateButton=$("#imageGenerate"), imageStatus=$("#imageStatus"), galleryButton=$("#openImageGallery");
+  let imageBusy = false;
   function closeStudio(overlay){if(!overlay)return;document.removeEventListener("keydown",overlay._esc);overlay.remove();}
   function studio({title,subtitle,content,onClose}){
     const overlay=document.createElement("div");overlay.className="image-studio-overlay";
@@ -1034,7 +1035,7 @@
     overlay._esc=e=>{if(e.key==="Escape"&&document.body.contains(overlay))(onClose?onClose():closeStudio(overlay));};document.addEventListener("keydown",overlay._esc);document.body.append(overlay);x.focus();return overlay;
   }
   function openImagePrompt(){
-    if(busy||!currentUser)return;
+    if(busy||imageBusy||!currentUser)return;
     const formEl=document.createElement("form");formEl.onsubmit=e=>e.preventDefault();
     const label=document.createElement("label");label.className="image-studio-label";label.htmlFor="novaImagePrompt";label.textContent="Nasıl bir görsel hayal ediyorsun?";
     const input=document.createElement("textarea");input.id="novaImagePrompt";input.className="image-studio-prompt";input.maxLength=2000;input.required=true;input.placeholder="Örn. Gün batımında İstanbul Boğazı, sinematik ışık, gerçekçi fotoğraf…";
@@ -1047,7 +1048,7 @@
     formEl.addEventListener("submit",async e=>{e.preventDefault();const text=input.value.trim();if(!text){input.focus();return;}const ratio=formEl.querySelector('input[name="ratio"]:checked')?.value||"square";close();await generateImage(text,ratio);});
   }
   async function generateImage(imagePrompt,aspectRatio="square"){
-    if(busy||!currentUser)return;imageGenerateButton.disabled=true;if(imageStatus)imageStatus.textContent="Görsel hazırlanıyor… Bu işlem biraz sürebilir.";
+    if(busy||imageBusy||!currentUser)return;imageBusy=true;if(imageGenerateButton)imageGenerateButton.disabled=true;if(imageStatus)imageStatus.textContent="Görsel hazırlanıyor… Bu işlem biraz sürebilir.";
     try{
       const {data:sd,error:se}=await supabase.auth.getSession();if(se)throw se;const token=sd.session?.access_token;if(!token)throw Error("Oturum süren dolmuş. Yeniden giriş yap.");
       const response=await fetch("/api/image",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},body:JSON.stringify({prompt:imagePrompt,aspectRatio})});
@@ -1056,7 +1057,7 @@
       const blob=new Blob([bytes],{type:mime}),ext=mime.includes("jpeg")?"jpg":mime.includes("webp")?"webp":"png",path=`${currentUser.id}/${crypto.randomUUID()}.${ext}`;
       const {error:up}=await supabase.storage.from("nova-ai-images").upload(path,blob,{contentType:mime,upsert:false});if(up)throw Error("Görsel oluşturuldu ama kaydedilemedi: "+up.message);
       const convo=await ensureConversation();convo.messages.push({role:"assistant",type:"image",content:imagePrompt,imagePath:path,mimeType:mime,aspectRatio});convo.updatedAt=Date.now();await save(convo);renderMessages();renderHistory();preview(result.image,mime,imagePrompt);if(imageStatus)imageStatus.textContent="Görsel hazır ve sohbet geçmişine kaydedildi.";
-    }catch(error){console.error("NOVA AI görsel hatası:",error);if(imageStatus)imageStatus.textContent=error.message||"Görsel oluşturulamadı.";}finally{imageGenerateButton.disabled=false;}
+    }catch(error){console.error("NOVA AI görsel hatası:",error);if(imageStatus)imageStatus.textContent=error.message||"Görsel oluşturulamadı.";}finally{imageBusy=false;if(imageGenerateButton)imageGenerateButton.disabled=false;}
   }
   function preview(base64,mime,alt){
     const content=document.createElement("div"),img=document.createElement("img");img.src=`data:${mime};base64,${base64}`;img.alt=alt;img.style.cssText="display:block;max-width:100%;max-height:60vh;object-fit:contain;margin:16px auto;border-radius:14px";
