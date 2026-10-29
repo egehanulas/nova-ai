@@ -1453,6 +1453,59 @@ app.post(
 );
 
 // --------------------------------------------------
+// GEMINI IMAGE GENERATION
+// --------------------------------------------------
+app.post(
+  "/api/image",
+  requireAuth,
+  asyncRoute(async (req, res) => {
+    if (!GEMINI_API_KEY) {
+      return res.status(503).json({ error: "Resim oluşturmak için GEMINI_API_KEY ayarlanmalı." });
+    }
+    const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+    if (!prompt) return res.status(400).json({ error: "Oluşturmak istediğin resmi tarif et." });
+    if (prompt.length > 2000) return res.status(400).json({ error: "Resim açıklaması en fazla 2000 karakter olabilir." });
+    const { controller, clear } = createAbortController();
+    try {
+      const model = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
+        {
+          method: "POST",
+          signal: controller.signal,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseModalities: ["IMAGE", "TEXT"] }
+          })
+        }
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error("[NOVA AI] Görsel API hatası:", response.status, JSON.stringify(data).slice(0, 500));
+        return res.status(502).json({ error: "Resim oluşturulamadı. Gemini Image model erişimini ve API kotanı kontrol et." });
+      }
+      const parts = data.candidates?.flatMap(candidate => candidate.content?.parts || []) || [];
+      const imagePart = parts.find(part => part.inlineData?.data && /^image\//i.test(part.inlineData.mimeType || ""));
+      if (!imagePart) {
+        return res.status(502).json({ error: "Model bu istekte resim döndürmedi. Farklı bir açıklama dene." });
+      }
+      return res.json({
+        success: true,
+        mimeType: imagePart.inlineData.mimeType || "image/png",
+        image: imagePart.inlineData.data,
+        model
+      });
+    } catch (error) {
+      if (error.name === "AbortError") return res.status(504).json({ error: "Resim oluşturma zaman aşımına uğradı." });
+      throw error;
+    } finally {
+      clear();
+    }
+  })
+);
+
+// --------------------------------------------------
 // BULUNAMAYAN API YOLLARI
 // --------------------------------------------------
 
