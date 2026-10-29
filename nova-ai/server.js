@@ -1452,52 +1452,114 @@ app.post(
   })
 );
 
-// --------------------------------------------------
-// GEMINI IMAGE GENERATION
-// --------------------------------------------------
+
+/* --------------------------------------------------
+   CLOUDFLARE WORKERS AI IMAGE GENERATION
+-------------------------------------------------- */
+
+const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
+const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+
 app.post(
   "/api/image",
   requireAuth,
   asyncRoute(async (req, res) => {
-    if (!GEMINI_API_KEY) {
-      return res.status(503).json({ error: "Resim oluşturmak için GEMINI_API_KEY ayarlanmalı." });
+    if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID) {
+      return res.status(503).json({
+        error: "Cloudflare API ayarları eksik. Render Environment bölümünü kontrol et.",
+      });
     }
-    const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
-    if (!prompt) return res.status(400).json({ error: "Oluşturmak istediğin resmi tarif et." });
-    if (prompt.length > 2000) return res.status(400).json({ error: "Resim açıklaması en fazla 2000 karakter olabilir." });
-    const { controller, clear } = createAbortController();
+
+    const prompt =
+      typeof req.body?.prompt === "string"
+        ? req.body.prompt.trim()
+        : "";
+
+    if (!prompt) {
+      return res.status(400).json({
+        error: "Oluşturmak istediğin resmi tarif et.",
+      });
+    }
+
+    if (prompt.length > 2000) {
+      return res.status(400).json({
+        error: "Resim açıklaması en fazla 2000 karakter olabilir.",
+      });
+    }
+
+    const { controller, clear } = createAbortController(120000);
+
     try {
-      const model = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
-        {
-          method: "POST",
-          signal: controller.signal,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseModalities: ["IMAGE", "TEXT"] }
-          })
-        }
-      );
-      const data = await response.json().catch(() => ({}));
+      const model =
+        process.env.CLOUDFLARE_IMAGE_MODEL ||
+        "@cf/black-forest-labs/flux-1-schnell";
+
+      const url =
+        `https://api.cloudflare.com/client/v4/accounts/` +
+        `${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/${model}`;
+
+      const response = await fetch(url, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt,
+          steps: 4,
+        }),
+      });
+
       if (!response.ok) {
-        console.error("[NOVA AI] Görsel API hatası:", response.status, JSON.stringify(data).slice(0, 500));
-        return res.status(502).json({ error: "Resim oluşturulamadı. Gemini Image model erişimini ve API kotanı kontrol et." });
+        const details = await response.text().catch(() => "");
+
+        console.error(
+          "[NOVA AI] Cloudflare görsel API hatası:",
+          response.status,
+          details.slice(0, 700)
+        );
+
+        return res.status(502).json({
+          error:
+            response.status === 429
+              ? "Cloudflare kullanım sınırına ulaşıldı. Daha sonra tekrar dene."
+              : "Resim oluşturulamadı. Cloudflare API izinlerini ve limitlerini kontrol et.",
+        });
       }
-      const parts = data.candidates?.flatMap(candidate => candidate.content?.parts || []) || [];
-      const imagePart = parts.find(part => part.inlineData?.data && /^image\//i.test(part.inlineData.mimeType || ""));
-      if (!imagePart) {
-        return res.status(502).json({ error: "Model bu istekte resim döndürmedi. Farklı bir açıklama dene." });
+
+      const contentType = response.headers.get("content-type") || "";
+      let image;
+      let mimeType = "image/png";
+
+      if (contentType.includes("application/json")) {
+        const data = await response.json();
+        image = data?.result?.image;
+      } else if (contentType.startsWith("image/")) {
+        const buffer = Buffer.from(await response.arrayBuffer());
+        image = buffer.toString("base64");
+        mimeType = contentType.split(";")[0] || mimeType;
       }
+
+      if (typeof image !== "string" || !image) {
+        return res.status(502).json({
+          error: "Cloudflare geçerli bir görsel döndürmedi.",
+        });
+      }
+
       return res.json({
         success: true,
-        mimeType: imagePart.inlineData.mimeType || "image/png",
-        image: imagePart.inlineData.data,
-        model
+        mimeType,
+        image,
+        model,
       });
     } catch (error) {
-      if (error.name === "AbortError") return res.status(504).json({ error: "Resim oluşturma zaman aşımına uğradı." });
+      if (error.name === "AbortError") {
+        return res.status(504).json({
+          error: "Resim oluşturma zaman aşımına uğradı.",
+        });
+      }
+
       throw error;
     } finally {
       clear();
