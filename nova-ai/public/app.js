@@ -891,6 +891,11 @@
 
       await addMessage("assistant", result.answer);
 
+      // Sesli sohbet, akış yanıtı tamamlandıktan sonra yanıtı seslendirir.
+      if (window.NOVAVoice?.active) {
+        window.NOVAVoice.speak(result.answer);
+      }
+
       console.info(
         "[NOVA AI] Yanıt tamamlandı.",
         result.provider || "",
