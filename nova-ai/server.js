@@ -1495,9 +1495,20 @@ app.post(
         "@cf/black-forest-labs/flux-1-schnell";
 
       // Flux modelleri İngilizce görsel tariflerini genellikle daha tutarlı izler.
-      // Türkçe istemi Gemini ile İngilizceye çevir; çeviri başarısızsa orijinal istemi kullan.
-      let imagePrompt = prompt;
-      if (GEMINI_API_KEY) {
+      // Bilinen hayvan adlarını önce sabitle; çeviri modelinin türü insana çevirmesini engelle.
+      const normalizedPrompt = prompt.toLocaleLowerCase("tr-TR");
+      const monkeyRequest = /\\bmaymun\\b/i.test(normalizedPrompt);
+      const requestedCountMatch = normalizedPrompt.match(/\\b(\\d{1,2})\\s*(?:tane|adet)?\\s*maymun\\b|\\biki\\s+maymun\\b/);
+      const requestedMonkeyCount = requestedCountMatch
+        ? (requestedCountMatch[0].includes("iki") ? 2 : Number(requestedCountMatch[1]) || 1)
+        : 1;
+
+      // Basit maymun çizim isteğini deterministik olarak kur; Gemini çevirisine bağlı bırakma.
+      let imagePrompt = monkeyRequest
+        ? `A clear illustration showing exactly ${requestedMonkeyCount} ${requestedMonkeyCount === 1 ? "monkey" : "monkeys"}, non-human primates with recognizable monkey faces, fur, limbs and natural animal anatomy. The monkeys are the main subjects and clearly visible. Do not depict any human, man, woman, person, statue, toy, or generic human-shaped figure. No text, letters, words, captions, watermarks, or logos anywhere in the image. User's original request was in Turkish; do not write it in the image.`
+        : prompt;
+
+      if (GEMINI_API_KEY && !monkeyRequest) {
         try {
           const translationController = new AbortController();
           const translationTimeout = setTimeout(
