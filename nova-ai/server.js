@@ -35,7 +35,7 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 const GEMINI_MODEL =
-  process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 const OPENROUTER_MODEL =
   process.env.OPENROUTER_MODEL || "openrouter/free";
