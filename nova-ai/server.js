@@ -1515,10 +1515,12 @@ app.post(
                   contents: [{
                     parts: [{
                       text:
-                        "Translate the user's image-generation prompt into clear, natural English. " +
-                        "Preserve every requested subject, count, action, setting, style, and detail. " +
-                        "Do not add subjects or change the request. Return only the translated prompt. " +
-                        "Prompt: " + prompt
+                        "You are a precise translator for image-generation prompts. Translate the user's prompt into clear English. " +
+                        "Semantic accuracy is more important than style. Preserve the exact subject, animal species, number, action, and setting; never replace an animal with a person or a similar-sounding word. " +
+                        "Examples: 'maymun' means 'monkey' (the non-human primate), never 'man'; 'iki maymun çiz' means 'draw two monkeys'; 'kedi' means 'cat'; 'köpek' means 'dog'. " +
+                        "Do not invent extra subjects or change singular/plural. Do not include the user's command as visible writing in the image. " +
+                        "Append this instruction to the translated prompt: 'The image must depict the requested subject accurately. No text, letters, words, captions, watermarks, or logos anywhere in the image.' " +
+                        "Return only the final English image prompt, with no explanation.\nUser prompt: " + prompt
                     }]
                   }],
                   generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
