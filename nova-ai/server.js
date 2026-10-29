@@ -1526,15 +1526,16 @@ app.post(
                   contents: [{
                     parts: [{
                       text:
-                        "You are a precise translator for image-generation prompts. Translate the user's prompt into clear English. " +
-                        "Semantic accuracy is more important than style. Preserve the exact subject, animal species, number, action, and setting; never replace an animal with a person or a similar-sounding word. " +
-                        "Examples: 'maymun' means 'monkey' (the non-human primate), never 'man'; 'iki maymun çiz' means 'draw two monkeys'; 'kedi' means 'cat'; 'köpek' means 'dog'. " +
-                        "Do not invent extra subjects or change singular/plural. Do not include the user's command as visible writing in the image. " +
-                        "Append this instruction to the translated prompt: 'The image must depict the requested subject accurately. No text, letters, words, captions, watermarks, or logos anywhere in the image.' " +
-                        "Return only the final English image prompt, with no explanation.\nUser prompt: " + prompt
+                        "You are an expert image-prompt writer and a precise Turkish-to-English translator. Convert the user's request into one richly detailed English prompt for an image model. " +
+                        "First preserve the user's exact intent: main subject, species or identity, requested count, action, relationships, objects, location, and any explicitly requested style. Never replace, omit, or add a main subject; never change an animal into a human or confuse similar words. " +
+                        "Examples: 'maymun' means 'monkey' (a non-human primate), never 'man'; 'iki maymun çiz' means exactly two monkeys; 'kedi' means 'cat'; 'köpek' means 'dog'. " +
+                        "Expand the prompt with useful visual specifics that support—not alter—the request: clear subject appearance and anatomy, pose and expression, foreground/midground/background, balanced composition, viewpoint and framing, lighting direction and softness, color palette, atmosphere, material and surface texture, depth, and coherent visual style. " +
+                        "Choose a fitting style only when the user has not specified one; keep it consistent. Make the main subject prominent, readable, and correctly counted. Avoid clutter and contradictory details. Do not add extra people, animals, props, scenery, or story events unless the request implies them. " +
+                        "Do not turn the user's command into visible writing. No text, letters, words, captions, labels, watermarks, signatures, or logos anywhere in the image. " +
+                        "Return only the final English image prompt, with no explanation or quotation marks.\\nUser prompt: " + prompt
                     }]
                   }],
-                  generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
+                  generationConfig: { temperature: 0.15, maxOutputTokens: 768 }
                 })
               }
             );
