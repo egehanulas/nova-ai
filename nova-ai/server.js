@@ -1079,7 +1079,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
         {
           name: "gemini",
           enabled: Boolean(GEMINI_API_KEY),
-          run: (signal) => {
+          run: () => {
             providerInfo = {
               provider: "gemini",
               model: GEMINI_MODEL,
@@ -1088,7 +1088,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
             return streamGemini({
               messages,
               extraInstruction,
-              signal,
+              signal: controller.signal,
               onText,
             });
           },
