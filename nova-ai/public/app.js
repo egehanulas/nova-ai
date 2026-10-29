@@ -995,6 +995,62 @@
     }
   });
 
+  // Yapay zekâ ile resim oluşturma
+  const imageGenerateButton = $("#imageGenerate");
+  const imageStatus = $("#imageStatus");
+
+  imageGenerateButton?.addEventListener("click", async () => {
+    if (busy || !currentUser) return;
+    const imagePrompt = window.prompt("Nasıl bir resim oluşturayım? Ayrıntıları yaz:");
+    if (!imagePrompt?.trim()) return;
+    imageGenerateButton.disabled = true;
+    if (imageStatus) imageStatus.textContent = "Resim oluşturuluyor…";
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Oturum süren dolmuş. Yeniden giriş yap.");
+      const response = await fetch("/api/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ prompt: imagePrompt.trim() })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || `Sunucu hatası (${response.status}).`);
+      const modal = document.createElement("div");
+      modal.className = "auth-screen";
+      modal.style.zIndex = "2000";
+      modal.setAttribute("role", "dialog");
+      modal.setAttribute("aria-modal", "true");
+      const card = document.createElement("div");
+      card.className = "auth-card";
+      card.style.maxWidth = "900px";
+      card.style.maxHeight = "90vh";
+      card.style.overflow = "auto";
+      const title = document.createElement("h2");
+      title.textContent = "NOVA AI tarafından oluşturuldu";
+      const image = document.createElement("img");
+      image.alt = imagePrompt.trim();
+      image.src = `data:${result.mimeType || "image/png"};base64,${result.image}`;
+      image.style.cssText = "display:block;max-width:100%;max-height:65vh;object-fit:contain;margin:16px auto;border-radius:12px";
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "auth-submit";
+      close.textContent = "Kapat";
+      close.addEventListener("click", () => modal.remove());
+      modal.addEventListener("click", event => { if (event.target === modal) modal.remove(); });
+      card.append(title, image, close);
+      modal.appendChild(card);
+      document.body.appendChild(modal);
+      if (imageStatus) imageStatus.textContent = "Resim hazır.";
+    } catch (error) {
+      console.error("NOVA AI resim hatası:", error);
+      if (imageStatus) imageStatus.textContent = error.message || "Resim oluşturulamadı.";
+    } finally {
+      imageGenerateButton.disabled = false;
+    }
+  });
+
   // Diğer dosyaların kullanacağı NOVA fonksiyonları
   window.NOVA = {
     sendMessage,
