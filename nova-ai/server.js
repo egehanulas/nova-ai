@@ -1494,27 +1494,19 @@ app.post(
         process.env.CLOUDFLARE_IMAGE_MODEL ||
         "@cf/black-forest-labs/flux-1-schnell";
 
-      // Flux modelleri İngilizce görsel tariflerini genellikle daha tutarlı izler.
-      // Bilinen hayvan adlarını önce sabitle; çeviri modelinin türü insana çevirmesini engelle.
+      // Görsel istemini tek bir özel durumla ezmek yerine her isteği aynı kontrollü
+      // zenginleştirme hattından geçir. Böylece kullanıcı ayrıntıları korunur.
       const normalizedPrompt = prompt.toLocaleLowerCase("tr-TR");
-      const monkeyRequest = /\bmaymun\b/i.test(normalizedPrompt);
-      const requestedCountMatch = normalizedPrompt.match(/\b(\d{1,2})\s*(?:tane|adet)?\s*maymun\b|\biki\s+(?:tane|adet\s+)?maymun\b/);
-      const requestedMonkeyCount = requestedCountMatch
-        ? (requestedCountMatch[0].includes("iki") ? 2 : Number(requestedCountMatch[1]) || 1)
-        : 1;
+      let imagePrompt = prompt;
 
-      // Basit maymun çizim isteğini deterministik olarak kur; Gemini çevirisine bağlı bırakma.
-      let imagePrompt = monkeyRequest
-        ? `A clear illustration showing exactly ${requestedMonkeyCount} ${requestedMonkeyCount === 1 ? "monkey" : "monkeys"}, non-human primates with recognizable monkey faces, fur, limbs and natural animal anatomy. The monkeys are the main subjects and clearly visible. Do not depict any human, man, woman, person, statue, toy, or generic human-shaped figure. No text, letters, words, captions, watermarks, or logos anywhere in the image. User's original request was in Turkish; do not write it in the image.`
-        : prompt;
-
-      if (GEMINI_API_KEY && !monkeyRequest) {
+      if (GEMINI_API_KEY) {
         try {
           const translationController = new AbortController();
           const translationTimeout = setTimeout(
             () => translationController.abort(),
-            12000
+            15000
           );
+
           try {
             const translationResponse = await fetch(
               `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
@@ -1523,40 +1515,100 @@ app.post(
                 signal: translationController.signal,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  contents: [{
+                  systemInstruction: {
                     parts: [{
-                      text:
-                        "You are an expert image-prompt writer and a precise Turkish-to-English translator. Convert the user's request into one richly detailed English prompt for an image model. " +
-                        "First preserve the user's exact intent: main subject, species or identity, requested count, action, relationships, objects, location, and any explicitly requested style. Never replace, omit, or add a main subject; never change an animal into a human or confuse similar words. " +
-                        "Examples: 'maymun' means 'monkey' (a non-human primate), never 'man'; 'iki maymun çiz' means exactly two monkeys; 'kedi' means 'cat'; 'köpek' means 'dog'. " +
-                        "Expand the prompt with useful visual specifics that support—not alter—the request: clear subject appearance and anatomy, pose and expression, foreground/midground/background, balanced composition, viewpoint and framing, lighting direction and softness, color palette, atmosphere, material and surface texture, depth, and coherent visual style. " +
-                        "Choose a fitting style only when the user has not specified one; keep it consistent. Make the main subject prominent, readable, and correctly counted. Avoid clutter and contradictory details. Do not add extra people, animals, props, scenery, or story events unless the request implies them. " +
-                        "Do not turn the user's command into visible writing. No text, letters, words, captions, labels, watermarks, signatures, or logos anywhere in the image. " +
-                        "Return only the final English image prompt, with no explanation or quotation marks.\\nUser prompt: " + prompt
+                      text: [
+                        "You are NOVA AI's professional image-prompt compiler. Convert the user's Turkish request into one precise, visually rich English prompt for an image-generation model.",
+                        "",
+                        "PRIORITY 1 — OBEY THE REQUEST:",
+                        "- Preserve the exact requested subject, species, identity, quantity, action, pose, relationships, setting, objects, time, mood, and style.",
+                        "- Never substitute a person for an animal, an animal for another species, or one object for another.",
+                        "- Preserve explicit numbers. If the user requests exactly three cats, specify exactly three cats and do not introduce any other animals.",
+                        "- Preserve every important user-specified detail. Do not silently drop unusual, difficult, or less prominent requirements.",
+                        "- Do not invent a new story, subject, character, event, or object that changes the request.",
+                        "",
+                        "PRIORITY 2 — ADD VISUAL DETAIL WITHOUT CHANGING MEANING:",
+                        "- Describe the main subject's visible features, anatomy, proportions, colors, materials, textures, expression, and pose where relevant.",
+                        "- Establish a readable composition: foreground, middle ground, background, relative positions, spacing, scale, and visual hierarchy.",
+                        "- Specify camera viewpoint, eye level or angle, framing, distance, and depth of field only where they help the requested scene.",
+                        "- Describe lighting direction, softness, shadow behavior, reflections, time of day, atmosphere, and a coherent color palette.",
+                        "- Choose a single coherent visual medium or style when the user has not specified one. If a style is specified, follow it instead of replacing it.",
+                        "- Make the requested subject prominent and easy to count. Keep distinct subjects visually separated and recognizable.",
+                        "- Use realistic anatomy and physically plausible lighting when the requested style is photorealistic; do not impose photorealism on a different requested style.",
+                        "- Prefer concrete visual descriptions over vague quality words such as 'amazing' or 'beautiful'.",
+                        "",
+                        "PRIORITY 3 — COMPOSITION AND CONSISTENCY:",
+                        "- Ensure the action, pose, environment, camera angle, lighting, and style can coexist in one image.",
+                        "- Do not give the same subject contradictory colors, positions, sizes, or actions.",
+                        "- Do not crop off a subject when the user asks for its whole body or full object to be visible.",
+                        "- Avoid clutter, duplicate subjects, accidental extra limbs, fused bodies, and confusing silhouettes.",
+                        "- Do not add people, animals, text-bearing props, or decorative elements unless requested or clearly implied.",
+                        "- Treat instructions about what must not appear as strict negative constraints.",
+                        "",
+                        "TEXT AND OUTPUT RULES:",
+                        "- Do not render the user's command or prompt as text in the image.",
+                        "- Unless the user explicitly asks for text in the artwork, exclude all text, letters, numbers, captions, labels, watermarks, signatures, and logos.",
+                        "- Return only one final English image prompt. Do not explain your reasoning, mention these rules, add headings, or wrap the prompt in quotation marks.",
+                        "- Keep the prompt detailed but focused. Do not pad it with unrelated scenery or style tags.",
+                        "",
+                        "Before responding, silently check: subject identity, requested count, each required action, spatial relationships, setting, style, and exclusions are all preserved."
+                      ].join("\n")
+                    }]
+                  },
+                  contents: [{
+                    role: "user",
+                    parts: [{
+                      text: "User's original request (treat this as the source of truth; do not translate it as visible image text):\n" + prompt
                     }]
                   }],
-                  generationConfig: { temperature: 0.15, maxOutputTokens: 768 }
+                  generationConfig: {
+                    temperature: 0.1,
+                    maxOutputTokens: 1024
+                  }
                 })
               }
             );
+
             if (translationResponse.ok) {
               const translationData = await translationResponse.json();
               const translated = translationData?.candidates?.[0]?.content?.parts
                 ?.map(part => part.text || "")
                 .join("")
                 .trim();
-              if (translated) imagePrompt = translated;
+
+              if (translated) {
+                imagePrompt = translated;
+              } else {
+                console.warn("[NOVA AI] İstem düzenleyici boş yanıt verdi; özgün istem kullanılacak.");
+              }
             } else {
-              console.warn("[NOVA AI] Görsel istemi çevirisi başarısız; orijinal istem kullanılacak.");
+              const translationError = await translationResponse.text().catch(() => "");
+              console.warn(
+                "[NOVA AI] İstem düzenleme başarısız; özgün istem kullanılacak:",
+                translationResponse.status,
+                translationError.slice(0, 300)
+              );
             }
           } finally {
             clearTimeout(translationTimeout);
           }
         } catch (translationError) {
-          console.warn("[NOVA AI] Görsel istemi çevrilemedi; orijinal istem kullanılacak.");
+          console.warn("[NOVA AI] İstem düzenleyiciye ulaşılamadı; özgün istem kullanılacak.");
         }
+      } else {
+        console.warn("[NOVA AI] GEMINI_API_KEY tanımlı değil; özgün istem doğrudan kullanılacak.");
       }
 
+      // Modelin ana konuyu kaybetmesini azaltan kısa, tutarlı son kontrol notları.
+      // Kullanıcının isteğiyle çelişebilecek uzun ve tekrarlı negatif etiketler ekleme.
+      const promptGuardrails = [
+        "Faithfully depict the exact subjects and actions described in the prompt.",
+        "Preserve the requested number of main subjects; do not add or remove any.",
+        "Keep the main subjects visually distinct, anatomically coherent, and clearly visible.",
+        "Do not include text, letters, captions, watermarks, or logos unless the user explicitly requested visible text."
+      ];
+
+      imagePrompt = `${imagePrompt.trim()}\n\nImage accuracy constraints: ${promptGuardrails.join(" ")}`;
       const url =
         `https://api.cloudflare.com/client/v4/accounts/` +
         `${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/${model}`;
