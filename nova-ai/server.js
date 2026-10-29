@@ -1466,7 +1466,7 @@ app.post(
   asyncRoute(async (req, res) => {
     if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID) {
       return res.status(503).json({
-        error: "Cloudflare API ayarları eksik. Render Environment bölümünü kontrol et.",
+        error: "Görsel oluşturma şu anda kullanılamıyor. Lütfen daha sonra tekrar dene.",
       });
     }
 
@@ -1668,8 +1668,8 @@ app.post(
         return res.status(502).json({
           error:
             response.status === 429
-              ? "Cloudflare kullanım sınırına ulaşıldı. Daha sonra tekrar dene."
-              : "Resim oluşturulamadı. Cloudflare API izinlerini ve limitlerini kontrol et.",
+              ? "Şu anda çok fazla görsel isteği var. Biraz sonra tekrar dene."
+              : "Görsel şu anda oluşturulamadı. Lütfen daha sonra tekrar dene.",
         });
       }
 
@@ -1688,7 +1688,7 @@ app.post(
 
       if (typeof image !== "string" || !image) {
         return res.status(502).json({
-          error: "Cloudflare geçerli bir görsel döndürmedi.",
+          error: "Görsel şu anda oluşturulamadı. Lütfen daha sonra tekrar dene.",
         });
       }
 
@@ -1701,7 +1701,7 @@ app.post(
     } catch (error) {
       if (error.name === "AbortError") {
         return res.status(504).json({
-          error: "Resim oluşturma zaman aşımına uğradı.",
+          error: "Görsel oluşturma şu anda uzun sürdü. Lütfen biraz sonra tekrar dene.",
         });
       }
 
