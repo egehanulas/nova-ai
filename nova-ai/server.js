@@ -1487,6 +1487,15 @@ app.post(
       });
     }
 
+    // Accept only safe, predefined aspect-ratio presets from the client.
+    const aspectRatio = ["square", "portrait", "landscape"].includes(req.body?.aspectRatio)
+      ? req.body.aspectRatio : "square";
+    const imageDimensions = {
+      square: { width: 1024, height: 1024 },
+      portrait: { width: 768, height: 1024 },
+      landscape: { width: 1024, height: 768 },
+    }[aspectRatio];
+
     const { controller, clear } = createAbortController(120000);
 
     try {
@@ -1620,8 +1629,8 @@ app.post(
         const form = new FormData();
         form.append("prompt", imagePrompt);
         form.append("steps", "25");
-        form.append("width", "1024");
-        form.append("height", "1024");
+        form.append("width", String(imageDimensions.width));
+        form.append("height", String(imageDimensions.height));
 
         response = await fetch(url, {
           method: "POST",

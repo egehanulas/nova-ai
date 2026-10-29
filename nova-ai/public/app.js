@@ -1020,85 +1020,68 @@
     }
   });
 
-  // Yapay zekâ ile resim oluşturma
-  const imageGenerateButton = $("#imageGenerate");
-  const imageStatus = $("#imageStatus");
-
-  imageGenerateButton?.addEventListener("click", async () => {
-    if (busy || !currentUser) return;
-    const imagePrompt = window.prompt("Nasıl bir resim oluşturayım? Ayrıntıları yaz:");
-    if (!imagePrompt?.trim()) return;
-    imageGenerateButton.disabled = true;
-    if (imageStatus) imageStatus.textContent = "Resim oluşturuluyor…";
-    try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      const token = sessionData.session?.access_token;
-      if (!token) throw new Error("Oturum süren dolmuş. Yeniden giriş yap.");
-      const response = await fetch("/api/image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ prompt: imagePrompt.trim() })
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || `Sunucu hatası (${response.status}).`);
-      const mimeType = result.mimeType || "image/png";
-      const binary = atob(result.image);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      const imageBlob = new Blob([bytes], { type: mimeType });
-      const imagePath = `${currentUser.id}/${crypto.randomUUID()}.png`;
-      const { error: uploadError } = await supabase.storage
-        .from("nova-ai-images")
-        .upload(imagePath, imageBlob, { contentType: mimeType, upsert: false });
-      if (uploadError) throw new Error("Resim oluşturuldu ama kaydedilemedi: " + uploadError.message);
-
-      const conversation = await ensureConversation();
-      conversation.messages.push({
-        role: "assistant",
-        type: "image",
-        content: imagePrompt.trim(),
-        imagePath,
-        mimeType
-      });
-      conversation.updatedAt = Date.now();
-      await save(conversation);
-      renderMessages();
-      renderHistory();
-
-      const modal = document.createElement("div");
-      modal.className = "auth-screen";
-      modal.style.zIndex = "2000";
-      modal.setAttribute("role", "dialog");
-      modal.setAttribute("aria-modal", "true");
-      const card = document.createElement("div");
-      card.className = "auth-card";
-      card.style.maxWidth = "900px";
-      card.style.maxHeight = "90vh";
-      card.style.overflow = "auto";
-      const title = document.createElement("h2");
-      title.textContent = "NOVA AI tarafından oluşturuldu";
-      const image = document.createElement("img");
-      image.alt = imagePrompt.trim();
-      image.src = `data:${result.mimeType || "image/png"};base64,${result.image}`;
-      image.style.cssText = "display:block;max-width:100%;max-height:65vh;object-fit:contain;margin:16px auto;border-radius:12px";
-      const close = document.createElement("button");
-      close.type = "button";
-      close.className = "auth-submit";
-      close.textContent = "Kapat";
-      close.addEventListener("click", () => modal.remove());
-      modal.addEventListener("click", event => { if (event.target === modal) modal.remove(); });
-      card.append(title, image, close);
-      modal.appendChild(card);
-      document.body.appendChild(modal);
-      if (imageStatus) imageStatus.textContent = "Resim hazır.";
-    } catch (error) {
-      console.error("NOVA AI resim hatası:", error);
-      if (imageStatus) imageStatus.textContent = error.message || "Resim oluşturulamadı.";
-    } finally {
-      imageGenerateButton.disabled = false;
-    }
-  });
+  // NOVA AI Image Studio: custom prompt dialog, aspect presets and private gallery.
+  const imageGenerateButton=$("#imageGenerate"), imageStatus=$("#imageStatus"), galleryButton=$("#openImageGallery");
+  function closeStudio(overlay){if(!overlay)return;document.removeEventListener("keydown",overlay._esc);overlay.remove();}
+  function studio({title,subtitle,content,onClose}){
+    const overlay=document.createElement("div");overlay.className="image-studio-overlay";
+    const panel=document.createElement("section");panel.className="image-studio-panel";panel.setAttribute("role","dialog");panel.setAttribute("aria-modal","true");panel.setAttribute("aria-label",title);
+    const head=document.createElement("div");head.className="image-studio-heading";const copy=document.createElement("div");
+    const eyebrow=document.createElement("div");eyebrow.className="image-studio-eyebrow";eyebrow.textContent="NOVA AI · IMAGE STUDIO";
+    const h=document.createElement("h2");h.textContent=title;const p=document.createElement("p");p.textContent=subtitle;copy.append(eyebrow,h,p);
+    const x=document.createElement("button");x.type="button";x.className="image-studio-close";x.textContent="×";x.setAttribute("aria-label","Kapat");x.onclick=()=>onClose?onClose():closeStudio(overlay);
+    head.append(copy,x);panel.append(head,content);overlay.append(panel);overlay.onclick=e=>{if(e.target===overlay)(onClose?onClose():closeStudio(overlay));};
+    overlay._esc=e=>{if(e.key==="Escape"&&document.body.contains(overlay))(onClose?onClose():closeStudio(overlay));};document.addEventListener("keydown",overlay._esc);document.body.append(overlay);x.focus();return overlay;
+  }
+  function openImagePrompt(){
+    if(busy||!currentUser)return;
+    const formEl=document.createElement("form");formEl.onsubmit=e=>e.preventDefault();
+    const label=document.createElement("label");label.className="image-studio-label";label.htmlFor="novaImagePrompt";label.textContent="Nasıl bir görsel hayal ediyorsun?";
+    const input=document.createElement("textarea");input.id="novaImagePrompt";input.className="image-studio-prompt";input.maxLength=2000;input.required=true;input.placeholder="Örn. Gün batımında İstanbul Boğazı, sinematik ışık, gerçekçi fotoğraf…";
+    const fmtLabel=document.createElement("div");fmtLabel.className="image-studio-label";fmtLabel.textContent="Görsel oranı";
+    const formats=document.createElement("div");formats.className="image-studio-formats";
+    [{v:"square",t:"Kare",d:"1024 × 1024"},{v:"portrait",t:"Dikey",d:"768 × 1024"},{v:"landscape",t:"Yatay",d:"1024 × 768"}].forEach((f,i)=>{const l=document.createElement("label");l.className="image-format";const r=document.createElement("input");r.type="radio";r.name="ratio";r.value=f.v;r.checked=i===0;const span=document.createElement("span"),b=document.createElement("strong"),sm=document.createElement("small");b.textContent=f.t;sm.textContent=f.d;span.append(b,sm);l.append(r,span);formats.append(l);});
+    const note=document.createElement("p");note.className="image-studio-note";note.textContent="Üretilen görsel sohbet geçmişine kaydedilir. Üretim süresi servis yoğunluğuna bağlı olabilir.";
+    const actions=document.createElement("div");actions.className="image-studio-actions";const cancel=document.createElement("button");cancel.type="button";cancel.className="image-studio-secondary";cancel.textContent="Vazgeç";const go=document.createElement("button");go.type="submit";go.className="image-studio-primary";go.textContent="✦ Görsel oluştur";actions.append(cancel,go);formEl.append(label,input,fmtLabel,formats,note,actions);
+    let overlay;const close=()=>closeStudio(overlay);cancel.onclick=close;overlay=studio({title:"Hayalindeki görseli oluştur",subtitle:"Fikrini anlat, kompozisyonu NOVA AI hazırlasın.",content:formEl,onClose:close});input.focus();
+    formEl.addEventListener("submit",async e=>{e.preventDefault();const text=input.value.trim();if(!text){input.focus();return;}const ratio=formEl.querySelector('input[name="ratio"]:checked')?.value||"square";close();await generateImage(text,ratio);});
+  }
+  async function generateImage(imagePrompt,aspectRatio="square"){
+    if(busy||!currentUser)return;imageGenerateButton.disabled=true;if(imageStatus)imageStatus.textContent="Görsel hazırlanıyor… Bu işlem biraz sürebilir.";
+    try{
+      const {data:sd,error:se}=await supabase.auth.getSession();if(se)throw se;const token=sd.session?.access_token;if(!token)throw Error("Oturum süren dolmuş. Yeniden giriş yap.");
+      const response=await fetch("/api/image",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},body:JSON.stringify({prompt:imagePrompt,aspectRatio})});
+      const result=await response.json().catch(()=>({}));if(!response.ok)throw Error(result.error||`Sunucu hatası (${response.status}).`);if(!result.image)throw Error("Sunucu görsel verisi döndürmedi.");
+      const mime=result.mimeType||"image/png",binary=atob(result.image),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+      const blob=new Blob([bytes],{type:mime}),ext=mime.includes("jpeg")?"jpg":mime.includes("webp")?"webp":"png",path=`${currentUser.id}/${crypto.randomUUID()}.${ext}`;
+      const {error:up}=await supabase.storage.from("nova-ai-images").upload(path,blob,{contentType:mime,upsert:false});if(up)throw Error("Görsel oluşturuldu ama kaydedilemedi: "+up.message);
+      const convo=await ensureConversation();convo.messages.push({role:"assistant",type:"image",content:imagePrompt,imagePath:path,mimeType:mime,aspectRatio});convo.updatedAt=Date.now();await save(convo);renderMessages();renderHistory();preview(result.image,mime,imagePrompt);if(imageStatus)imageStatus.textContent="Görsel hazır ve sohbet geçmişine kaydedildi.";
+    }catch(error){console.error("NOVA AI görsel hatası:",error);if(imageStatus)imageStatus.textContent=error.message||"Görsel oluşturulamadı.";}finally{imageGenerateButton.disabled=false;}
+  }
+  function preview(base64,mime,alt){
+    const content=document.createElement("div"),img=document.createElement("img");img.src=`data:${mime};base64,${base64}`;img.alt=alt;img.style.cssText="display:block;max-width:100%;max-height:60vh;object-fit:contain;margin:16px auto;border-radius:14px";
+    const actions=document.createElement("div");actions.className="image-studio-actions";const dl=document.createElement("a");dl.className="image-studio-primary";dl.textContent="Resmi indir";dl.href=img.src;dl.download="nova-ai-resim."+(mime.includes("jpeg")?"jpg":mime.includes("webp")?"webp":"png");dl.style.textDecoration="none";
+    const done=document.createElement("button");done.className="image-studio-secondary";done.textContent="Tamam";actions.append(dl,done);content.append(img,actions);let overlay;const close=()=>closeStudio(overlay);done.onclick=close;overlay=studio({title:"Görselin hazır",subtitle:"Görselin sohbet geçmişine kaydedildi.",content,onClose:close});
+  }
+  async function openImageGallery(){
+    if(!currentUser)return;const content=document.createElement("div"),loading=document.createElement("div");loading.className="image-gallery-empty";loading.textContent="Kayıtlı görseller aranıyor…";content.append(loading);
+    studio({title:"Görsel galerisi",subtitle:"Sohbetlerine kaydedilmiş görsellerin tek yerde.",content});
+    try{
+      const {data,error}=await supabase.from("conversations").select("title,messages,updated_at").eq("user_id",currentUser.id).order("updated_at",{ascending:false});if(error)throw error;
+      const imgs=[];(data||[]).forEach(row=>(Array.isArray(row.messages)?row.messages:[]).forEach(m=>{if(m?.type==="image"&&m.imagePath)imgs.push({...m,createdAt:row.updated_at});}));imgs.sort((a,b)=>(Date.parse(b.createdAt)||0)-(Date.parse(a.createdAt)||0));content.replaceChildren();
+      if(!imgs.length){const empty=document.createElement("div");empty.className="image-gallery-empty";empty.textContent="Henüz kayıtlı görsel yok. İlk görselini oluşturduğunda burada görünecek.";content.append(empty);return;}
+      const grid=document.createElement("div");grid.className="image-gallery-grid";content.append(grid);
+      for(const item of imgs){const card=document.createElement("article");card.className="image-gallery-card";const img=document.createElement("img");img.className="image-gallery-thumb";img.alt=item.content||"NOVA AI görseli";img.loading="lazy";
+        const meta=document.createElement("div");meta.className="image-gallery-meta";const caption=document.createElement("p");caption.className="image-gallery-caption";caption.textContent=item.content||"NOVA AI görseli";const links=document.createElement("div");links.className="image-gallery-links";
+        const open=document.createElement("a");open.href="#";open.textContent="Büyüt";open.onclick=e=>{e.preventDefault();if(img.src)previewSigned(img.src,item.content||"NOVA AI görseli");};
+        const dl=document.createElement("a");dl.href="#";dl.textContent="İndir";dl.download="nova-ai-resim.png";links.append(open,dl);meta.append(caption,links);card.append(img,meta);grid.append(card);
+        try{const {data:signed,error:err}=await supabase.storage.from("nova-ai-images").createSignedUrl(item.imagePath,3600);if(err||!signed?.signedUrl)throw err||Error("URL unavailable");img.src=signed.signedUrl;dl.href=signed.signedUrl;dl.download="nova-ai-resim."+(item.mimeType?.includes("jpeg")?"jpg":item.mimeType?.includes("webp")?"webp":"png");}catch{caption.textContent="Görsel açılamadı";open.remove();dl.remove();}
+      }
+    }catch(error){console.error("Galeri yüklenemedi",error);content.replaceChildren();const msg=document.createElement("div");msg.className="image-gallery-empty";msg.textContent="Galeri yüklenemedi: "+(error.message||"Beklenmeyen hata");content.append(msg);}
+  }
+  function previewSigned(src,alt){const content=document.createElement("div"),img=document.createElement("img");img.src=src;img.alt=alt;img.style.cssText="display:block;max-width:100%;max-height:65vh;object-fit:contain;margin:auto";content.append(img);studio({title:"Görsel önizleme",subtitle:alt,content});}
+  imageGenerateButton?.addEventListener("click",openImagePrompt);
+  galleryButton?.addEventListener("click",openImageGallery);
 
   // Diğer dosyaların kullanacağı NOVA fonksiyonları
   window.NOVA = {
