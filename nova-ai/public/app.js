@@ -573,10 +573,35 @@
 
       const content = document.createElement("div");
       content.className = "message-content";
-      content.textContent =
-        typeof item.content === "string"
-          ? item.content
-          : "";
+      if (item.type === "image" && item.imagePath) {
+        content.textContent = item.content || "Oluşturulan resim";
+        const savedImage = document.createElement("img");
+        savedImage.alt = item.content || "NOVA AI tarafından oluşturulan resim";
+        savedImage.style.cssText = "display:block;max-width:min(100%,640px);max-height:480px;object-fit:contain;margin-top:10px;border-radius:14px";
+        const download = document.createElement("a");
+        download.textContent = "Resmi indir";
+        download.style.cssText = "display:inline-block;margin-top:10px";
+        download.download = "nova-ai-resim.png";
+        content.appendChild(document.createElement("br"));
+        content.appendChild(savedImage);
+        content.appendChild(document.createElement("br"));
+        content.appendChild(download);
+        supabase.storage.from("nova-ai-images").createSignedUrl(item.imagePath, 3600)
+          .then(({ data, error }) => {
+            if (error || !data?.signedUrl) {
+              savedImage.alt = "Resim yüklenemedi. Tekrar giriş yapıp sohbeti yenile.";
+              return;
+            }
+            savedImage.src = data.signedUrl;
+            download.href = data.signedUrl;
+          })
+          .catch(error => console.error("Kayıtlı resim açılamadı:", error));
+      } else {
+        content.textContent =
+          typeof item.content === "string"
+            ? item.content
+            : "";
+      }
 
       main.append(name, content);
 
@@ -1017,6 +1042,30 @@
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || `Sunucu hatası (${response.status}).`);
+      const mimeType = result.mimeType || "image/png";
+      const binary = atob(result.image);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const imageBlob = new Blob([bytes], { type: mimeType });
+      const imagePath = `${currentUser.id}/${crypto.randomUUID()}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from("nova-ai-images")
+        .upload(imagePath, imageBlob, { contentType: mimeType, upsert: false });
+      if (uploadError) throw new Error("Resim oluşturuldu ama kaydedilemedi: " + uploadError.message);
+
+      const conversation = await ensureConversation();
+      conversation.messages.push({
+        role: "assistant",
+        type: "image",
+        content: imagePrompt.trim(),
+        imagePath,
+        mimeType
+      });
+      conversation.updatedAt = Date.now();
+      await save(conversation);
+      renderMessages();
+      renderHistory();
+
       const modal = document.createElement("div");
       modal.className = "auth-screen";
       modal.style.zIndex = "2000";
