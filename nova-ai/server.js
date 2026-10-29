@@ -151,24 +151,19 @@ KİMLİK:
 - Sahip olmadığın araçlara veya yeteneklere sahip olduğunu iddia etme.
 
 YANIT KURALLARI:
-- Öncelikle Türkçe konuş.
-- Samimi, anlaşılır, doğal ve doğrudan cevap ver.
-- Kullanıcının istediği biçime ve ayrıntı seviyesine uy.
-- Bilmediğin bilgileri uydurma.
-- Güncel bilgiye erişimin yoksa bunu açıkça belirt.
-- Kod sorularında güvenli ve okunabilir çözümler sun.
-- Teknik anlatımlarda, özellikle Unreal Engine Blueprint konusunda, uygun olduğunda kutular, oklar ve dallanmalarla şema çiz.
-- Blueprint anlatırken gerçek node adlarını İngilizce yaz ve yanına kısa Türkçe açıklamasını ekle.
-- Her bağlantıda kaynak node + kaynak pin -> hedef node + hedef pin bilgisini açıkça belirt.
-- Exec, Boolean ve Object/Vector gibi veri bağlantılarını birbirinden ayır; Branch için True/False kollarını göster.
-- Önce genel akış şemasını, ardından bağlantı adımlarını ve en son kısa açıklamayı ver.
-- Metin tabanlı şemayı gerçek Blueprint ekran görüntüsü gibi sunma; temsili şema olduğunu belirt.
-- Gerçekte bulunmayan node veya özellik uydurma. Emin değilsen doğrula ya da belirsizliği söyle.
-- Teknik çözümün gerektirdiği NavMesh, AI Controller, değişken türü veya ayarları atlama.
-- Çözümün test edilmediği durumda çalıştığını kesin olarak iddia etme.
-- Gereksiz tekrar yapma.
-- Gizli anahtarları veya şifreleri isteme.
-- Kullanıcı açıkça istemedikçe gereksiz yere uzun cevap verme.
+- Öncelikle Türkçe konuş; samimi, net ve doğrudan ol.
+- Önce doğrudan çözümü ver. Basit sorularda kısa kal; kullanıcı ayrıntı istemedikçe genellikle 5-10 adımı aşma.
+- Aynı bilgiyi farklı başlıklar altında tekrarlama. İstenen işi bitir, gereksiz giriş ve uzun sonuç yazma.
+- Bilmediğin bilgileri uydurma; güncel bilgiye erişmediysen bunu açıkça söyle.
+- Kod ve teknik konularda uygulanabilir, sürüm/bağlamla uyumlu çözüm ver; test etmediğin şeyi test edilmiş gibi sunma.
+- Unreal Engine Blueprint sorularında gerçek node adlarını İngilizce, açıklamalarını kısa Türkçe yaz. Önce küçük ve okunaklı bir metin şeması, sonra yalnızca gerekli bağlantıları ver.
+- Her bağlantıyı "Kaynak node.Pin → Hedef node.Pin" biçiminde yaz; Exec akışını ve Boolean/Object/Vector veri kablolarını ayır. Branch için True/False yollarını göster.
+- Yalnızca Unreal Engine'de gerçekten bulunan ve doğru bağlamda kullanılan node'ları öner. Belirsiz node adını veya pin'i uydurma; gerekirse doğrulama gerektiğini söyle.
+- Blueprint'te Event Tick ile her karede AI hareket komutu/yol araması yaptırma; sürekli tekrar yerine uygun olay, Timer veya AI Move To akışını tercih et.
+- Zombi takip örneğinde doğru temel kurulum: Character/Pawn üzerinde Auto Possess AI ve AI Controller Class ayarı; yürünebilir zeminde NavMeshBoundsVolume ve P ile NavMesh kontrolü; AI Move To node'unda Pawn=Zombie Self, Target Actor=Get Player Character. Gerçek projeye göre gereken ayarları açıkça belirt.
+- Şemayı temsili metin çizimi olarak sun; gerçek ekran görüntüsüymüş gibi davranma.
+- Kullanıcı istemedikçe uzun arka plan anlatımı, isteğe bağlı özellik listeleri ve tekrar eden kontrol listeleri ekleme.
+- Gizli anahtarları/şifreleri isteme.
 
 ÇIKTI KURALLARI:
 - Yalnızca kullanıcıya yönelik doğal yanıt üret.
@@ -460,7 +455,7 @@ async function callGemini(messages, extraInstruction = "") {
         contents,
         generationConfig: {
           temperature: 0.4,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 1800,
         },
       }),
     });
@@ -529,7 +524,7 @@ async function callOpenRouter(messages, extraInstruction = "") {
             ...conversation,
           ],
           temperature: 0.4,
-          max_tokens: 4096,
+          max_tokens: 1800,
         }),
       }
     );
@@ -594,7 +589,7 @@ async function callGroq(messages, extraInstruction = "") {
             ...conversation,
           ],
           temperature: 0.4,
-          max_tokens: 4096,
+          max_tokens: 1800,
         }),
       }
     );
@@ -775,7 +770,7 @@ async function streamOpenAIProvider({
         ...conversation,
       ],
       temperature: 0.4,
-      max_tokens: 4096,
+      max_tokens: 1800,
       stream: true,
     }),
   });
@@ -918,7 +913,7 @@ async function streamGemini({
       contents,
       generationConfig: {
         temperature: 0.4,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 1800,
       },
     }),
   });
@@ -1086,22 +1081,27 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
 
       const providers = [
         {
-          name: "gemini",
-          enabled: Boolean(GEMINI_API_KEY),
-          run: (signal) => {
+          name: "groq",
+          enabled: Boolean(GROQ_API_KEY),
+          run: () => {
             providerInfo = {
-              provider: "gemini",
-              model: GEMINI_MODEL,
+              provider: "groq",
+              model: GROQ_MODEL,
             };
 
-            return streamGemini({
+            return streamOpenAIProvider({
+              url: "https://api.groq.com/openai/v1/chat/completions",
+              apiKey: GROQ_API_KEY,
+              model: GROQ_MODEL,
               messages,
               extraInstruction,
-              signal,
+              providerName: "groq",
+              signal: controller.signal,
               onText,
             });
           },
         },
+      ];,
         {
           name: "openrouter",
           enabled: Boolean(OPENROUTER_API_KEY),
@@ -1130,29 +1130,23 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
           },
         },
         {
-          name: "groq",
-          enabled: Boolean(GROQ_API_KEY),
-          run: () => {
+          name: "gemini",
+          enabled: Boolean(GEMINI_API_KEY),
+          run: (signal) => {
             providerInfo = {
-              provider: "groq",
-              model: GROQ_MODEL,
+              provider: "gemini",
+              model: GEMINI_MODEL,
             };
 
-            return streamOpenAIProvider({
-              url: "https://api.groq.com/openai/v1/chat/completions",
-              apiKey: GROQ_API_KEY,
-              model: GROQ_MODEL,
+            return streamGemini({
               messages,
               extraInstruction,
-              providerName: "groq",
-              signal: controller.signal,
+              signal,
               onText,
             });
           },
-        },
+        }
       ];
-
-      const failures = [];
 
       try {
         let result = null;
