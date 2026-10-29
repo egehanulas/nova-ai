@@ -1492,7 +1492,7 @@ app.post(
     try {
       const model =
         process.env.CLOUDFLARE_IMAGE_MODEL ||
-        "@cf/black-forest-labs/flux-1-schnell";
+        "@cf/black-forest-labs/flux-2-dev";
 
       // Görsel istemini tek bir özel durumla ezmek yerine her isteği aynı kontrollü
       // zenginleştirme hattından geçir. Böylece kullanıcı ayrıntıları korunur.
@@ -1611,18 +1611,41 @@ app.post(
         `https://api.cloudflare.com/client/v4/accounts/` +
         `${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/${model}`;
 
-      const response = await fetch(url, {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt: imagePrompt,
-          steps: 4,
-        }),
-      });
+      let response;
+
+      if (model === "@cf/black-forest-labs/flux-2-dev") {
+        // FLUX.2 [dev] REST uç noktası multipart/form-data bekler.
+        // Daha fazla adım ayrıntı ve isteme uyumu sağlayabilir; ancak üretim süresi
+        // ve maliyeti de artar. 25 adımla başla, sonra gerçek testlere göre ayarla.
+        const form = new FormData();
+        form.append("prompt", imagePrompt);
+        form.append("steps", "25");
+        form.append("width", "1024");
+        form.append("height", "1024");
+
+        response = await fetch(url, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
+          },
+          body: form,
+        });
+      } else {
+        // Diğer Cloudflare modelleri için önceki JSON isteğini koru.
+        response = await fetch(url, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: imagePrompt,
+            steps: 4,
+          }),
+        });
+      }
 
       if (!response.ok) {
         const details = await response.text().catch(() => "");
