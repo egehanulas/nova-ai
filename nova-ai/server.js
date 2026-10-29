@@ -1494,6 +1494,55 @@ app.post(
         process.env.CLOUDFLARE_IMAGE_MODEL ||
         "@cf/black-forest-labs/flux-1-schnell";
 
+      // Flux modelleri İngilizce görsel tariflerini genellikle daha tutarlı izler.
+      // Türkçe istemi Gemini ile İngilizceye çevir; çeviri başarısızsa orijinal istemi kullan.
+      let imagePrompt = prompt;
+      if (GEMINI_API_KEY) {
+        try {
+          const translationController = new AbortController();
+          const translationTimeout = setTimeout(
+            () => translationController.abort(),
+            12000
+          );
+          try {
+            const translationResponse = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
+              {
+                method: "POST",
+                signal: translationController.signal,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  contents: [{
+                    parts: [{
+                      text:
+                        "Translate the user's image-generation prompt into clear, natural English. " +
+                        "Preserve every requested subject, count, action, setting, style, and detail. " +
+                        "Do not add subjects or change the request. Return only the translated prompt. " +
+                        "Prompt: " + prompt
+                    }]
+                  }],
+                  generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
+                })
+              }
+            );
+            if (translationResponse.ok) {
+              const translationData = await translationResponse.json();
+              const translated = translationData?.candidates?.[0]?.content?.parts
+                ?.map(part => part.text || "")
+                .join("")
+                .trim();
+              if (translated) imagePrompt = translated;
+            } else {
+              console.warn("[NOVA AI] Görsel istemi çevirisi başarısız; orijinal istem kullanılacak.");
+            }
+          } finally {
+            clearTimeout(translationTimeout);
+          }
+        } catch (translationError) {
+          console.warn("[NOVA AI] Görsel istemi çevrilemedi; orijinal istem kullanılacak.");
+        }
+      }
+
       const url =
         `https://api.cloudflare.com/client/v4/accounts/` +
         `${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/${model}`;
@@ -1506,7 +1555,7 @@ app.post(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          prompt,
+          prompt: imagePrompt,
           steps: 4,
         }),
       });
