@@ -1507,6 +1507,7 @@ app.post(
       // Görsel istemini tek bir özel durumla ezmek yerine her isteği aynı kontrollü
       // zenginleştirme hattından geçir. Böylece kullanıcı ayrıntıları korunur.
       let imagePrompt = prompt;
+      let promptCompiled = false;
 
       if (GEMINI_API_KEY) {
         try {
@@ -1587,6 +1588,7 @@ app.post(
 
               if (translated) {
                 imagePrompt = translated;
+                promptCompiled = true;
               } else {
                 console.warn("[NOVA AI] İstem düzenleyici boş yanıt verdi; özgün istem kullanılacak.");
               }
@@ -1606,6 +1608,35 @@ app.post(
         }
       } else {
         console.warn("[NOVA AI] GEMINI_API_KEY tanımlı değil; özgün istem doğrudan kullanılacak.");
+      }
+
+      // Gemini kotası doluysa, mevcut metin model sağlayıcılarını yedek olarak kullan.
+      // Türkçe istemi doğrudan görsel modeline göndermek, özellikle hayvan türünü bozabilir.
+      if (!promptCompiled) {
+        try {
+          const compiled = await generateAnswer(
+            [{ role: "user", content: prompt }],
+            [
+              "You are a strict image-prompt translator for an image generation model.",
+              "Translate the user's request into clear, concise English while preserving its exact meaning.",
+              "The requested main subject is a hard constraint: never replace its species, identity, object, quantity, action, or scene.",
+              "For example, 'kedi çiz' means a cat, never a horse or a person. Do not add any other main subject.",
+              "Do not invent extra people or animals. Keep all explicit details and exclusions.",
+              "Return only the English image prompt, with no explanation or quotation marks."
+            ].join("\\n")
+          );
+          if (compiled?.answer?.trim()) {
+            imagePrompt = compiled.answer.trim();
+            console.log(
+              `[NOVA AI] Görsel istemi ${compiled.provider} ile İngilizceye dönüştürüldü.`
+            );
+          }
+        } catch (compileError) {
+          console.warn(
+            "[NOVA AI] Yedek istem düzenleme başarısız; özgün istem kullanılacak:",
+            compileError.message
+          );
+        }
       }
 
       // Modelin ana konuyu kaybetmesini azaltan kısa, tutarlı son kontrol notları.
