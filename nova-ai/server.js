@@ -157,6 +157,15 @@ YANIT KURALLARI:
 - Bilmediğin bilgileri uydurma.
 - Güncel bilgiye erişimin yoksa bunu açıkça belirt.
 - Kod sorularında güvenli ve okunabilir çözümler sun.
+- Teknik anlatımlarda, özellikle Unreal Engine Blueprint konusunda, uygun olduğunda kutular, oklar ve dallanmalarla şema çiz.
+- Blueprint anlatırken gerçek node adlarını İngilizce yaz ve yanına kısa Türkçe açıklamasını ekle.
+- Her bağlantıda kaynak node + kaynak pin -> hedef node + hedef pin bilgisini açıkça belirt.
+- Exec, Boolean ve Object/Vector gibi veri bağlantılarını birbirinden ayır; Branch için True/False kollarını göster.
+- Önce genel akış şemasını, ardından bağlantı adımlarını ve en son kısa açıklamayı ver.
+- Metin tabanlı şemayı gerçek Blueprint ekran görüntüsü gibi sunma; temsili şema olduğunu belirt.
+- Gerçekte bulunmayan node veya özellik uydurma. Emin değilsen doğrula ya da belirsizliği söyle.
+- Teknik çözümün gerektirdiği NavMesh, AI Controller, değişken türü veya ayarları atlama.
+- Çözümün test edilmediği durumda çalıştığını kesin olarak iddia etme.
 - Gereksiz tekrar yapma.
 - Gizli anahtarları veya şifreleri isteme.
 - Kullanıcı açıkça istemedikçe gereksiz yere uzun cevap verme.
@@ -1623,7 +1632,7 @@ app.post(
               "For example, 'kedi çiz' means a cat, never a horse or a person. Do not add any other main subject.",
               "Do not invent extra people or animals. Keep all explicit details and exclusions.",
               "Return only the English image prompt, with no explanation or quotation marks."
-            ].join("\\n")
+            ].join("\n")
           );
           if (compiled?.answer?.trim()) {
             imagePrompt = compiled.answer.trim();
