@@ -1459,12 +1459,13 @@ app.post(
 
 const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY;
 
 app.post(
   "/api/image",
   requireAuth,
   asyncRoute(async (req, res) => {
-    if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID) {
+    if (!POLLINATIONS_API_KEY && (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID)) {
       return res.status(503).json({
         error: "Görsel oluşturma şu anda kullanılamıyor. Lütfen daha sonra tekrar dene.",
       });
@@ -1616,11 +1617,34 @@ app.post(
       ];
 
       imagePrompt = `${imagePrompt.trim()}\n\nImage accuracy constraints: ${promptGuardrails.join(" ")}`;
-      const url =
-        `https://api.cloudflare.com/client/v4/accounts/` +
-        `${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/${model}`;
-
       let response;
+      let provider = "cloudflare";
+      let outputModel = model;
+
+      if (POLLINATIONS_API_KEY) {
+        // Pollinations key yalnızca sunucuda kullanılır; istemciye veya URL'ye eklenmez.
+        provider = "pollinations";
+        outputModel = process.env.POLLINATIONS_IMAGE_MODEL || "flux";
+        const pollinationsUrl = new URL(
+          `https://gen.pollinations.ai/image/${encodeURIComponent(imagePrompt)}`
+        );
+        pollinationsUrl.searchParams.set("model", outputModel);
+        pollinationsUrl.searchParams.set("width", String(imageDimensions.width));
+        pollinationsUrl.searchParams.set("height", String(imageDimensions.height));
+        pollinationsUrl.searchParams.set("safe", "true");
+
+        response = await fetch(pollinationsUrl, {
+          method: "GET",
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${POLLINATIONS_API_KEY}`,
+            Accept: "image/*",
+          },
+        });
+      } else {
+        const url =
+          `https://api.cloudflare.com/client/v4/accounts/` +
+          `${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/${model}`;
 
       if (model === "@cf/black-forest-labs/flux-2-dev") {
         // FLUX.2 [dev] REST uç noktası multipart/form-data bekler.
@@ -1655,12 +1679,13 @@ app.post(
           }),
         });
       }
+      }
 
       if (!response.ok) {
         const details = await response.text().catch(() => "");
 
         console.error(
-          "[NOVA AI] Cloudflare görsel API hatası:",
+          `[NOVA AI] ${provider} görsel API hatası:`,
           response.status,
           details.slice(0, 700)
         );
@@ -1696,7 +1721,8 @@ app.post(
         success: true,
         mimeType,
         image,
-        model,
+        model: outputModel,
+        provider,
       });
     } catch (error) {
       if (error.name === "AbortError") {
