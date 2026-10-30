@@ -935,7 +935,8 @@
 
       const message = streamedAnswer
         ? "Yanıt tamamlanmadan kesildi. Kısmi yanıt kaydedilmedi; lütfen tekrar dene."
-        : "Şu anda hizmetimize ulaşılamıyor. Lütfen biraz sonra tekrar dene.";
+        : error?.message ||
+          "Şu anda hizmetimize ulaşılamıyor. Lütfen biraz sonra tekrar dene.";
 
       alert("NOVA AI: " + message);
     } finally {
