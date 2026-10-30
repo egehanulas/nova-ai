@@ -323,10 +323,10 @@ function isBlueprintQuestion(messages = []) {
   const recentContext = normalizeMessages(messages)
     .slice(-8)
     .map((message) => message.content)
-    .join("\\n")
+    .join("\n")
     .toLocaleLowerCase("tr-TR");
 
-  return /unreal engine|unreal|blueprint|ue\\s*5(?:\\.\\d+)?|event graph|ai move to|navmesh|enhanced input|construction script|beginplay/i.test(
+  return /unreal engine|unreal|blueprint|ue\s*5(?:\.\d+)?|event graph|ai move to|navmesh|enhanced input|construction script|beginplay/i.test(
     recentContext
   );
 }
@@ -1232,8 +1232,13 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
         for (const provider of providers) {
           if (!provider.enabled) continue;
 
-          if (controller.signal.aborted || clientDisconnected) {
-            return;
+          if (clientDisconnected) return;
+
+          if (controller.signal.aborted) {
+            throw Object.assign(
+              new Error("İstek zaman aşımına uğradı."),
+              { status: 504 }
+            );
           }
 
           const providerTimeout = createProviderAbortSignal(
