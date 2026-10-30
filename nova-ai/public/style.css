@@ -1443,6 +1443,11 @@ button:disabled {
 .technical-guide-content p{margin:8px 0 12px}.technical-guide-content h1,.technical-guide-content h2,.technical-guide-content h3{margin:20px 0 9px;color:#f4f1ff;line-height:1.4}
 .technical-guide-content h1{font-size:21px}.technical-guide-content h2{font-size:18px}.technical-guide-content h3{font-size:15px}
 .technical-guide-content ul,.technical-guide-content ol{margin:9px 0 15px;padding-left:25px}.technical-guide-content li{padding:4px 0}
+.technical-guide-table{display:block;width:100%;max-width:100%;margin:12px 0 18px;overflow-x:auto;border-collapse:collapse;font-size:13px;line-height:1.55}
+.technical-guide-table th,.technical-guide-table td{min-width:105px;padding:9px 11px;border:1px solid rgba(151,132,255,.2);text-align:left;vertical-align:top}
+.technical-guide-table th{background:rgba(151,132,255,.12);color:#eee9ff;font-weight:700}
+.technical-guide-table td{color:#d5d2e5}
+.technical-guide-content hr{margin:16px 0;border:0;border-top:1px solid rgba(151,132,255,.2)}
 .nova-code-block{margin:13px 0 17px;overflow:hidden;border:1px solid rgba(145,132,205,.2);border-radius:12px;background:rgba(7,9,17,.78)}
 .nova-code-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border-bottom:1px solid rgba(145,132,205,.16);color:#aaa2cb;background:rgba(255,255,255,.025);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
 .nova-code-header button{padding:5px 9px;border:1px solid rgba(160,145,230,.2);border-radius:7px;color:#ddd5ff;background:rgba(142,119,255,.1);cursor:pointer;font:inherit;text-transform:none;letter-spacing:0}
