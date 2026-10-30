@@ -518,6 +518,103 @@
     }
   }
 
+  function wantsBlueprintLayout(userText) {
+    const text = String(userText || "").toLocaleLowerCase("tr-TR");
+    return text.includes("blueprint") && /(anlat|göster|şeklinde|olarak|node|bağlant|adım|kur|takip)/i.test(text);
+  }
+
+  function appendBlueprintInline(parent, text) {
+    const tick = String.fromCharCode(96);
+    const pattern = new RegExp("(" + tick + "[^" + tick + "]+" + tick + "|\\*\\*[^*]+\\*\\*|\\*[^*]+\\*)", "g");
+    let cursor = 0;
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > cursor) parent.appendChild(document.createTextNode(text.slice(cursor, match.index)));
+      const token = match[0];
+      const isCode = token.charAt(0) === tick;
+      const isBold = token.startsWith("**");
+      const node = document.createElement(isCode ? "code" : (isBold ? "strong" : "em"));
+      node.textContent = isCode ? token.slice(1, -1) : (isBold ? token.slice(2, -2) : token.slice(1, -1));
+      parent.appendChild(node);
+      cursor = pattern.lastIndex;
+    }
+    if (cursor < text.length) parent.appendChild(document.createTextNode(text.slice(cursor)));
+  }
+
+  function renderBlueprintMarkdown(container, markdown) {
+    const lines = String(markdown || "").replace(/\r\n?/g, "\n").split("\n");
+    const fence = String.fromCharCode(96).repeat(3);
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i].trim();
+      if (!line) { i++; continue; }
+      if (line.startsWith(fence)) {
+        const language = line.slice(3).trim() || "Kod";
+        const codeLines = [];
+        i++;
+        while (i < lines.length && !lines[i].trim().startsWith(fence)) codeLines.push(lines[i++]);
+        if (i < lines.length) i++;
+        const block = document.createElement("div");
+        block.className = "nova-code-block";
+        const header = document.createElement("div");
+        header.className = "nova-code-header";
+        const label = document.createElement("span");
+        label.textContent = language;
+        const copy = document.createElement("button");
+        copy.type = "button";
+        copy.textContent = "Kodu kopyala";
+        copy.addEventListener("click", async () => {
+          try { await navigator.clipboard.writeText(codeLines.join("\n")); copy.textContent = "Kopyalandı"; }
+          catch { copy.textContent = "Kopyalanamadı"; }
+        });
+        const pre = document.createElement("pre");
+        const code = document.createElement("code");
+        code.textContent = codeLines.join("\n");
+        pre.appendChild(code);
+        header.append(label, copy);
+        block.append(header, pre);
+        container.appendChild(block);
+        continue;
+      }
+      const heading = line.match(/^(#{1,3})\s+(.+)$/);
+      if (heading) {
+        const h = document.createElement("h" + heading[1].length);
+        appendBlueprintInline(h, heading[2]);
+        container.appendChild(h);
+        i++;
+        continue;
+      }
+      const listMatch = line.match(/^([-*]|\d+[.)])\s+(.+)$/);
+      if (listMatch) {
+        const ordered = /^\d/.test(listMatch[1]);
+        const list = document.createElement(ordered ? "ol" : "ul");
+        while (i < lines.length) {
+          const current = lines[i].trim();
+          const match = current.match(ordered ? /^\d+[.)]\s+(.+)$/ : /^[-*]\s+(.+)$/);
+          if (!match) break;
+          const li = document.createElement("li");
+          appendBlueprintInline(li, match[1]);
+          list.appendChild(li);
+          i++;
+        }
+        container.appendChild(list);
+        continue;
+      }
+      const p = document.createElement("p");
+      appendBlueprintInline(p, line);
+      i++;
+      while (i < lines.length && lines[i].trim() &&
+        !lines[i].trim().startsWith(fence) &&
+        !/^(#{1,3})\s+/.test(lines[i].trim()) &&
+        !/^([-*]|\d+[.)])\s+/.test(lines[i].trim())) {
+        p.appendChild(document.createTextNode(" "));
+        appendBlueprintInline(p, lines[i].trim());
+        i++;
+      }
+      container.appendChild(p);
+    }
+  }
+
   // Mesajları ekrana çiz
   function renderMessages() {
     const conversation = currentConversation();
@@ -546,13 +643,17 @@
       return;
     }
 
-    conversation.messages.forEach((item) => {
+    conversation.messages.forEach((item, messageIndex) => {
       const isUser = item.role === "user";
+      const previousUserMessage = isUser ? "" :
+        [...conversation.messages.slice(0, messageIndex)].reverse().find((message) => message.role === "user")?.content || "";
+      const useBlueprintLayout = !isUser && wantsBlueprintLayout(previousUserMessage);
 
       const wrapper = document.createElement("article");
       wrapper.className = isUser
         ? "message user-message user"
         : "message assistant-message assistant";
+      if (useBlueprintLayout) wrapper.classList.add("technical-guide-message");
 
       let avatar;
 
@@ -596,14 +697,22 @@
             download.href = data.signedUrl;
           })
           .catch(error => console.error("Kayıtlı resim açılamadı:", error));
+        if (!isUser) main.append(name, content);
       } else {
-        content.textContent =
-          typeof item.content === "string"
-            ? item.content
-            : "";
+        const answerText = typeof item.content === "string" ? item.content : "";
+        if (useBlueprintLayout) {
+          content.classList.add("technical-guide-content");
+          renderBlueprintMarkdown(content, answerText);
+          const modeLabel = document.createElement("div");
+          modeLabel.className = "technical-guide-label";
+          modeLabel.textContent = "✦ BLUEPRINT REHBERİ";
+          main.append(name, modeLabel, content);
+        } else {
+          content.textContent = answerText;
+          if (!isUser) main.append(name, content);
+        }
       }
-
-      main.append(name, content);
+      if (isUser) main.append(name, content);
 
       if (!isUser) {
         const actions = document.createElement("div");
@@ -616,7 +725,7 @@
         copyButton.addEventListener("click", async () => {
           try {
             await navigator.clipboard.writeText(
-              content.textContent
+              typeof item.content === "string" ? item.content : content.textContent
             );
 
             copyButton.textContent = "Kopyalandı";
@@ -635,7 +744,9 @@
 
         speakButton.addEventListener("click", async () => {
           try {
-            await window.NOVA.speak(content.textContent);
+            await window.NOVA.speak(
+              typeof item.content === "string" ? item.content : content.textContent
+            );
           } catch (error) {
             alert("Ses oluşturulamadı: " + error.message);
           }
