@@ -1046,7 +1046,7 @@
       const requestController = new AbortController();
       const requestTimeout = setTimeout(
         () => requestController.abort(),
-        70000
+        110000
       );
 
       let result;
