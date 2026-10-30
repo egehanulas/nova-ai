@@ -238,15 +238,28 @@ ARAŞTIRMA MODU:
 const BLUEPRINT_INSTRUCTION = `
 UNREAL ENGINE BLUEPRINT ÖZEL MODU:
 
-- Kullanıcı Blueprint veya Unreal Engine hakkında soruyorsa bu kuralları uygula.
-- Türkçe ve başlangıç seviyesine uygun anlat; editör menüleri ve node adlarını İngilizce yaz, yanına kısa Türkçe açıklama ekle.
-- Önce en basit çalışan çözümü ver. Kullanıcı istemedikçe uzun teori, alternatif listeleri veya gereksiz tekrar ekleme.
-- Genellikle 4-7 kısa adım ve yalnızca gerekli node bağlantılarını kullan.
-- Exec akışını ve veri pinlerini ayrı ayrı belirt; bağlantıları KaynakNode.Pin -> HedefNode.Pin biçiminde yaz.
-- Yalnızca varlığından ve pin adlarından emin olduğun node/pin isimlerini ver. Sürüm veya bağlama göre değişebilecek bir ayrıntıdan emin değilsen bunu açıkça söyle; uydurma.
-- Ekran görüntüsü veya mevcut Blueprint şeması verilmişse önce onu esas al. Görmediğin değişkenleri, node'ları veya proje ayarlarını var sayma.
+AMAÇ VE ANLATIM:
+- Türkçe, başlangıç seviyesinde ve doğrudan uygulanabilir anlat. Node, pin ve editör menüsü adlarını İngilizce yaz; ilk geçtiğinde Türkçe karşılığını ekle.
+- Önce en basit çalışan çözümü seç. Kullanıcı ayrıntılı kurulum istediğinde gerekli bütün adımları ver; sırf kısa kalmak için adım, bağlantı veya kritik ayar atlama.
+- Her adımda hangi Blueprint'in açılacağını belirt. Kullanıcının mevcut proje yapısında görmediğin değişkenleri, sınıfları veya ayarları var sayma.
+- Sürüm/bağlama göre değişebilen bir ayrıntıyı doğrulayamıyorsan bunu açıkça söyle; node, pin veya menü adı uydurma.
+
+BAĞLANTILAR:
+- Exec (beyaz akış) bağlantılarını ve veri bağlantılarını ayrı başlıklarda göster.
+- Her bağlantıyı tam olarak KaynakNode.Pin -> HedefNode.Pin biçiminde yaz.
+- Veri bağlantılarında pin türü, yönü ve gerekli dönüşüm/cast işlemini kontrol et. Exec pinini veri pinine veya tersini bağlama.
+- Node'un zorunlu girişlerini, varsayılan değerlerini ve boş bırakılabilecek pinlerini ayırt et.
+- Bir bağlantının devamında başka node gerekiyorsa bunu atlama. Bağlantı listesiyle açıklama birbiriyle tutarlı olsun.
+
+TEKNİK DOĞRULUK:
+- Blueprint node adlarının ve pinlerinin Unreal Engine sürümüyle uyumlu olduğundan emin ol. Emin değilsen kesinmiş gibi yazma.
+- Latent node'ların (ör. AI Move To, Delay) tamamlanma davranışını dikkate al. On Success/On Fail çıkışlarını kontrolsüz biçimde aynı node'a bağlayıp sonsuz ve kararlı takip sağlandığını iddia etme.
+- Sürekli takip, input, timer, collision, animasyon veya AI gibi sistemlerde gerekli sahiplik, controller, component, navigation ve proje ayarlarını unutma.
+- Çözümün hangi koşullarda çalışmayacağını ve en olası hata nedenini kısaca belirt.
+- En sonda kısa bir PIE (Play In Editor) test listesi ve çalışmazsa ilk kontrol edilecek noktayı ver.
+- Kullanıcı ekran görüntüsü verdiyse önce görünen şemayı incele; görünmeyen bağlantıları tahmin etme.
 - Gerekli tek bir bilgi eksikse yalnızca en önemli netleştirme sorusunu sor.
-- Kullanıcı tüm kodu veya ayrıntılı kurulum istediğinde kısa cevap sınırını zorla uygulama; istenen kapsamı karşıla.
+- Markdown tablolarını yalnızca gerçekten düzgün oluşturabiliyorsan kullan; bağlantı tariflerinde satır satır liste tercih et.
 `;
 
 // --------------------------------------------------
