@@ -21,3 +21,28 @@ Koyu temalı Türkçe sohbet sitesi. Gerçek model yanıtları için sunucu tara
 2. `npm install`
 3. `.env.example` dosyasını `.env` olarak kopyala ve `GEMINI_API_KEY` değerini gir.
 4. `npm start` çalıştırıp `http://localhost:3000` adresini aç.
+
+
+## Unreal Engine 5.8 bilgi tabanı (RAG) — ilk aşama
+
+Bu dal, NOVA'nın Blueprint/Unreal Engine sorularında Supabase'teki yayınlanmış bilgi parçalarını arayıp yanıt sağlayıcılarına bağlam ekler.
+
+### Gerekli Render değişkeni
+- `OPENAI_API_KEY`: yalnızca sunucuda tutulur; `text-embedding-3-small` ile soru embedding'i üretir.
+- Mevcut `SUPABASE_URL` ve `SUPABASE_PUBLISHABLE_KEY` değişkenleri kullanılır.
+- Render'a `SUPABASE_SERVICE_ROLE_KEY` eklemek bu ilk sorgulama akışı için gerekli değildir.
+
+### Supabase kurulumu
+1. Supabase Dashboard > SQL Editor bölümünü aç.
+2. `supabase/migrations/001_unreal_knowledge_base.sql` dosyasının tamamını çalıştır.
+3. SQL tamamlandığında `knowledge_sources`, `knowledge_documents`, `knowledge_chunks` ve `knowledge_ingestion_jobs` tabloları ile `match_knowledge_chunks` arama fonksiyonu oluşturulur.
+4. Mevcut `conversations` tablosuna ve kullanıcı sohbetlerine dokunulmaz.
+
+### Veri yükleme notu
+Bilgi tabanı tabloları oluşturulduğunda henüz otomatik olarak dokümanla dolmaz. İçerik aktarımı ayrı bir toplu içe aktarma adımıdır. Yalnızca kullanım ve lisans koşulları uygun kaynakları ekleyin; resmî Epic dokümanlarını birincil kaynak kabul edin. Topluluk içeriğini daha düşük güven seviyesinde işaretleyin.
+
+### Davranış ve güvenli geri dönüş
+- RAG yalnızca Unreal/Blueprint sorularında çalışır.
+- Eşleşen yayınlanmış içerik bulunmazsa NOVA mevcut model akışına devam eder.
+- Embedding veya vektör araması hata verirse sohbeti durdurmaz; hatayı sunucu loguna yazar ve mevcut yanıta geri döner.
+- Kaynak alıntıları model bağlamına başlık ve URL ile eklenir; kaynak metni güvenilmeyen içerik olarak ele alınır.
