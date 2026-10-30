@@ -46,3 +46,23 @@ Bilgi tabanı tabloları oluşturulduğunda henüz otomatik olarak dokümanla do
 - Eşleşen yayınlanmış içerik bulunmazsa NOVA mevcut model akışına devam eder.
 - Embedding veya vektör araması hata verirse sohbeti durdurmaz; hatayı sunucu loguna yazar ve mevcut yanıta geri döner.
 - Kaynak alıntıları model bağlamına başlık ve URL ile eklenir; kaynak metni güvenilmeyen içerik olarak ele alınır.
+
+
+### İlk resmî dokümanları içe aktarma
+
+İlk aktarım aracı `scripts/ingest-knowledge.js` dosyasındadır. Şimdilik yalnızca küçük ve seçilmiş Epic Developer Community sayfalarını işler; tüm siteyi taramaz.
+
+Gerekli ortam değişkenleri:
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY` — yalnızca güvenilir sunucu/yerel ortamda; tarayıcıya veya GitHub'a asla koyma.
+- `OPENAI_API_KEY`
+
+Yerel kullanım:
+1. Proje klasöründe `npm install` çalıştır.
+2. Gizli değerleri yalnızca yerel `.env` dosyana ekle. `.env` dosyasını GitHub'a yükleme.
+3. `npm run ingest:knowledge` çalıştır.
+4. Terminalde her sayfa için `OK` veya `ATLANDI` sonucunu kontrol et.
+
+Araç; doküman metnini parçalara ayırır, OpenAI embedding'lerini üretir ve Supabase bilgi tablolarına yazar. Aynı sayfa ve aynı içerik tekrar çalıştırıldığında aynı dokümanın parçalarını yeniden oluşturur. Başarısız sayfalar atlanır; hiçbir API anahtarı terminale yazdırılmaz.
+
+Not: Bu ilk sürüm, seçilmiş sayfaların metnini indekslemek içindir; Epic'in içerik kullanım koşulları ve atıf gereklilikleri geçerlidir. Kaynak bağlantıları veritabanında korunur. Daha geniş tarama veya topluluk kaynakları eklemeden önce ilgili kullanım koşulları ayrıca incelenmelidir.
