@@ -26,13 +26,13 @@ app.use(express.json({ limit: "1mb" }));
 // --------------------------------------------------
 
 const REQUEST_TIMEOUT_MS = Math.max(
-  15000,
-  Number(process.env.REQUEST_TIMEOUT_MS) || 40000
+  20000,
+  Number(process.env.REQUEST_TIMEOUT_MS) || 65000
 );
 
 const PROVIDER_TIMEOUT_MS = Math.min(
   REQUEST_TIMEOUT_MS,
-  Math.max(5000, Number(process.env.PROVIDER_TIMEOUT_MS) || 11000)
+  Math.max(8000, Number(process.env.PROVIDER_TIMEOUT_MS) || 20000)
 );
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
