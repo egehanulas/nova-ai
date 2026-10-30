@@ -32,7 +32,7 @@ const REQUEST_TIMEOUT_MS = Math.max(
 
 const PROVIDER_TIMEOUT_MS = Math.min(
   REQUEST_TIMEOUT_MS,
-  Math.max(8000, Number(process.env.PROVIDER_TIMEOUT_MS) || 20000)
+  Math.max(8000, Number(process.env.PROVIDER_TIMEOUT_MS) || 30000)
 );
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -371,7 +371,7 @@ function getGenerationSettings(messages = []) {
 
   return {
     temperature: blueprintMode ? 0.2 : 0.4,
-    maxOutputTokens: blueprintMode ? 750 : 1800,
+    maxOutputTokens: blueprintMode ? 1800 : 1800,
   };
 }
 
