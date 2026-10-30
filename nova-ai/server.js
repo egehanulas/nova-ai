@@ -494,18 +494,90 @@ function makeConversation(messages, extraInstruction = "") {
 
 async function readProviderError(response, providerName) {
   const data = await response.json().catch(() => ({}));
-
   const message =
     data?.error?.message ||
     data?.error?.metadata?.raw ||
-    `${providerName} HTTP ${response.status}`;
+    (providerName + " HTTP " + response.status);
 
-  const safeMessage = String(message).slice(0, 1000);
+  const error = makeHttpError(String(message).slice(0, 1000), response.status || 502);
+  const retryAfterHeader = Number(response.headers.get("retry-after"));
+  const retryMatch = String(message).match(/try again in ([0-9.]+)s/i);
 
-  return makeHttpError(
-    safeMessage,
-    response.status || 502
-  );
+  if (Number.isFinite(retryAfterHeader) && retryAfterHeader > 0) {
+    error.retryAfterMs = Math.ceil(retryAfterHeader * 1000);
+  } else if (retryMatch) {
+    error.retryAfterMs = Math.ceil(Number(retryMatch[1]) * 1000);
+  }
+  return error;
+}
+
+function waitForRetry(delayMs, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal && signal.aborted) {
+      reject(signal.reason || new Error("İstek iptal edildi."));
+      return;
+    }
+    let timer;
+    const cleanup = () => {
+      clearTimeout(timer);
+      if (signal) signal.removeEventListener("abort", onAbort);
+    };
+    const onAbort = () => {
+      cleanup();
+      reject(signal.reason || new Error("İstek iptal edildi."));
+    };
+    timer = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, delayMs);
+    if (signal) signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function runProviderWithRetry(provider, signal, onText) {
+  let attempt = 0;
+  while (true) {
+    let emittedText = false;
+    try {
+      return await provider.run(signal, (text) => {
+        emittedText = true;
+        onText(text);
+      });
+    } catch (error) {
+      const canRetry =
+        error.status === 429 &&
+        !emittedText &&
+        !(signal && signal.aborted) &&
+        attempt < 2;
+      if (!canRetry) throw error;
+
+      const fallbackDelay = 1500 * (2 ** attempt);
+      const delayMs = Math.min(15000, Math.max(500, error.retryAfterMs || fallbackDelay));
+      attempt += 1;
+      console.warn(
+        "[NOVA AI] " + provider.name + " rate limit; " + delayMs +
+        "ms sonra tekrar denenecek (deneme " + attempt + " / 2)."
+      );
+      await waitForRetry(delayMs, signal);
+    }
+  }
+}
+
+function getUserFacingProviderError(error) {
+  const message = String(error && error.message || "").toLowerCase();
+  if (error && error.status === 429 || /rate limit|too many requests|tpm limit/.test(message)) {
+    return "Yapay zekâ sağlayıcısının geçici istek sınırına ulaşıldı. NOVA bekleyip yeniden denedi; lütfen biraz sonra tekrar dene.";
+  }
+  if (/token sınırında kesildi|max_tokens|maximum context length/.test(message)) {
+    return "Yanıt sağlayıcının çıktı sınırına ulaştığı için tamamlanamadı. Daha kısa bir bölüm isteyerek devam edebilirsin.";
+  }
+  if (/prepayment credits are depleted|insufficient quota|billing|credits depleted/.test(message)) {
+    return "Bir yapay zekâ sağlayıcısının kullanım kredisi veya kotası dolu. NOVA diğer sağlayıcıları denedi ancak yanıt tamamlanamadı.";
+  }
+  if (error && (error.status === 504 || error.name === "AbortError")) {
+    return "Yanıt oluşturma zaman aşımına uğradı. Daha kısa bir istekle tekrar deneyebilirsin.";
+  }
+  return "Şu anda kullanılabilir yapay zekâ sağlayıcılarından yanıt alınamadı. Biraz sonra tekrar dene.";
 }
 
 function asyncRoute(handler) {
@@ -1346,7 +1418,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
         {
           name: "groq",
           enabled: Boolean(GROQ_API_KEY),
-          run: (providerSignal) => {
+          run: (providerSignal, emitText) => {
             providerInfo = {
               provider: "groq",
               model: GROQ_MODEL,
@@ -1360,14 +1432,14 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               effectiveInstruction,
               providerName: "groq",
               signal: providerSignal,
-              onText,
+              onText: emitText,
             });
           },
         },
         {
           name: "gemini",
           enabled: Boolean(GEMINI_API_KEY),
-          run: (providerSignal) => {
+          run: (providerSignal, emitText) => {
             providerInfo = {
               provider: "gemini",
               model: GEMINI_MODEL,
@@ -1377,14 +1449,14 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               messages,
               effectiveInstruction,
               signal: providerSignal,
-              onText,
+              onText: emitText,
             });
           },
         },
         {
           name: "openrouter",
           enabled: Boolean(OPENROUTER_API_KEY),
-          run: (providerSignal) => {
+          run: (providerSignal, emitText) => {
             providerInfo = {
               provider: "openrouter",
               model: OPENROUTER_MODEL,
@@ -1404,7 +1476,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
                 "X-Title": "NOVA AI",
               },
               signal: providerSignal,
-              onText,
+              onText: emitText,
             });
           },
         },
@@ -1450,7 +1522,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               model: providerInfo.model,
             });
 
-            result = await provider.run(providerTimeout.signal);
+            result = await runProviderWithRetry(provider, providerTimeout.signal, onText);
             break;
           } catch (error) {
             failures.push({
@@ -1532,8 +1604,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
 
         sendSSE(res, {
           type: "error",
-          error:
-            "Yanıt oluşturulurken bir hata oluştu. Lütfen yeniden dene.",
+          error: getUserFacingProviderError(error),
           partial: Boolean(error.partial),
         });
 
