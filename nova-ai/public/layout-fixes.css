@@ -1,0 +1,335 @@
+/* NOVA AI — Sidebar and composer layout refresh
+   Isolated visual overrides; application logic and IDs remain unchanged. */
+
+:root {
+  --sidebar-width: 282px;
+  --content-width: 960px;
+}
+
+.sidebar {
+  flex: 0 0 var(--sidebar-width);
+  width: var(--sidebar-width);
+  padding: 25px 18px 18px;
+  gap: 0;
+}
+
+.brand {
+  min-height: 58px;
+  gap: 12px;
+  padding: 0 5px 22px;
+}
+
+.logo-image {
+  display: block;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.brand-copy { display: flex; flex-direction: column; gap: 3px; }
+.brand-name { font-size: 17px; letter-spacing: -.45px; }
+.brand-caption { font-size: 10px; line-height: 1.45; }
+
+.new-chat {
+  min-height: 46px;
+  margin: 0 0 12px;
+  padding: 0 13px;
+  border-radius: 12px;
+}
+
+.research-toggle {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 54px;
+  margin: 2px 0;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: #d8d6e9;
+  text-align: left;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.research-toggle:hover,
+.research-toggle[aria-pressed="true"] {
+  border-color: var(--border);
+  background: rgba(151, 122, 255, .09);
+}
+
+.research-icon {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(255,255,255,.035);
+  color: var(--accent-light);
+  font-size: 15px;
+}
+
+.research-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.research-title {
+  color: #e9e6f8;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.research-subtitle {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.research-indicator { flex: 0 0 auto; color: #8e86b7; }
+
+.history-section {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 100px;
+  flex-direction: column;
+  margin-top: 20px;
+  overflow: hidden;
+}
+
+.history-heading {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 9px 10px;
+  color: #8f90a9;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .09em;
+}
+
+.history-heading-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #8271e8;
+  box-shadow: 0 0 9px rgba(130,113,232,.5);
+}
+
+.history {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 4px;
+  padding: 2px 2px 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.history-row { min-width: 0; }
+.history-item { min-width: 0; padding: 10px 8px; }
+.history-title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-size: 12px;
+}
+.history-delete { opacity: .35; }
+.history-row:hover .history-delete,
+.history-row:focus-within .history-delete { opacity: 1; }
+
+.history-empty-hint {
+  flex: 0 0 auto;
+  padding: 8px 10px 12px;
+  color: #777991;
+  font-size: 11px;
+}
+
+.sidebar-bottom {
+  flex: 0 0 auto;
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+
+.sidebar-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 2px 2px 12px;
+}
+
+.profile-avatar {
+  display: block;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255,255,255,.04);
+}
+
+.profile-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.profile-copy strong {
+  overflow: hidden;
+  color: #f1efff;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-copy span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-logout {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-size: 11px;
+}
+
+.sidebar-footer {
+  padding: 8px 4px 0;
+  border-top: 1px solid rgba(255,255,255,.055);
+  font-size: 10px;
+}
+
+.main-panel { min-width: 0; }
+.topbar { padding-right: clamp(18px, 3vw, 34px); padding-left: clamp(18px, 3vw, 34px); }
+.topbar-right { display: flex; align-items: center; gap: 14px; }
+.topbar-badge { color: #b7b2ce; font-size: 11px; white-space: nowrap; }
+.topbar-badge-icon { color: var(--accent-light); }
+
+.messages { padding-right: clamp(18px, 4vw, 48px); padding-left: clamp(18px, 4vw, 48px); }
+
+.composer-area {
+  flex: 0 0 auto;
+  padding: 12px clamp(14px, 3vw, 32px) 15px;
+}
+
+.composer-shell { width: 100%; max-width: 960px; }
+
+/* The previous inline style made every composer section a flex sibling.
+   Stack the form sections vertically to prevent the textarea/buttons colliding. */
+#form.composer {
+  display: block !important;
+  width: 100%;
+  padding: 15px 17px 12px;
+  border-radius: 20px;
+}
+
+#form .composer-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 5px;
+}
+
+#form .composer-main { display: block; width: 100%; min-width: 0; }
+
+#form #prompt {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  max-height: 180px;
+  padding: 8px 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  resize: none;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+#form .composer-tools {
+  display: flex !important;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 8px !important;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,.055);
+}
+
+#form .composer-tools .voice-button { min-height: 35px; padding: 7px 11px; }
+#imageStatus { min-width: 0; }
+
+#form .composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(255,255,255,.045);
+}
+
+#form .composer-hint { gap: 6px; line-height: 1.5; }
+#form .send-button { width: 42px; height: 42px; border-radius: 13px; }
+
+.voice-panel { margin-bottom: 10px; }
+.voice-controls { gap: 8px; margin: 0; }
+.voice-status { font-size: 11px; }
+
+.composer-meta { max-width: 760px; margin-top: 9px; font-size: 10px; }
+
+@media (max-width: 900px) {
+  :root { --sidebar-width: 260px; }
+  .sidebar { padding-right: 15px; padding-left: 15px; }
+}
+
+@media (max-width: 680px) {
+  .sidebar {
+    width: min(310px, 88vw);
+    padding: 22px 17px max(16px, env(safe-area-inset-bottom));
+  }
+  .topbar-right { gap: 8px; }
+  .topbar-badge { display: none; }
+  .composer-area { padding: 8px 12px max(11px, env(safe-area-inset-bottom)); }
+  #form.composer { padding: 12px 13px 10px; border-radius: 17px; }
+  #form #prompt { min-height: 44px; font-size: 14px; }
+  #form .composer-hint { max-width: calc(100% - 54px); font-size: 10px; }
+  #form .composer-hint kbd { padding: 2px 4px; font-size: 9px; }
+  #form .composer-tools { gap: 7px; }
+  #form .composer-tools .voice-button { min-height: 34px; font-size: 11px; }
+  .voice-controls { gap: 7px; }
+  .voice-status { font-size: 10px; }
+}
+
+@media (max-height: 680px) and (min-width: 681px) {
+  .sidebar { padding-top: 17px; padding-bottom: 12px; }
+  .brand { padding-bottom: 14px; }
+  .history-section { margin-top: 12px; }
+  .sidebar-bottom { margin-top: 7px; padding-top: 9px; }
+  .voice-panel { margin-bottom: 7px; }
+  .composer-area { padding-top: 8px; padding-bottom: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .research-toggle, .history-row, .history-delete { transition: none; }
+}
