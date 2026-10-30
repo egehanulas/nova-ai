@@ -11,8 +11,9 @@ const crypto = require("node:crypto");
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const EMBEDDING_MODEL = "text-embedding-3-small";
+const EMBEDDING_MODEL = "Xenova/all-MiniLM-L6-v2";
+const EMBEDDING_DIMENSIONS = 384;
+let embeddingPipelinePromise;
 const ENGINE_VERSION = "5.8";
 const SOURCE_NAME = "Epic Developer Community — Unreal Engine Documentation";
 const SOURCE_BASE_URL = "https://dev.epicgames.com/documentation/unreal-engine";
@@ -37,7 +38,6 @@ function requiredEnv() {
   const missing = [];
   if (!SUPABASE_URL) missing.push("SUPABASE_URL");
   if (!SUPABASE_SERVICE_ROLE_KEY) missing.push("SUPABASE_SERVICE_ROLE_KEY");
-  if (!OPENAI_API_KEY) missing.push("OPENAI_API_KEY");
   if (missing.length) {
     throw new Error("Eksik ortam değişkenleri: " + missing.join(", "));
   }
@@ -179,29 +179,31 @@ async function fetchOfficialPage(url) {
   }
 }
 
+async function getEmbeddingPipeline() {
+  if (!embeddingPipelinePromise) {
+    embeddingPipelinePromise = (async () => {
+      const { pipeline } = await import("@huggingface/transformers");
+      return pipeline("feature-extraction", EMBEDDING_MODEL, { dtype: "q8" });
+    })().catch((error) => {
+      embeddingPipelinePromise = null;
+      throw error;
+    });
+  }
+  return embeddingPipelinePromise;
+}
+
 async function createEmbeddings(texts) {
-  const response = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer " + OPENAI_API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ model: EMBEDDING_MODEL, input: texts, encoding_format: "float" }),
-  });
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error("OpenAI embedding HTTP " + response.status + ": " + details.slice(0, 400));
+  const extractor = await getEmbeddingPipeline();
+  const output = await extractor(texts, { pooling: "mean", normalize: true });
+  const vectors = output.tolist();
+  if (!Array.isArray(vectors) || vectors.length !== texts.length) {
+    throw new Error("Yerel model beklenmeyen embedding yanıtı döndürdü.");
   }
-  const result = await response.json();
-  const rows = result?.data;
-  if (!Array.isArray(rows) || rows.length !== texts.length) {
-    throw new Error("OpenAI beklenmeyen embedding yanıtı döndürdü.");
-  }
-  return rows.sort((a, b) => a.index - b.index).map((row) => {
-    if (!Array.isArray(row.embedding) || row.embedding.length !== 1536) {
-      throw new Error("Embedding boyutu 1536 değil.");
+  return vectors.map((embedding) => {
+    if (!Array.isArray(embedding) || embedding.length !== EMBEDDING_DIMENSIONS) {
+      throw new Error("Yerel embedding boyutu 384 değil.");
     }
-    return row.embedding;
+    return embedding;
   });
 }
 
@@ -242,7 +244,7 @@ async function saveDocument(sourceId, title, url, content) {
 
   // Rebuild chunks for this exact document hash, making reruns idempotent.
   const deleteQuery = new URLSearchParams({ document_id: "eq." + documentId });
-  await requestJson(SUPABASE_URL + "/rest/v1/knowledge_chunks?" + deleteQuery, {
+  await requestJson(SUPABASE_URL + "/rest/v1/knowledge_chunks_384?" + deleteQuery, {
     method: "DELETE",
     headers: { Prefer: "return=minimal" },
   });
@@ -262,7 +264,7 @@ async function saveDocument(sourceId, title, url, content) {
       metadata: { engine_version: ENGINE_VERSION, source: "Epic Developer Community" },
     }));
 
-    await requestJson(SUPABASE_URL + "/rest/v1/knowledge_chunks", {
+    await requestJson(SUPABASE_URL + "/rest/v1/knowledge_chunks_384", {
       method: "POST",
       headers: { Prefer: "return=minimal" },
       body: JSON.stringify(rows),

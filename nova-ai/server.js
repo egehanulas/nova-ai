@@ -539,51 +539,50 @@ function getValidatedMessages(req, res, customError) {
 // UNREAL ENGINE KNOWLEDGE RETRIEVAL (RAG)
 // --------------------------------------------------
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const EMBEDDING_MODEL = "text-embedding-3-small";
+const EMBEDDING_MODEL = "Xenova/all-MiniLM-L6-v2";
+const EMBEDDING_DIMENSIONS = 384;
+let embeddingPipelinePromise;
+
+async function getEmbeddingPipeline() {
+  if (!embeddingPipelinePromise) {
+    embeddingPipelinePromise = (async () => {
+      const { pipeline, env } = await import("@huggingface/transformers");
+      // Model files are cached by the library; no paid API key is required.
+      env.allowLocalModels = true;
+      return pipeline("feature-extraction", EMBEDDING_MODEL, {
+        dtype: "q8",
+      });
+    })().catch((error) => {
+      embeddingPipelinePromise = null;
+      throw error;
+    });
+  }
+  return embeddingPipelinePromise;
+}
+
+async function createLocalEmbedding(text) {
+  const extractor = await getEmbeddingPipeline();
+  const output = await extractor(String(text).slice(0, 6000), {
+    pooling: "mean",
+    normalize: true,
+  });
+  const values = output.tolist();
+  const embedding = Array.isArray(values?.[0]) ? values[0] : values;
+  if (!Array.isArray(embedding) || embedding.length !== EMBEDDING_DIMENSIONS) {
+    throw new Error("Yerel embedding boyutu beklenen 384 değil.");
+  }
+  return embedding;
+}
 
 async function buildKnowledgeInstruction(messages, authorization) {
-  if (!OPENAI_API_KEY || !SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    return "";
-  }
-
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return "";
   if (!isBlueprintQuestion(messages)) return "";
 
   const question = getLatestUserMessage(normalizeMessages(messages)).trim();
   if (!question) return "";
 
-  const { controller, clear } = createAbortController(15000);
-
   try {
-    const embeddingResponse = await fetch(
-      "https://api.openai.com/v1/embeddings",
-      {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: EMBEDDING_MODEL,
-          input: question.slice(0, 6000),
-          encoding_format: "float",
-        }),
-      }
-    );
-
-    if (!embeddingResponse.ok) {
-      const details = await embeddingResponse.text().catch(() => "");
-      throw new Error(`OpenAI embedding HTTP ${embeddingResponse.status}: ${details.slice(0, 300)}`);
-    }
-
-    const embeddingData = await embeddingResponse.json();
-    const queryEmbedding = embeddingData?.data?.[0]?.embedding;
-
-    if (!Array.isArray(queryEmbedding) || queryEmbedding.length !== 1536) {
-      throw new Error("OpenAI embedding boyutu beklenen 1536 değil.");
-    }
-
+    const queryEmbedding = await createLocalEmbedding(question);
     const userSupabase = createClient(
       SUPABASE_URL,
       SUPABASE_PUBLISHABLE_KEY,
@@ -599,7 +598,7 @@ async function buildKnowledgeInstruction(messages, authorization) {
       }
     );
 
-    const { data, error } = await userSupabase.rpc("match_knowledge_chunks", {
+    const { data, error } = await userSupabase.rpc("match_knowledge_chunks_384", {
       query_embedding: queryEmbedding,
       match_count: 7,
       filter_engine_version: "5.8",
@@ -639,11 +638,10 @@ async function buildKnowledgeInstruction(messages, authorization) {
   } catch (error) {
     console.error("[NOVA AI] Bilgi tabanı araması atlandı:", error.message);
     return "";
-  } finally {
-    clear();
   }
 }
 
+// --------------------------------------------------
 // --------------------------------------------------
 // GEMINI
 // --------------------------------------------------
@@ -1566,7 +1564,8 @@ app.get("/health", (req, res) => {
       groq: Boolean(GROQ_API_KEY),
       elevenlabs: Boolean(ELEVENLABS_API_KEY),
       supabase: Boolean(supabase),
-      openaiEmbeddings: Boolean(OPENAI_API_KEY),
+      localEmbeddings: true,
+      embeddingModel: EMBEDDING_MODEL,
     },
   });
 });

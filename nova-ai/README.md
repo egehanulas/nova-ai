@@ -27,15 +27,16 @@ Koyu temalı Türkçe sohbet sitesi. Gerçek model yanıtları için sunucu tara
 
 Bu dal, NOVA'nın Blueprint/Unreal Engine sorularında Supabase'teki yayınlanmış bilgi parçalarını arayıp yanıt sağlayıcılarına bağlam ekler.
 
-### Gerekli Render değişkeni
-- `OPENAI_API_KEY`: yalnızca sunucuda tutulur; `text-embedding-3-small` ile soru embedding'i üretir.
+### Embedding modeli ve gerekli Render değişkenleri
+- Embedding üretimi, ücretsiz ve açık ağırlıklı `Xenova/all-MiniLM-L6-v2` modeliyle sunucuda yerel olarak yapılır (384 boyut).
+- Embedding için `OPENAI_API_KEY` veya ücretli bir embedding API'si gerekmez. Model ilk kullanımda Hugging Face üzerinden indirilir ve Transformers.js önbelleğinde saklanır.
 - Mevcut `SUPABASE_URL` ve `SUPABASE_PUBLISHABLE_KEY` değişkenleri kullanılır.
-- Render'a `SUPABASE_SERVICE_ROLE_KEY` eklemek bu ilk sorgulama akışı için gerekli değildir.
+- Render'a `SUPABASE_SERVICE_ROLE_KEY` eklemek sorgulama akışı için gerekli değildir.
 
 ### Supabase kurulumu
 1. Supabase Dashboard > SQL Editor bölümünü aç.
 2. `supabase/migrations/001_unreal_knowledge_base.sql` dosyasının tamamını çalıştır.
-3. SQL tamamlandığında `knowledge_sources`, `knowledge_documents`, `knowledge_chunks` ve `knowledge_ingestion_jobs` tabloları ile `match_knowledge_chunks` arama fonksiyonu oluşturulur.
+3. SQL tamamlandığında `knowledge_sources`, `knowledge_documents`, `knowledge_chunks` ve `knowledge_ingestion_jobs` tabloları ile ilk `match_knowledge_chunks` arama fonksiyonu oluşturulur. Ardından `002_local_embeddings_384.sql` dosyasını da çalıştırarak ücretsiz yerel model için `knowledge_chunks_384` ve `match_knowledge_chunks_384` nesnelerini oluştur.
 4. Mevcut `conversations` tablosuna ve kullanıcı sohbetlerine dokunulmaz.
 
 ### Veri yükleme notu
@@ -55,7 +56,7 @@ Bilgi tabanı tabloları oluşturulduğunda henüz otomatik olarak dokümanla do
 Gerekli ortam değişkenleri:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY` — yalnızca güvenilir sunucu/yerel ortamda; tarayıcıya veya GitHub'a asla koyma.
-- `OPENAI_API_KEY`
+- OpenAI API anahtarı gerekmez; embedding modeli ücretsiz olarak yerel çalışır.
 
 Yerel kullanım:
 1. Proje klasöründe `npm install` çalıştır.
@@ -63,6 +64,6 @@ Yerel kullanım:
 3. `npm run ingest:knowledge` çalıştır.
 4. Terminalde her sayfa için `OK` veya `ATLANDI` sonucunu kontrol et.
 
-Araç; doküman metnini parçalara ayırır, OpenAI embedding'lerini üretir ve Supabase bilgi tablolarına yazar. Aynı sayfa ve aynı içerik tekrar çalıştırıldığında aynı dokümanın parçalarını yeniden oluşturur. Başarısız sayfalar atlanır; hiçbir API anahtarı terminale yazdırılmaz.
+Araç; doküman metnini parçalara ayırır, Transformers.js ile 384 boyutlu yerel embedding'ler üretir ve Supabase bilgi tablolarına yazar. Aynı sayfa ve aynı içerik tekrar çalıştırıldığında aynı dokümanın parçalarını yeniden oluşturur. Başarısız sayfalar atlanır; hiçbir API anahtarı terminale yazdırılmaz.
 
 Not: Bu ilk sürüm, seçilmiş sayfaların metnini indekslemek içindir; Epic'in içerik kullanım koşulları ve atıf gereklilikleri geçerlidir. Kaynak bağlantıları veritabanında korunur. Daha geniş tarama veya topluluk kaynakları eklemeden önce ilgili kullanım koşulları ayrıca incelenmelidir.
