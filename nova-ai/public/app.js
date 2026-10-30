@@ -892,7 +892,7 @@
       const requestController = new AbortController();
       const requestTimeout = setTimeout(
         () => requestController.abort(),
-        45000
+        70000
       );
 
       let result;
@@ -926,7 +926,7 @@
         );
       } catch (error) {
         if (error?.name === "AbortError") {
-          throw new Error("Yanıt 45 saniyede tamamlanmadı. Lütfen tekrar dene.");
+          throw new Error("Yanıt 70 saniyede tamamlanmadı. Lütfen tekrar dene.");
         }
         throw error;
       } finally {
