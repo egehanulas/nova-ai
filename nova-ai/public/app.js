@@ -689,7 +689,7 @@
           main.append(name, modeLabel, content);
         } else {
           content.textContent = answerText;
-          main.append(name, content);
+          if (!isUser) main.append(name, content);
         }
       }
       if (isUser) main.append(name, content);
