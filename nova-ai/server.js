@@ -26,13 +26,13 @@ app.use(express.json({ limit: "1mb" }));
 // --------------------------------------------------
 
 const REQUEST_TIMEOUT_MS = Math.max(
-  10000,
-  Number(process.env.REQUEST_TIMEOUT_MS) || 60000
+  20000,
+  Number(process.env.REQUEST_TIMEOUT_MS) || 65000
 );
 
 const PROVIDER_TIMEOUT_MS = Math.min(
   REQUEST_TIMEOUT_MS,
-  Math.max(5000, Number(process.env.PROVIDER_TIMEOUT_MS) || 18000)
+  Math.max(8000, Number(process.env.PROVIDER_TIMEOUT_MS) || 20000)
 );
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -51,8 +51,9 @@ const GROQ_MODEL =
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID;
 
-const MAX_MESSAGE_LENGTH = 20000;
-const MAX_MESSAGES = 60;
+const MAX_MESSAGE_LENGTH = 8000;
+const MAX_MESSAGES = 14;
+const MAX_CONVERSATION_CHARS = 40000;
 const MAX_TTS_LENGTH = 5000;
 
 // --------------------------------------------------
@@ -295,18 +296,36 @@ function cleanModelAnswer(text) {
 function normalizeMessages(messages) {
   if (!Array.isArray(messages)) return [];
 
-  return messages
+  const validMessages = messages
     .filter(
       (message) =>
         message &&
         typeof message.content === "string" &&
         ["user", "assistant"].includes(message.role)
     )
-    .slice(-MAX_MESSAGES)
-    .map((message) => ({
-      role: message.role,
-      content: message.content.slice(0, MAX_MESSAGE_LENGTH),
-    }));
+    .slice(-MAX_MESSAGES);
+
+  // En yeni mesajları koru; eski bağlamın tüm isteği şişirmesini önle.
+  const selected = [];
+  let totalChars = 0;
+
+  for (let i = validMessages.length - 1; i >= 0; i--) {
+    const message = validMessages[i];
+    const content = message.content.slice(0, MAX_MESSAGE_LENGTH);
+
+    if (totalChars + content.length > MAX_CONVERSATION_CHARS) {
+      const remaining = MAX_CONVERSATION_CHARS - totalChars;
+      if (remaining <= 0) continue;
+      selected.push({ role: message.role, content: content.slice(-remaining) });
+      totalChars += remaining;
+      break;
+    }
+
+    selected.push({ role: message.role, content });
+    totalChars += content.length;
+  }
+
+  return selected.reverse();
 }
 
 function getLatestUserMessage(messages) {
@@ -320,15 +339,31 @@ function getLatestUserMessage(messages) {
 }
 
 function isBlueprintQuestion(messages = []) {
-  const recentContext = normalizeMessages(messages)
-    .slice(-8)
-    .map((message) => message.content)
-    .join("\n")
+  const safeMessages = normalizeMessages(messages);
+  const latestUserMessage = getLatestUserMessage(safeMessages)
     .toLocaleLowerCase("tr-TR");
 
-  return /unreal engine|unreal|blueprint|ue\s*5(?:\.\d+)?|event graph|ai move to|navmesh|enhanced input|construction script|beginplay/i.test(
-    recentContext
-  );
+  const explicitBlueprintTopic =
+    /unreal engine|unreal|blueprint|ue\s*5(?:\.\d+)?|event graph|ai move to|navmesh|enhanced input|construction script|beginplay/i
+      .test(latestUserMessage);
+
+  if (explicitBlueprintTopic) return true;
+
+  // Önceki UE bağlamını yalnızca kısa ve açıkça devam niteliğindeki
+  // takip mesajlarında taşı; eski bir UE sohbeti her soruyu etkilemesin.
+  const isShortFollowUp =
+    latestUserMessage.length <= 180 &&
+    /\b(bunu|böyle|burada|devam|peki|sonra|aynı|bu node|bu blueprint|nasıl yaparım|nasıl bağlarım)\b/i
+      .test(latestUserMessage);
+
+  if (!isShortFollowUp) return false;
+
+  const previousAssistant = [...safeMessages]
+    .reverse()
+    .find((message) => message.role === "assistant")?.content || "";
+
+  return /unreal engine|blueprint|ai move to|navmesh|enhanced input/i
+    .test(previousAssistant.slice(0, 5000));
 }
 
 function getGenerationSettings(messages = []) {
@@ -703,11 +738,6 @@ async function callGroq(messages, extraInstruction = "") {
 async function generateAnswer(messages, extraInstruction = "") {
   const providers = [
     {
-      name: "openrouter",
-      enabled: Boolean(OPENROUTER_API_KEY),
-      run: () => callOpenRouter(messages, extraInstruction),
-    },
-    {
       name: "groq",
       enabled: Boolean(GROQ_API_KEY),
       run: () => callGroq(messages, extraInstruction),
@@ -716,6 +746,11 @@ async function generateAnswer(messages, extraInstruction = "") {
       name: "gemini",
       enabled: Boolean(GEMINI_API_KEY),
       run: () => callGemini(messages, extraInstruction),
+    },
+    {
+      name: "openrouter",
+      enabled: Boolean(OPENROUTER_API_KEY),
+      run: () => callOpenRouter(messages, extraInstruction),
     },
   ];
 
@@ -1158,33 +1193,6 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
 
       const providers = [
         {
-          name: "openrouter",
-          enabled: Boolean(OPENROUTER_API_KEY),
-          run: (providerSignal) => {
-            providerInfo = {
-              provider: "openrouter",
-              model: OPENROUTER_MODEL,
-            };
-
-            return streamOpenAIProvider({
-              url: "https://openrouter.ai/api/v1/chat/completions",
-              apiKey: OPENROUTER_API_KEY,
-              model: OPENROUTER_MODEL,
-              messages,
-              extraInstruction,
-              providerName: "openrouter",
-              headers: {
-                "HTTP-Referer":
-                  process.env.APP_URL ||
-                  "https://nova-ai-xxid.onrender.com",
-                "X-Title": "NOVA AI",
-              },
-              signal: providerSignal,
-              onText,
-            });
-          },
-        },
-        {
           name: "groq",
           enabled: Boolean(GROQ_API_KEY),
           run: (providerSignal) => {
@@ -1222,6 +1230,33 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
             });
           },
         },
+        {
+          name: "openrouter",
+          enabled: Boolean(OPENROUTER_API_KEY),
+          run: (providerSignal) => {
+            providerInfo = {
+              provider: "openrouter",
+              model: OPENROUTER_MODEL,
+            };
+
+            return streamOpenAIProvider({
+              url: "https://openrouter.ai/api/v1/chat/completions",
+              apiKey: OPENROUTER_API_KEY,
+              model: OPENROUTER_MODEL,
+              messages,
+              extraInstruction,
+              providerName: "openrouter",
+              headers: {
+                "HTTP-Referer":
+                  process.env.APP_URL ||
+                  "https://nova-ai-xxid.onrender.com",
+                "X-Title": "NOVA AI",
+              },
+              signal: providerSignal,
+              onText,
+            });
+          },
+        },
       ];
 
       const failures = [];
@@ -1246,6 +1281,24 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
           );
 
           try {
+            providerInfo = {
+              provider: provider.name,
+              model:
+                provider.name === "groq"
+                  ? GROQ_MODEL
+                  : provider.name === "gemini"
+                    ? GEMINI_MODEL
+                    : OPENROUTER_MODEL,
+            };
+
+            // İstemci ilk sağlayıcı beklenirken de SSE bağlantısını hemen alır.
+            startSSE();
+            sendSSE(res, {
+              type: "start",
+              provider: providerInfo.provider,
+              model: providerInfo.model,
+            });
+
             result = await provider.run(providerTimeout.signal);
             break;
           } catch (error) {
