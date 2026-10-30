@@ -4,7 +4,8 @@
   "description": "NOVA AI Türkçe sohbet sitesi",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "ingest:knowledge": "node scripts/ingest-knowledge.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",
