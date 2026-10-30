@@ -384,7 +384,7 @@ function getGenerationSettings(messages = []) {
 
   return {
     temperature: blueprintMode ? 0.2 : 0.4,
-    maxOutputTokens: blueprintMode ? 2200 : 1800,
+    maxOutputTokens: blueprintMode ? 4096 : 1800,
   };
 }
 
