@@ -1095,7 +1095,7 @@
         );
       } catch (error) {
         if (error?.name === "AbortError") {
-          throw new Error("Yanıt 70 saniyede tamamlanmadı. Lütfen tekrar dene.");
+          throw new Error("Yanıt 100 saniyede tamamlanmadı. Daha kısa bir istekle tekrar dene.");
         }
         throw error;
       } finally {
@@ -1122,7 +1122,8 @@
       }
 
       const message = streamedAnswer
-        ? "Yanıt tamamlanmadan kesildi. Kısmi yanıt kaydedilmedi; lütfen tekrar dene."
+        ? (error?.message || "Yanıt akışı kesildi.") +
+          " Kısmi yanıt kaydedilmedi; aynı isteği daha kısa bir bölümle tekrar deneyebilirsin."
         : error?.message ||
           "Şu anda hizmetimize ulaşılamıyor. Lütfen biraz sonra tekrar dene.";
 
