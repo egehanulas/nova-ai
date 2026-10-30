@@ -27,7 +27,7 @@ app.use(express.json({ limit: "1mb" }));
 
 const REQUEST_TIMEOUT_MS = Math.max(
   20000,
-  Number(process.env.REQUEST_TIMEOUT_MS) || 65000
+  Number(process.env.REQUEST_TIMEOUT_MS) || 100000
 );
 
 const PROVIDER_TIMEOUT_MS = Math.min(
