@@ -697,6 +697,7 @@
             download.href = data.signedUrl;
           })
           .catch(error => console.error("Kayıtlı resim açılamadı:", error));
+        if (!isUser) main.append(name, content);
       } else {
         const answerText = typeof item.content === "string" ? item.content : "";
         if (useBlueprintLayout) {
