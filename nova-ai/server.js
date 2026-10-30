@@ -912,6 +912,7 @@ async function streamOpenAIProvider({
 
   let buffer = "";
   let answer = "";
+  let finishReason = null;
 
   const cleaner = createStreamingTextCleaner(onText);
 
@@ -939,11 +940,20 @@ async function streamOpenAIProvider({
       );
     }
 
-    const text = data?.choices?.[0]?.delta?.content;
+    const choice = data?.choices?.[0];
+    if (choice?.finish_reason) finishReason = choice.finish_reason;
+
+    const text = choice?.delta?.content;
 
     if (typeof text === "string" && text.length > 0) {
       answer += text;
       cleaner.push(text);
+    }
+
+    if (finishReason === "length") {
+      const error = new Error(`${providerName} yanıtı token sınırında kesildi.`);
+      error.partial = answer.length > 0;
+      throw error;
     }
 
     return false;
@@ -1056,6 +1066,7 @@ async function streamGemini({
 
   let buffer = "";
   let answer = "";
+  let finishReason = null;
 
   const cleaner = createStreamingTextCleaner(onText);
 
@@ -1079,13 +1090,22 @@ async function streamGemini({
       throw new Error(data.error.message || "Gemini akış hatası.");
     }
 
-    const parts = data?.candidates?.[0]?.content?.parts || [];
+    const candidate = data?.candidates?.[0];
+    if (candidate?.finishReason) finishReason = candidate.finishReason;
+
+    const parts = candidate?.content?.parts || [];
 
     for (const part of parts) {
       if (typeof part.text === "string" && part.text.length > 0) {
         answer += part.text;
         cleaner.push(part.text);
       }
+    }
+
+    if (finishReason === "MAX_TOKENS") {
+      const error = new Error("Gemini yanıtı token sınırında kesildi.");
+      error.partial = answer.length > 0;
+      throw error;
     }
   }
 
