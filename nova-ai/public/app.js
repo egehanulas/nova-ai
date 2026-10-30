@@ -541,6 +541,17 @@
     if (cursor < text.length) parent.appendChild(document.createTextNode(text.slice(cursor)));
   }
 
+  function hasMarkdownTable(markdown) {
+    const lines = String(markdown || "").replace(/\\r\\n?/g, "\\n").split("\\n");
+    const isRow = (value) => /^\\|.*\\|$/.test(value.trim());
+    const isDivider = (value) =>
+      isRow(value) && /^\\|[\\s:|\\-]+\\|$/.test(value.trim()) &&
+      value.includes("-");
+    return lines.some((line, index) =>
+      isRow(line) && index + 1 < lines.length && isDivider(lines[index + 1])
+    );
+  }
+
   function renderBlueprintMarkdown(container, markdown) {
     const lines = String(markdown || "").replace(/\r\n?/g, "\n").split("\n");
     const fence = String.fromCharCode(96).repeat(3);
@@ -743,13 +754,17 @@
         if (!isUser) main.append(name, content);
       } else {
         const answerText = typeof item.content === "string" ? item.content : "";
-        if (useBlueprintLayout) {
-          content.classList.add("technical-guide-content");
+        if (useBlueprintLayout || hasMarkdownTable(answerText)) {
           renderBlueprintMarkdown(content, answerText);
-          const modeLabel = document.createElement("div");
-          modeLabel.className = "technical-guide-label";
-          modeLabel.textContent = "✦ BLUEPRINT REHBERİ";
-          main.append(name, modeLabel, content);
+          if (useBlueprintLayout) {
+            content.classList.add("technical-guide-content");
+            const modeLabel = document.createElement("div");
+            modeLabel.className = "technical-guide-label";
+            modeLabel.textContent = "✦ BLUEPRINT REHBERİ";
+            main.append(name, modeLabel, content);
+          } else {
+            main.append(name, content);
+          }
         } else {
           content.textContent = answerText;
           if (!isUser) main.append(name, content);
