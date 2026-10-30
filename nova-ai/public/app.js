@@ -889,30 +889,49 @@
         ? "/api/research/stream"
         : "/api/chat/stream";
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          messages: conversation.messages
-        })
-      });
-
-      const result = await readStreamingResponse(
-        response,
-        (_chunk, fullAnswer) => {
-          streamedAnswer = fullAnswer;
-
-          if (loading?.content) {
-            loading.content.classList.remove("typing");
-            loading.content.textContent = fullAnswer;
-          }
-
-          messagesEl.scrollTop = messagesEl.scrollHeight;
-        }
+      const requestController = new AbortController();
+      const requestTimeout = setTimeout(
+        () => requestController.abort(),
+        45000
       );
+
+      let result;
+
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          signal: requestController.signal,
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            // Sunucu da sınır uyguluyor; burada gereksiz eski geçmişi göndermiyoruz.
+            messages: conversation.messages.slice(-14)
+          })
+        });
+
+        result = await readStreamingResponse(
+          response,
+          (_chunk, fullAnswer) => {
+            streamedAnswer = fullAnswer;
+
+            if (loading?.content) {
+              loading.content.classList.remove("typing");
+              loading.content.textContent = fullAnswer;
+            }
+
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          }
+        );
+      } catch (error) {
+        if (error?.name === "AbortError") {
+          throw new Error("Yanıt 45 saniyede tamamlanmadı. Lütfen tekrar dene.");
+        }
+        throw error;
+      } finally {
+        clearTimeout(requestTimeout);
+      }
 
       await addMessage("assistant", result.answer);
 
