@@ -523,6 +523,24 @@
     return text.includes("blueprint") && /(anlat|göster|şeklinde|olarak|node|bağlant|adım|kur|takip)/i.test(text);
   }
 
+  function appendBlueprintInline(parent, text) {
+    const tick = String.fromCharCode(96);
+    const pattern = new RegExp("(" + tick + "[^" + tick + "]+" + tick + "|\\*\\*[^*]+\\*\\*|\\*[^*]+\\*)", "g");
+    let cursor = 0;
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > cursor) parent.appendChild(document.createTextNode(text.slice(cursor, match.index)));
+      const token = match[0];
+      const isCode = token.charAt(0) === tick;
+      const isBold = token.startsWith("**");
+      const node = document.createElement(isCode ? "code" : (isBold ? "strong" : "em"));
+      node.textContent = isCode ? token.slice(1, -1) : (isBold ? token.slice(2, -2) : token.slice(1, -1));
+      parent.appendChild(node);
+      cursor = pattern.lastIndex;
+    }
+    if (cursor < text.length) parent.appendChild(document.createTextNode(text.slice(cursor)));
+  }
+
   function renderBlueprintMarkdown(container, markdown) {
     const lines = String(markdown || "").replace(/\r\n?/g, "\n").split("\n");
     const fence = String.fromCharCode(96).repeat(3);
@@ -561,7 +579,7 @@
       const heading = line.match(/^(#{1,3})\s+(.+)$/);
       if (heading) {
         const h = document.createElement("h" + heading[1].length);
-        h.textContent = heading[2].replace(/\*\*/g, "");
+        appendBlueprintInline(h, heading[2]);
         container.appendChild(h);
         i++;
         continue;
@@ -575,7 +593,7 @@
           const match = current.match(ordered ? /^\d+[.)]\s+(.+)$/ : /^[-*]\s+(.+)$/);
           if (!match) break;
           const li = document.createElement("li");
-          li.textContent = match[1].replace(/\*\*/g, "");
+          appendBlueprintInline(li, match[1]);
           list.appendChild(li);
           i++;
         }
@@ -583,13 +601,14 @@
         continue;
       }
       const p = document.createElement("p");
-      p.textContent = line.replace(/\*\*/g, "");
+      appendBlueprintInline(p, line);
       i++;
       while (i < lines.length && lines[i].trim() &&
         !lines[i].trim().startsWith(fence) &&
         !/^(#{1,3})\s+/.test(lines[i].trim()) &&
         !/^([-*]|\d+[.)])\s+/.test(lines[i].trim())) {
-        p.textContent += " " + lines[i].trim().replace(/\*\*/g, "");
+        p.appendChild(document.createTextNode(" "));
+        appendBlueprintInline(p, lines[i].trim());
         i++;
       }
       container.appendChild(p);
