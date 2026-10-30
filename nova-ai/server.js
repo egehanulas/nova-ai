@@ -30,6 +30,11 @@ const REQUEST_TIMEOUT_MS = Math.max(
   Number(process.env.REQUEST_TIMEOUT_MS) || 60000
 );
 
+const PROVIDER_TIMEOUT_MS = Math.min(
+  REQUEST_TIMEOUT_MS,
+  Math.max(5000, Number(process.env.PROVIDER_TIMEOUT_MS) || 18000)
+);
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -229,6 +234,20 @@ ARAŞTIRMA MODU:
 - Araştırma modunda olman tek başına internete eriştiğin anlamına gelmez.
 `;
 
+const BLUEPRINT_INSTRUCTION = `
+UNREAL ENGINE BLUEPRINT ÖZEL MODU:
+
+- Kullanıcı Blueprint veya Unreal Engine hakkında soruyorsa bu kuralları uygula.
+- Türkçe ve başlangıç seviyesine uygun anlat; editör menüleri ve node adlarını İngilizce yaz, yanına kısa Türkçe açıklama ekle.
+- Önce en basit çalışan çözümü ver. Kullanıcı istemedikçe uzun teori, alternatif listeleri veya gereksiz tekrar ekleme.
+- Genellikle 4-7 kısa adım ve yalnızca gerekli node bağlantılarını kullan.
+- Exec akışını ve veri pinlerini ayrı ayrı belirt; bağlantıları KaynakNode.Pin -> HedefNode.Pin biçiminde yaz.
+- Yalnızca varlığından ve pin adlarından emin olduğun node/pin isimlerini ver. Sürüm veya bağlama göre değişebilecek bir ayrıntıdan emin değilsen bunu açıkça söyle; uydurma.
+- Ekran görüntüsü veya mevcut Blueprint şeması verilmişse önce onu esas al. Görmediğin değişkenleri, node'ları veya proje ayarlarını var sayma.
+- Gerekli tek bir bilgi eksikse yalnızca en önemli netleştirme sorusunu sor.
+- Kullanıcı tüm kodu veya ayrıntılı kurulum istediğinde kısa cevap sınırını zorla uygulama; istenen kapsamı karşıla.
+`;
+
 // --------------------------------------------------
 // YARDIMCI FONKSİYONLAR
 // --------------------------------------------------
@@ -300,6 +319,57 @@ function getLatestUserMessage(messages) {
   return "";
 }
 
+function isBlueprintQuestion(messages = []) {
+  const recentContext = normalizeMessages(messages)
+    .slice(-8)
+    .map((message) => message.content)
+    .join("\n")
+    .toLocaleLowerCase("tr-TR");
+
+  return /unreal engine|unreal|blueprint|ue\s*5(?:\.\d+)?|event graph|ai move to|navmesh|enhanced input|construction script|beginplay/i.test(
+    recentContext
+  );
+}
+
+function getGenerationSettings(messages = []) {
+  const blueprintMode = isBlueprintQuestion(messages);
+
+  return {
+    temperature: blueprintMode ? 0.2 : 0.4,
+    maxOutputTokens: blueprintMode ? 750 : 1800,
+  };
+}
+
+function createProviderAbortSignal(parentSignal, timeoutMs = PROVIDER_TIMEOUT_MS) {
+  const controller = new AbortController();
+
+  const abortFromParent = () => {
+    controller.abort(parentSignal.reason);
+  };
+
+  if (parentSignal.aborted) {
+    abortFromParent();
+  } else {
+    parentSignal.addEventListener("abort", abortFromParent, {
+      once: true,
+    });
+  }
+
+  const timer = setTimeout(() => {
+    controller.abort(new Error("Sağlayıcı yanıt süresi doldu."));
+  }, timeoutMs);
+
+  timer.unref?.();
+
+  return {
+    signal: controller.signal,
+    clear: () => {
+      clearTimeout(timer);
+      parentSignal.removeEventListener("abort", abortFromParent);
+    },
+  };
+}
+
 function isComplexQuestion(text = "") {
   const value = String(text).toLocaleLowerCase("tr-TR");
 
@@ -357,6 +427,7 @@ function makeConversation(messages, extraInstruction = "") {
   const systemText = [
     BASE_INSTRUCTION,
     ANALYSIS_INSTRUCTION,
+    isBlueprintQuestion(safeMessages) ? BLUEPRINT_INSTRUCTION : "",
     getAnalysisMode(latestUserMessage),
     extraInstruction,
   ]
@@ -434,6 +505,7 @@ async function callGemini(messages, extraInstruction = "") {
     role: message.role === "assistant" ? "model" : "user",
     parts: [{ text: message.content }],
   }));
+  const generation = getGenerationSettings(conversation);
 
   const url =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
@@ -455,8 +527,8 @@ async function callGemini(messages, extraInstruction = "") {
         },
         contents,
         generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 1800,
+          temperature: generation.temperature,
+          maxOutputTokens: generation.maxOutputTokens,
         },
       }),
     });
@@ -504,6 +576,7 @@ async function callOpenRouter(messages, extraInstruction = "") {
   );
 
   const { controller, clear } = createAbortController();
+  const generation = getGenerationSettings(conversation);
 
   try {
     const response = await fetch(
@@ -524,8 +597,8 @@ async function callOpenRouter(messages, extraInstruction = "") {
             { role: "system", content: systemText },
             ...conversation,
           ],
-          temperature: 0.4,
-          max_tokens: 1800,
+          temperature: generation.temperature,
+          max_tokens: generation.maxOutputTokens,
         }),
       }
     );
@@ -572,6 +645,7 @@ async function callGroq(messages, extraInstruction = "") {
   );
 
   const { controller, clear } = createAbortController();
+  const generation = getGenerationSettings(conversation);
 
   try {
     const response = await fetch(
@@ -589,8 +663,8 @@ async function callGroq(messages, extraInstruction = "") {
             { role: "system", content: systemText },
             ...conversation,
           ],
-          temperature: 0.4,
-          max_tokens: 1800,
+          temperature: generation.temperature,
+          max_tokens: generation.maxOutputTokens,
         }),
       }
     );
@@ -629,11 +703,6 @@ async function callGroq(messages, extraInstruction = "") {
 async function generateAnswer(messages, extraInstruction = "") {
   const providers = [
     {
-      name: "gemini",
-      enabled: Boolean(GEMINI_API_KEY),
-      run: () => callGemini(messages, extraInstruction),
-    },
-    {
       name: "openrouter",
       enabled: Boolean(OPENROUTER_API_KEY),
       run: () => callOpenRouter(messages, extraInstruction),
@@ -642,6 +711,11 @@ async function generateAnswer(messages, extraInstruction = "") {
       name: "groq",
       enabled: Boolean(GROQ_API_KEY),
       run: () => callGroq(messages, extraInstruction),
+    },
+    {
+      name: "gemini",
+      enabled: Boolean(GEMINI_API_KEY),
+      run: () => callGemini(messages, extraInstruction),
     },
   ];
 
@@ -755,6 +829,7 @@ async function streamOpenAIProvider({
     messages,
     extraInstruction
   );
+  const generation = getGenerationSettings(conversation);
 
   const response = await fetch(url, {
     method: "POST",
@@ -770,8 +845,8 @@ async function streamOpenAIProvider({
         { role: "system", content: systemText },
         ...conversation,
       ],
-      temperature: 0.4,
-      max_tokens: 1800,
+      temperature: generation.temperature,
+      max_tokens: generation.maxOutputTokens,
       stream: true,
     }),
   });
@@ -895,6 +970,7 @@ async function streamGemini({
     role: message.role === "assistant" ? "model" : "user",
     parts: [{ text: message.content }],
   }));
+  const generation = getGenerationSettings(conversation);
 
   const url =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
@@ -913,8 +989,8 @@ async function streamGemini({
       },
       contents,
       generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 1800,
+        temperature: generation.temperature,
+        maxOutputTokens: generation.maxOutputTokens,
       },
     }),
   });
@@ -1082,30 +1158,9 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
 
       const providers = [
         {
-          name: "groq",
-          enabled: Boolean(GROQ_API_KEY),
-          run: () => {
-            providerInfo = {
-              provider: "groq",
-              model: GROQ_MODEL,
-            };
-
-            return streamOpenAIProvider({
-              url: "https://api.groq.com/openai/v1/chat/completions",
-              apiKey: GROQ_API_KEY,
-              model: GROQ_MODEL,
-              messages,
-              extraInstruction,
-              providerName: "groq",
-              signal: controller.signal,
-              onText,
-            });
-          },
-        },
-        {
           name: "openrouter",
           enabled: Boolean(OPENROUTER_API_KEY),
-          run: () => {
+          run: (providerSignal) => {
             providerInfo = {
               provider: "openrouter",
               model: OPENROUTER_MODEL,
@@ -1124,7 +1179,28 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
                   "https://nova-ai-xxid.onrender.com",
                 "X-Title": "NOVA AI",
               },
-              signal: controller.signal,
+              signal: providerSignal,
+              onText,
+            });
+          },
+        },
+        {
+          name: "groq",
+          enabled: Boolean(GROQ_API_KEY),
+          run: (providerSignal) => {
+            providerInfo = {
+              provider: "groq",
+              model: GROQ_MODEL,
+            };
+
+            return streamOpenAIProvider({
+              url: "https://api.groq.com/openai/v1/chat/completions",
+              apiKey: GROQ_API_KEY,
+              model: GROQ_MODEL,
+              messages,
+              extraInstruction,
+              providerName: "groq",
+              signal: providerSignal,
               onText,
             });
           },
@@ -1132,7 +1208,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
         {
           name: "gemini",
           enabled: Boolean(GEMINI_API_KEY),
-          run: () => {
+          run: (providerSignal) => {
             providerInfo = {
               provider: "gemini",
               model: GEMINI_MODEL,
@@ -1141,7 +1217,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
             return streamGemini({
               messages,
               extraInstruction,
-              signal: controller.signal,
+              signal: providerSignal,
               onText,
             });
           },
@@ -1156,12 +1232,21 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
         for (const provider of providers) {
           if (!provider.enabled) continue;
 
-          if (controller.signal.aborted || clientDisconnected) {
-            return;
+          if (clientDisconnected) return;
+
+          if (controller.signal.aborted) {
+            throw Object.assign(
+              new Error("İstek zaman aşımına uğradı."),
+              { status: 504 }
+            );
           }
 
+          const providerTimeout = createProviderAbortSignal(
+            controller.signal
+          );
+
           try {
-            result = await provider.run();
+            result = await provider.run(providerTimeout.signal);
             break;
           } catch (error) {
             failures.push({
@@ -1174,8 +1259,10 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               error.message
             );
 
-            // Akış başladıysa aynı yanıtı ikinci bir sağlayıcıdan
-            // başlatmak kullanıcıya yinelenen metin gösterebilir.
+            if (clientDisconnected) return;
+
+            // Kısmi metin gönderildiyse başka sağlayıcıya geçmek
+            // aynı cevabın baştan tekrarlanmasına neden olur.
             if (answer.length > 0 || firstChunkSent) {
               const partialError = new Error(
                 "Yanıt akışı kesildi."
@@ -1185,9 +1272,17 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               throw partialError;
             }
 
-            if (controller.signal.aborted || clientDisconnected) {
-              return;
+            // Genel istek süresi dolduysa yanıtı açık bırakma.
+            if (controller.signal.aborted) {
+              throw Object.assign(
+                new Error("İstek zaman aşımına uğradı."),
+                { status: 504 }
+              );
             }
+
+            // Yalnızca bu sağlayıcının süresi dolduysa sıradakini dene.
+          } finally {
+            providerTimeout.clear();
           }
         }
 
@@ -1220,10 +1315,14 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
         );
 
         if (!hasSentHeaders) {
-          return res.status(503).json({
+          const status = error.status === 504 ? 504 : 503;
+
+          return res.status(status).json({
             success: false,
             error:
-              "Şu anda yanıt oluşturulamıyor. Lütfen daha sonra tekrar dene.",
+              status === 504
+                ? "Yanıt oluşturma süresi doldu. Lütfen tekrar dene."
+                : "Şu anda yanıt oluşturulamıyor. Lütfen daha sonra tekrar dene.",
           });
         }
 
