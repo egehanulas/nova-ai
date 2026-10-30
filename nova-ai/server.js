@@ -1265,7 +1265,7 @@ function sendSSE(res, payload) {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
-function registerStreamingEndpoint(route, effectiveInstruction, customError) {
+function registerStreamingEndpoint(route, extraInstruction, customError) {
   app.post(
     route,
     requireAuth,
@@ -1276,7 +1276,7 @@ function registerStreamingEndpoint(route, effectiveInstruction, customError) {
         messages,
         req.headers.authorization || ""
       );
-      const effectiveInstruction = [effectiveInstruction, ragInstruction]
+      const effectiveInstruction = [extraInstruction, ragInstruction]
         .filter(Boolean)
         .join("\n\n");
 
