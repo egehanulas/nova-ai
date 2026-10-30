@@ -260,6 +260,10 @@ TEKNİK DOĞRULUK:
 - Kullanıcı ekran görüntüsü verdiyse önce görünen şemayı incele; görünmeyen bağlantıları tahmin etme.
 - Gerekli tek bir bilgi eksikse yalnızca en önemli netleştirme sorusunu sor.
 - Markdown tablolarını yalnızca gerçekten düzgün oluşturabiliyorsan kullan; bağlantı tariflerinde satır satır liste tercih et.
+- Kullanıcı kapsamlı bir kurulum veya çok adımlı sistem istediğinde cevabı 2 veya 3 mantıklı parçaya böl. Her yanıtta yalnızca o anki parçayı tamamla; sonraki parçaları aynı yanıta sıkıştırma.
+- İlk parçanın sonunda sıradaki parçanın ne olduğunu açıkça söyle ve doğal, kısa bir devam cümlesi kullan: "İlk bölüm tamamlandı. Devam etmemi istediğinde 'devam' yaz; sıradaki bölümde [somut sonraki hedef] adımını kuracağız." Sonraki parçalarda da sıradaki hedefi belirt.
+- Kullanıcı "devam" dediğinde önceki cevabı tekrarlama; kaldığın yerden devam et ve sıradaki mantıklı parçayı tamamla. Kullanıcı devam istemedikçe kendiliğinden sonraki parçaya geçme.
+- Basit soruları gereksiz yere parçalara bölme. Parçaları rastgele değil, bağımlılık sırasına göre planla (ör. hazırlık → temel kurulum → test/iyileştirme).
 `;
 
 // --------------------------------------------------
@@ -384,7 +388,7 @@ function getGenerationSettings(messages = []) {
 
   return {
     temperature: blueprintMode ? 0.2 : 0.4,
-    maxOutputTokens: blueprintMode ? 4096 : 1800,
+    maxOutputTokens: blueprintMode ? 1800 : 1800,
   };
 }
 
@@ -600,7 +604,7 @@ async function buildKnowledgeInstruction(messages, authorization) {
 
     const { data, error } = await userSupabase.rpc("match_knowledge_chunks_384", {
       query_embedding: queryEmbedding,
-      match_count: 7,
+      match_count: 4,
       filter_engine_version: "5.8",
     });
 
@@ -612,7 +616,7 @@ async function buildKnowledgeInstruction(messages, authorization) {
         (Number(b.trust_level) || 3) - (Number(a.trust_level) || 3) ||
         Number(b.similarity) - Number(a.similarity)
       )
-      .slice(0, 6);
+      .slice(0, 4);
 
     if (!matches.length) return "";
 
@@ -623,9 +627,9 @@ async function buildKnowledgeInstruction(messages, authorization) {
         `Başlık: ${item.title}`,
         `Sürüm: ${item.engine_version || "Belirtilmemiş"}`,
         `Bağlantı: ${item.canonical_url}`,
-        String(item.content || "").slice(0, 3500),
+        String(item.content || "").slice(0, 1800),
       ].join("\n");
-    }).join("\n\n---\n\n").slice(0, 14000);
+    }).join("\n\n---\n\n").slice(0, 7000);
 
     return [
       "UNREAL ENGINE BİLGİ TABANI — RETRIEVED CONTEXT:",
