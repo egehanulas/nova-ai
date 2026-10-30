@@ -544,10 +544,53 @@
   function renderBlueprintMarkdown(container, markdown) {
     const lines = String(markdown || "").replace(/\r\n?/g, "\n").split("\n");
     const fence = String.fromCharCode(96).repeat(3);
+    const isTableRow = (value) => /^\|.*\|$/.test(value.trim());
+    const isTableDivider = (value) =>
+      isTableRow(value) && /^\|[\s:|\-]+\|$/.test(value.trim()) &&
+      value.includes("-");
+    const splitTableRow = (value) =>
+      value.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
     let i = 0;
     while (i < lines.length) {
       const line = lines[i].trim();
       if (!line) { i++; continue; }
+      // Standart Markdown tablolarını güvenli DOM elemanlarıyla çiz.
+      if (isTableRow(line) && i + 1 < lines.length && isTableDivider(lines[i + 1].trim())) {
+        const headers = splitTableRow(line);
+        const table = document.createElement("table");
+        table.className = "technical-guide-table";
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+        headers.forEach((value) => {
+          const th = document.createElement("th");
+          appendBlueprintInline(th, value);
+          headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+        i += 2;
+        const tbody = document.createElement("tbody");
+        while (i < lines.length && isTableRow(lines[i].trim())) {
+          const cells = splitTableRow(lines[i]);
+          const row = document.createElement("tr");
+          headers.forEach((_, columnIndex) => {
+            const td = document.createElement("td");
+            appendBlueprintInline(td, cells[columnIndex] || "");
+            row.appendChild(td);
+          });
+          tbody.appendChild(row);
+          i++;
+        }
+        table.appendChild(tbody);
+        container.appendChild(table);
+        continue;
+      }
+      if (/^\\\\?[-*_]{3,}$/.test(line)) {
+        const rule = document.createElement("hr");
+        container.appendChild(rule);
+        i++;
+        continue;
+      }
       if (line.startsWith(fence)) {
         const language = line.slice(3).trim() || "Kod";
         const codeLines = [];
