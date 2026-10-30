@@ -542,7 +542,7 @@
   }
 
   function hasMarkdownTable(markdown) {
-    const lines = String(markdown || "").replace(/\\r\\n?/g, "\\n").split("\\n");
+    const lines = String(markdown || "").replace(/\r\n?/g, "\n").split("\n");
     const isRow = (value) => /^\\|.*\\|$/.test(value.trim());
     const isDivider = (value) =>
       isRow(value) && /^\\|[\\s:|\\-]+\\|$/.test(value.trim()) &&
