@@ -1682,7 +1682,7 @@ function isWeatherQuestion(query = "") {
     "hava durumu", "hava nasil", "hava sicak", "hava soguk", "hava guzel",
     "hava kapali", "hava bulutlu", "hava kac derece", "kac derece",
     "sicaklik", "yagmur", "yagis", "kar yag", "ruzgar", "nem orani",
-    "semsiye", "mont", "ceket", "kar var", "nem", "basinc", "disari cikilir mi", "disari cikmak", "ne giy",
+    "semsiye", "mont giy", "mont gerekli", "ceket giy", "ceket gerekli", "kar var", "nem", "basinc", "disari cikilir mi", "disari cikmak", "ne giy",
     "gunesli mi", "bulutlu mu", "saganak", "firtina", "don olacak mi",
     "sicak mi", "soguk mu", "usur muyum", "terler miyim", "buzlanma"
   ];
