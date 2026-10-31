@@ -1494,15 +1494,9 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
 
         startSSE();
 
-        if (!firstChunkSent) {
-          firstChunkSent = true;
-
-          sendSSE(res, {
-            type: "start",
-            provider: providerInfo?.provider || null,
-            model: providerInfo?.model || null,
-          });
-        }
+        // Provider bilgisi istemciye deneme başında gönderilir.
+        // Burada ikinci bir "start" olayı göndermeden ilk gerçek parçayı işaretle.
+        if (!firstChunkSent) firstChunkSent = true;
 
         answer += text;
 
