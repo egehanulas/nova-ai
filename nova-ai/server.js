@@ -1696,7 +1696,9 @@ function extractExplicitName(text = "") {
 }
 
 async function learnUserMemory(req, userText) {
-  if (!isMemoryCandidate(userText)) return { saved: false };
+  // İsim beyanı kısa olsa bile (ör. "Adım Ege") mutlaka değerlendirilir.
+  const explicitName = extractExplicitName(userText);
+  if (!explicitName && !isMemoryCandidate(userText)) return { saved: false };
 
   const client = getUserSupabase(req);
   const { data: existing, error: readError } = await client
@@ -1708,7 +1710,6 @@ async function learnUserMemory(req, userText) {
   if (readError) throw readError;
 
   // Açık isim beyanlarını model çıkarımına bırakma; doğrudan ve güvenilir biçimde kaydet.
-  const explicitName = extractExplicitName(userText);
   if (explicitName) {
     const content = "Kullanıcının adı " + explicitName + ".";
     const oldName = (existing || []).find((item) =>
