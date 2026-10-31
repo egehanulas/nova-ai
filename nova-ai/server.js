@@ -550,7 +550,7 @@ Bu soru dikkatli değerlendirme gerektiriyor.
 `;
 }
 
-const GROQ_RESPONSE_GUIDANCE = `
+const UNIVERSAL_RESPONSE_GUIDANCE = `
 KULLANICIYI ANLAMA VE YANITLAMA:
 - Yazım, imla, Türkçe karakter, eksik harf ve klavye hatalarını konuşmanın bağlamından yararlanarak tolere et; mesajı yalnızca yazım hatalı diye yanlış anlama.
 - Gündelik kısaltmaları ve konuşma dilini doğal biçimde anla. Kullanıcının yazımını kendiliğinden düzeltme veya hatalarını eleştirme.
@@ -574,6 +574,7 @@ function makeConversation(messages, extraInstruction = "") {
 
   const systemText = [
     BASE_INSTRUCTION,
+    UNIVERSAL_RESPONSE_GUIDANCE,
     ANALYSIS_INSTRUCTION,
     isBlueprintQuestion(safeMessages) ? BLUEPRINT_INSTRUCTION : "",
     getAnalysisMode(latestUserMessage),
@@ -825,7 +826,7 @@ async function callGemini(messages, extraInstruction = "") {
 
   const { systemText, conversation } = makeConversation(
     messages,
-    [extraInstruction, GROQ_RESPONSE_GUIDANCE].filter(Boolean).join("\n\n")
+    extraInstruction
   );
 
   const contents = conversation.map((message) => ({
@@ -1526,10 +1527,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               apiKey: GROQ_API_KEY,
               model: GROQ_MODEL,
               messages,
-              extraInstruction: [
-                effectiveInstruction,
-                GROQ_RESPONSE_GUIDANCE,
-              ].filter(Boolean).join("\n\n"),
+              extraInstruction: effectiveInstruction,
               providerName: "groq",
               signal: providerSignal,
               onText: emitText,
