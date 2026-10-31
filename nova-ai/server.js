@@ -1667,6 +1667,100 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
   );
 }
 
+
+// --------------------------------------------------
+// OTOMATİK HAFIZA ÖĞRENME
+// --------------------------------------------------
+
+function isMemoryCandidate(text = "") {
+  const value = String(text).trim();
+  if (value.length < 12 || value.length > 1800) return false;
+  // Kısa, geçici veya hassas konular için ayrı bir çıkarım isteği oluşturma.
+  if (/(şifre|parola|password|api.?key|token|iban|tc kimlik|kredi kartı|cvv|sağlık|hastalık|ilaç|teşhis|ameliyat|maaşım|borcum|borçlarım|gelirim|dinim|mezhebim|oyum|siyasi görüşüm|cinsel|travma|istismar)/i.test(value)) return false;
+  return /(benim|ben\s|yaşım|yaşındayım|adım|ismim|seviyorum|ilgileniyorum|hedefim|amacım|tercih ederim|tercihim|istemiyorum|istiyorum|çalışıyorum|okuyorum|öğreniyorum|projem|projemde|kullanıyorum|fanıyım|hayalim|gelecekte|bundan sonra|hep böyle|bana .* cevap|şöyle hitap)/i.test(value);
+}
+
+function isSafeMemoryContent(content = "") {
+  const value = String(content).trim();
+  if (!value || value.length > 500) return false;
+  return !/(şifre|parola|password|api.?key|token|iban|tc kimlik|kredi kartı|cvv|sağlık|hastalık|ilaç|teşhis|ameliyat|maaş|borç|gelir|dinî|dini|mezhep|oy tercihi|siyasi görüş|cinsel|travma|istismar)/i.test(value);
+}
+
+async function learnUserMemory(req, userText) {
+  if (!isMemoryCandidate(userText)) return { saved: false };
+
+  const client = getUserSupabase(req);
+  const { data: existing, error: readError } = await client
+    .from("nova_memories")
+    .select("id, content, category")
+    .eq("user_id", req.user.id)
+    .order("updated_at", { ascending: false })
+    .limit(50);
+  if (readError) throw readError;
+
+  const instruction = [
+    "Kullanıcının mesajından yalnızca gelecekteki sohbetlerde gerçekten işe yarayacak, kalıcı kişisel bilgileri çıkar.",
+    "Yalnızca kullanıcının kendisi hakkında açıkça söylediği bilgileri seç: tercih, hitap/yanıt biçimi, ilgi alanı, uzun vadeli hedef, devam eden proje/öğrenme durumu gibi.",
+    "Geçici durumları, tek seferlik soruları, varsayımları, başkaları hakkındaki bilgileri ve duygusal anlık tepkileri kaydetme.",
+    "Sağlık, finans, aile içi özel meseleler, din/inanç, siyaset, cinsellik, travma, kimlik numarası, iletişim bilgisi, şifre ve benzeri hassas verileri ASLA çıkarma.",
+    "Mevcut hafızayla aynı bilgi varsa tekrar ekleme. Değişmişse yalnızca aynı konudaki eski kaydı güncelle.",
+    "Kullanıcı bir bilgiyi unutmanı/silmeyi istiyorsa kaydetme.",
+    "Yalnızca JSON döndür: {\"action\":\"add\"|\"update\"|\"none\",\"id\":null|\"mevcut-kayıt-id\",\"content\":\"kısa, tekil bilgi\",\"category\":\"preferences|interests|goals|projects|profile|other\"}. Birden fazla bilgi varsa en fazla 2 kayıt seç; bu endpoint tek kayıt kabul ettiği için yalnızca en önemli olanı döndür.",
+    "Kayıt yoksa action none döndür."
+  ].join("\n");
+
+  const context = "MEVCUT HAFIZA:\n" +
+    (existing || []).map((item) => ({ id: item.id, content: item.content, category: item.category }));
+  const result = await generateAnswer(
+    [{ role: "user", content: "Kullanıcı mesajı:\n" + userText + "\n\n" + JSON.stringify(context) }],
+    instruction
+  );
+
+  let parsed;
+  try {
+    const cleaned = String(result.answer || "").replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    parsed = JSON.parse(cleaned);
+  } catch {
+    return { saved: false };
+  }
+
+  if (!parsed || !["add", "update"].includes(parsed.action) || !isSafeMemoryContent(parsed.content)) {
+    return { saved: false };
+  }
+
+  const category = ["preferences", "interests", "goals", "projects", "profile", "other"].includes(parsed.category)
+    ? parsed.category : "other";
+  const content = String(parsed.content).trim();
+  const existingMatch = (existing || []).find((item) => item.id === parsed.id);
+
+  if (parsed.action === "update" && existingMatch) {
+    const { data, error } = await client
+      .from("nova_memories")
+      .update({ content, category, source: "nova", updated_at: new Date().toISOString() })
+      .eq("id", existingMatch.id)
+      .eq("user_id", req.user.id)
+      .select("id, content, category, source")
+      .maybeSingle();
+    if (error) throw error;
+    return { saved: Boolean(data), memory: data };
+  }
+
+  // Yakın eşleşme koruması: aynı kategoride benzer kısa notu yeniden ekleme.
+  const duplicate = (existing || []).find((item) =>
+    item.category === category &&
+    String(item.content).toLocaleLowerCase("tr-TR") === content.toLocaleLowerCase("tr-TR")
+  );
+  if (duplicate) return { saved: false };
+
+  const { data, error } = await client
+    .from("nova_memories")
+    .insert({ user_id: req.user.id, content, category, source: "nova" })
+    .select("id, content, category, source")
+    .single();
+  if (error) throw error;
+  return { saved: Boolean(data), memory: data };
+}
+
 // --------------------------------------------------
 // SAYFALAR VE SAĞLIK KONTROLÜ
 // --------------------------------------------------
@@ -1704,7 +1798,7 @@ app.get("/api/memories", requireAuth, asyncRoute(async (req, res) => {
   const client = getUserSupabase(req);
   const { data, error } = await client
     .from("nova_memories")
-    .select("id, content, category, created_at, updated_at")
+    .select("id, content, category, source, created_at, updated_at")
     .eq("user_id", req.user.id)
     .order("updated_at", { ascending: false })
     .limit(50);
@@ -1713,6 +1807,18 @@ app.get("/api/memories", requireAuth, asyncRoute(async (req, res) => {
     return res.status(503).json({ error: "Hafıza tablosu henüz kurulmamış olabilir. Supabase SQL kurulumunu tamamla." });
   }
   return res.json({ success: true, memories: data || [] });
+}));
+
+app.post("/api/memories/learn", requireAuth, asyncRoute(async (req, res) => {
+  const message = typeof req.body?.message === "string" ? req.body.message.trim().slice(0, 1800) : "";
+  if (!message) return res.status(400).json({ saved: false });
+  try {
+    const result = await learnUserMemory(req, message);
+    return res.json(result);
+  } catch (error) {
+    console.error("[NOVA AI] Otomatik hafıza öğrenme atlandı:", error.message);
+    return res.json({ saved: false });
+  }
 }));
 
 app.post("/api/memories", requireAuth, asyncRoute(async (req, res) => {
@@ -1724,8 +1830,8 @@ app.post("/api/memories", requireAuth, asyncRoute(async (req, res) => {
   const client = getUserSupabase(req);
   const { data, error } = await client
     .from("nova_memories")
-    .insert({ user_id: req.user.id, content, category: category || "general" })
-    .select("id, content, category, created_at, updated_at")
+    .insert({ user_id: req.user.id, content, category: category || "general", source: "user" })
+    .select("id, content, category, source, created_at, updated_at")
     .single();
   if (error) {
     console.error("[NOVA AI] Hafıza kaydetme hatası:", error.message);
@@ -1743,10 +1849,10 @@ app.patch("/api/memories/:id", requireAuth, asyncRoute(async (req, res) => {
   const client = getUserSupabase(req);
   const { data, error } = await client
     .from("nova_memories")
-    .update({ content, category: category || "general", updated_at: new Date().toISOString() })
+    .update({ content, category: category || "general", source: "user", updated_at: new Date().toISOString() })
     .eq("id", req.params.id)
     .eq("user_id", req.user.id)
-    .select("id, content, category, created_at, updated_at")
+    .select("id, content, category, source, created_at, updated_at")
     .maybeSingle();
   if (error) return res.status(503).json({ error: "Hafıza notu güncellenemedi." });
   if (!data) return res.status(404).json({ error: "Hafıza notu bulunamadı." });
