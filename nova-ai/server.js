@@ -1715,6 +1715,7 @@ async function requestApiFootball(url, signal) {
 }
 
 const apiFootballTeamCache = new Map();
+const apiFootballFixtureCache = new Map();
 
 async function searchLatestFootballResultWithApiFootball(query, signal) {
   if (!API_FOOTBALL_KEY) return null;
@@ -1736,12 +1737,17 @@ async function searchLatestFootballResultWithApiFootball(query, signal) {
     apiFootballTeamCache.set(normalizeSportsText(searchTerm), teamId);
   }
 
-  const fixturesUrl = new URL("https://v3.football.api-sports.io/fixtures");
-  fixturesUrl.searchParams.set("team", String(teamId));
-  fixturesUrl.searchParams.set("last", "5");
-  fixturesUrl.searchParams.set("timezone", "Europe/Istanbul");
-  const fixturePayload = await requestApiFootball(fixturesUrl, signal);
-  const fixtures = Array.isArray(fixturePayload.response) ? fixturePayload.response : [];
+  let fixturePayload = apiFootballFixtureCache.get(teamId);
+  if (!fixturePayload || fixturePayload.expiresAt <= Date.now()) {
+    const fixturesUrl = new URL("https://v3.football.api-sports.io/fixtures");
+    fixturesUrl.searchParams.set("team", String(teamId));
+    fixturesUrl.searchParams.set("last", "5");
+    fixturesUrl.searchParams.set("timezone", "Europe/Istanbul");
+    const freshPayload = await requestApiFootball(fixturesUrl, signal);
+    fixturePayload = { payload: freshPayload, expiresAt: Date.now() + 30000 };
+    apiFootballFixtureCache.set(teamId, fixturePayload);
+  }
+  const fixtures = Array.isArray(fixturePayload.payload.response) ? fixturePayload.payload.response : [];
   const finishedStatuses = ["FT", "AET", "PEN"];
   const liveStatuses = ["1H", "HT", "2H", "ET", "BT", "P", "SUSP", "INT"];
   const relevant = fixtures.filter((item) =>
