@@ -2128,6 +2128,29 @@ function buildOpponentResearchQuery(originalQuery, footballResults) {
   return opponent + " son maçları güncel form durumu performansı son haftalar";
 }
 
+function buildDynamicFollowUpStep(originalQuery = "", completedStep = {}, stepResults = [], planLog = []) {
+  const query = String(originalQuery || "").trim();
+  const asksForDeepResearch =
+    /\\b(karşılaştır|karsilastir|kıyasla|kiyasla|detaylı|detayli|derinlemesine|analiz|araştır|arastir|incele|güncel durum|guncel durum|artıları|eksileri|avantaj|dezavantaj)\\b/i.test(query);
+  const alreadyRetried = planLog.some((item) => item.dynamic === true);
+  if (
+    !asksForDeepResearch ||
+    alreadyRetried ||
+    completedStep.tool !== "web_search" ||
+    completedStep.dynamicFollowUp ||
+    stepResults.length >= 3
+  ) {
+    return null;
+  }
+
+  return {
+    tool: "web_search",
+    query: query + " güvenilir kaynaklar resmî açıklamalar güncel veriler",
+    label: "İlk bulguları ek kaynaklarla doğrula ve eksik noktaları tamamla",
+    dynamicFollowUp: true,
+  };
+}
+
 function registerStreamingEndpoint(route, extraInstruction, customError) {
   app.post(
     route,
@@ -2157,7 +2180,9 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
         const collectedResults = [];
         const planLog = [];
         try {
-          for (let index = 0; index < agentPlan.length; index++) {
+          let index = 0;
+          const maxAgentSteps = 4;
+          while (index < agentPlan.length && index < maxAgentSteps) {
             if (searchController.signal.aborted || controller.signal.aborted) break;
             const step = agentPlan[index];
             let stepResults = [];
@@ -2201,11 +2226,24 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               success: stepResults.length > 0,
               resultCount: stepResults.length,
               note: stepNote,
+              dynamic: step.dynamicFollowUp === true,
             });
             console.log(
               "[NOVA AI] Agent adımı " + (index + 1) + "/" + agentPlan.length + ":",
               step.tool, "-", stepResults.length, "sonuç."
             );
+
+            const dynamicStep = buildDynamicFollowUpStep(
+              latestQuestion,
+              step,
+              stepResults,
+              planLog
+            );
+            if (dynamicStep && agentPlan.length < maxAgentSteps) {
+              agentPlan.push(dynamicStep);
+              console.log("[NOVA AI] Agent yeni bir doğrulama adımı planladı:", dynamicStep.label);
+            }
+            index++;
           }
 
           if (collectedResults.length) {
@@ -2213,14 +2251,14 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
           }
           const planSummary = [
             "NOVA AI GÖREV PLANI VE SONUÇ KONTROLÜ:",
-            "Kullanıcının isteğini aşağıdaki adımlarla yürüttün. Yalnızca başarıyla tamamlanan adımların sonuçlarını kullan; başarısız veya atlanan adımı tamamlanmış gibi gösterme.",
+            "Kullanıcının isteğini aşağıdaki adımlarla yürüttün. Plan, elde edilen bulgulara göre gerektiğinde genişletilmiş olabilir. Yalnızca başarıyla tamamlanan adımların sonuçlarını kullan; başarısız veya atlanan adımı tamamlanmış gibi gösterme.",
             ...planLog.map((step, index) =>
               (index + 1) + ". " + step.label + ": " +
               (step.success ? (step.resultCount + " sonuç alındı") : "doğrulanmış sonuç alınamadı") +
               (step.note ? " — " + step.note : "")
             ),
             agentPlan.length > 1
-              ? "Bu çok adımlı görevde adımları birbirine bağla, ortak noktaları ve çelişkileri kontrol et, ardından tek ve kısa bir analiz üret. Yanıtın sonunda 'NOVA'nın izlediği adımlar' başlığıyla tamamlanan adımları birer kısa madde halinde belirt."
+              ? "Bu çok adımlı görevde adımları birbirine bağla, ortak noktaları ve çelişkileri kontrol et, ardından tek ve kısa bir analiz üret. Dinamik ek adım çalıştıysa bunun nedenini abartmadan açıkla. Yanıtın sonunda 'NOVA'nın izlediği adımlar' başlığıyla gerçekten yürütülen adımları birer kısa madde halinde belirt."
               : "",
             "Kaynaklardan gelmeyen ayrıntıları tamamlama veya uydurma.",
           ].filter(Boolean).join("\n");
