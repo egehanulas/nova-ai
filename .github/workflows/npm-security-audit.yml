@@ -1,0 +1,34 @@
+name: npm security audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "nova-ai/package.json"
+      - ".github/workflows/npm-security-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+
+      - name: Generate a temporary lockfile
+        working-directory: nova-ai
+        run: npm install --package-lock-only --ignore-scripts --no-audit
+
+      - name: Report production dependency vulnerabilities
+        working-directory: nova-ai
+        run: |
+          npm audit --omit=dev --json > npm-audit.json || true
+          node -e 'const r=require("./npm-audit.json"); console.log("VULNERABILITY SUMMARY:", JSON.stringify(r.metadata?.vulnerabilities || {})); for (const [name, item] of Object.entries(r.vulnerabilities || {})) { const via=(item.via || []).map(v => typeof v === "string" ? v : v.title).join(" | "); console.log(name + " | severity=" + item.severity + " | range=" + item.range + " | fix=" + JSON.stringify(item.fixAvailable) + " | via=" + via); }'
