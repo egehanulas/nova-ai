@@ -1844,16 +1844,26 @@ function getFootballTeamSearchTerm(query = "") {
   const alias = aliases.find((item) => item.terms.some((term) => normalized.includes(term)));
   if (alias) return alias.search;
 
+  const ignoredWords = new Set([
+    "son", "en", "oynadigi", "mac", "maci", "macini", "maclar", "maclari",
+    "maclarinin", "kac", "bitti", "skor", "sonucu", "sonuc", "karsilasmasi",
+    "karsilasma", "ne", "oldu", "siradaki", "sonraki", "bir", "gelecek",
+    "yaklasan", "fikstur", "fiksturu", "rakip", "rakibin", "rakibinin",
+    "rakibine", "form", "analiz", "performans", "degerlendir", "karsilastir",
+    "last", "match", "matches", "result", "results", "score", "finished",
+    "ended", "final", "next", "upcoming", "fixture", "opponent", "recent",
+    "five", "and", "the", "was", "did", "what", "vs", "ile", "ve", "icin",
+    "tamamlanmis", "tamamlanan", "bes", "5", "2026", "2027"
+  ]);
+
   return normalized
-    .replace(/\b(son|en|oynadigi|oynadigi|mac|maci|kac|bitti|skor|sonucu|sonuc|karsilasmasi|karsilasma|ne|oldu|last|match|result|score|finished|ended|final)\b/g, " ")
-    .replace(/\b(nin|nun|nün|in|un|the|was|did|what)\b/g, " ")
-    .replace(/(nin|nun|nün|in|un)$/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 3)
-    .join(" ");
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .map((token) => token.replace(/(nin|nun|in|un|dan|den|tan|ten)$/g, ""))
+    .filter((token) => token && !ignoredWords.has(token) && !/^\d+$/.test(token))
+    .slice(0, 4)
+    .join(" ")
+    .trim();
 }
 
 async function requestApiFootball(url, signal) {
