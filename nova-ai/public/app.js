@@ -506,9 +506,9 @@
     if (!conversation) return;
 
     const approved = await showNovaDialog({
-      title: "Bu sohbet silinsin mi?",
-      message: `“${conversation.title || "Yeni sohbet"}” başlıklı sohbet ve içindeki tüm mesajlar silinecek. Bu işlem geri alınamaz.`,
-      confirmText: "Sohbeti sil",
+      title: "Bu konuşmayı silelim mi?",
+      message: `“${conversation.title || "Yeni sohbet"}” sohbeti ve içindeki mesajlar silinecek. Sildikten sonra geri getiremezsin.`,
+      confirmText: "Evet, sil",
       cancelText: "Vazgeç",
       danger: true
     });
