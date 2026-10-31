@@ -34,13 +34,16 @@ Render'da servis kök dizini `nova-ai/`, build komutu `npm install`, start komut
 - `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID`: isteğe bağlı TTS endpoint'i.
 - `REQUEST_TIMEOUT_MS`, `PROVIDER_TIMEOUT_MS`: istek ve sağlayıcı zaman aşımı.
 
+Kod sözdizimi kontrolü için `npm run check` çalıştır.
+
 ## Supabase
 
 - `supabase-schema.sql`: sohbet geçmişi tablosu ve RLS politikaları.
 - `supabase/migrations/003_nova_memories.sql` ve `004_nova_memory_sources.sql`: kalıcı hafıza tabloları/alanları.
+- `supabase/migrations/005_nova_image_storage.sql`: özel görsel bucket'ı ve kullanıcı klasörü bazlı Storage RLS politikaları.
 - `supabase/migrations/001_unreal_knowledge_base.sql` ve `002_local_embeddings_384.sql`: Unreal Engine bilgi tabanı ve vektör araması.
 
-Unreal dokümanlarını içe aktarmak için `SUPABASE_URL` ve `SUPABASE_SERVICE_ROLE_KEY` tanımlı güvenilir ortamda `npm run ingest:knowledge` çalıştır. GitHub Actions iş akışı da manuel olarak başlatılabilir.
+Görsel üretimi için `005_nova_image_storage.sql` dosyasını da Supabase SQL Editor'de çalıştır; bu işlem `nova-ai-images` özel bucket'ını ve kullanıcıya ait klasör politikalarını kurar. Unreal dokümanlarını içe aktarmak için `SUPABASE_URL` ve `SUPABASE_SERVICE_ROLE_KEY` tanımlı güvenilir ortamda `npm run ingest:knowledge` çalıştır. GitHub Actions iş akışı da manuel olarak başlatılabilir.
 
 ## Güvenilirlik notları
 
