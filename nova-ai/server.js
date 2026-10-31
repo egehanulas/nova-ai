@@ -1689,7 +1689,9 @@ function isSafeMemoryContent(content = "") {
 
 function extractExplicitName(text = "") {
   const value = String(text).trim();
-  const match = value.match(/(?:benim\s+)?(?:adım|ismim)\s+([\p{L}][\p{L}'’-]{1,30}(?:\s+[\p{L}][\p{L}'’-]{1,30})?)/iu);
+  // Yalnızca ilk isim sözcüğünü al; devamındaki "Bunu hatırla" gibi
+  // ifadeler yanlışlıkla soyadı/isim parçası olarak kaydedilmesin.
+  const match = value.match(/^(?:benim\\s+)?(?:adım|ismim)\\s+([\\p{L}][\\p{L}'’-]{1,30})\\b/iu);
   if (!match) return null;
   const name = match[1].trim().replace(/[.,!?;:]+$/, "");
   if (!name || name.length > 60) return null;
@@ -1716,7 +1718,7 @@ async function learnUserMemory(req, userText) {
   if (explicitName) {
     const content = "Kullanıcının adı " + explicitName + ".";
     const oldName = (existing || []).find((item) =>
-      item.category === "profile" && /kullanıcının adı\s+/i.test(item.content)
+      /kullanıcının adı\s+/i.test(item.content)
     );
     if (oldName) {
       const { data, error } = await client
