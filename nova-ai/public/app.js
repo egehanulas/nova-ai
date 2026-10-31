@@ -418,22 +418,95 @@
     return conversation;
   }
 
+  // NOVA onay ve bilgilendirme penceresi
+  function showNovaDialog({ title, message, confirmText = "Tamam", cancelText = "", danger = false }) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "nova-dialog-overlay";
+      overlay.setAttribute("role", "presentation");
+
+      const dialog = document.createElement("section");
+      dialog.className = "nova-dialog";
+      dialog.setAttribute("role", "alertdialog");
+      dialog.setAttribute("aria-modal", "true");
+      dialog.setAttribute("aria-labelledby", "nova-dialog-title");
+      dialog.setAttribute("aria-describedby", "nova-dialog-message");
+
+      const icon = document.createElement("div");
+      icon.className = danger ? "nova-dialog-icon danger" : "nova-dialog-icon";
+      icon.textContent = danger ? "!" : "✦";
+      icon.setAttribute("aria-hidden", "true");
+
+      const heading = document.createElement("h2");
+      heading.id = "nova-dialog-title";
+      heading.textContent = title;
+
+      const description = document.createElement("p");
+      description.id = "nova-dialog-message";
+      description.textContent = message;
+
+      const actions = document.createElement("div");
+      actions.className = "nova-dialog-actions";
+
+      const close = (result) => {
+        document.removeEventListener("keydown", onKeyDown);
+        overlay.classList.remove("is-visible");
+        window.setTimeout(() => overlay.remove(), 170);
+        resolve(result);
+      };
+
+      const confirm = document.createElement("button");
+      confirm.type = "button";
+      confirm.className = danger ? "nova-dialog-confirm danger" : "nova-dialog-confirm";
+      confirm.textContent = confirmText;
+      confirm.addEventListener("click", () => close(true));
+
+      if (cancelText) {
+        const cancel = document.createElement("button");
+        cancel.type = "button";
+        cancel.className = "nova-dialog-cancel";
+        cancel.textContent = cancelText;
+        cancel.addEventListener("click", () => close(false));
+        actions.append(cancel);
+      }
+
+      actions.append(confirm);
+      dialog.append(icon, heading, description, actions);
+      overlay.append(dialog);
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay && cancelText) close(false);
+      });
+
+      const onKeyDown = (event) => {
+        if (event.key === "Escape" && cancelText) close(false);
+        if (event.key === "Tab") {
+          event.preventDefault();
+          confirm.focus();
+        }
+      };
+
+      document.addEventListener("keydown", onKeyDown);
+      document.body.append(overlay);
+      requestAnimationFrame(() => {
+        overlay.classList.add("is-visible");
+        confirm.focus();
+      });
+    });
+  }
+
   // Sohbet silme
   async function deleteConversation(conversationId) {
-    const conversation = conversations.find(
-      (item) => item.id === conversationId
-    );
-
+    const conversation = conversations.find((item) => item.id === conversationId);
     if (!conversation) return;
 
-    if (
-      !window.confirm(
-        `"${conversation.title || "Yeni sohbet"}" ` +
-        "sohbetini silmek istiyor musun?"
-      )
-    ) {
-      return;
-    }
+    const approved = await showNovaDialog({
+      title: "Sohbet silinsin mi?",
+      message: `"${conversation.title || "Yeni sohbet"}" sohbeti kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      confirmText: "Sohbeti Sil",
+      cancelText: "Vazgeç",
+      danger: true
+    });
+    if (!approved) return;
 
     try {
       if (!conversation._isNew) {
@@ -442,23 +515,20 @@
           .delete()
           .eq("id", conversationId)
           .eq("user_id", currentUser.id);
-
         if (error) throw error;
       }
 
-      conversations = conversations.filter(
-        (item) => item.id !== conversationId
-      );
-
-      if (currentId === conversationId) {
-        currentId = conversations[0]?.id || null;
-      }
-
+      conversations = conversations.filter((item) => item.id !== conversationId);
+      if (currentId === conversationId) currentId = conversations[0]?.id || null;
       renderHistory();
       renderMessages();
     } catch (error) {
       console.error("Sohbet silinemedi:", error);
-      alert("Sohbet silinemedi: " + error.message);
+      await showNovaDialog({
+        title: "Silme işlemi başarısız",
+        message: error.message || "Sohbet silinirken beklenmeyen bir hata oluştu.",
+        confirmText: "Anladım"
+      });
     }
   }
 
