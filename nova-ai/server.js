@@ -1453,23 +1453,6 @@ async function searchPublicWeb(query, signal) {
   const cleanQuery = String(query || "").replace(/\s+/g, " ").trim().slice(0, 500);
   if (!cleanQuery) return [];
 
-  const url = new URL("https://html.duckduckgo.com/html/");
-  url.searchParams.set("q", cleanQuery);
-
-  const response = await fetch(url, {
-    method: "GET",
-    signal,
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; NOVAAI/1.0; +https://nova-ai-xxid.onrender.com)",
-      "Accept": "text/html,application/xhtml+xml",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Web arama sağlayıcısı HTTP " + response.status);
-  }
-
-  const html = (await response.text()).slice(0, 1200000);
   const decodeEntities = (value) => String(value || "")
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
@@ -1483,41 +1466,119 @@ async function searchPublicWeb(query, signal) {
     String(value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
   );
 
-  const results = [];
-  const pattern = /<a\b(?=[^>]*class=["'][^"']*\bresult__a\b[^"']*["'])[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-  let match;
+  const providers = [
+    {
+      name: "DuckDuckGo",
+      url: () => {
+        const url = new URL("https://html.duckduckgo.com/html/");
+        url.searchParams.set("q", cleanQuery);
+        return url;
+      },
+      parse: (html) => {
+        const results = [];
+        const pattern = /<a\b(?=[^>]*class=["'][^"']*\bresult__a\b[^"']*["'])[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+        let match;
 
-  while ((match = pattern.exec(html)) && results.length < 5) {
-    let href = decodeEntities(match[1]);
+        while ((match = pattern.exec(html)) && results.length < 5) {
+          let href = decodeEntities(match[1]);
+          try {
+            const parsed = new URL(href, "https://html.duckduckgo.com");
+            if (parsed.hostname.endsWith("duckduckgo.com")) {
+              const redirected = parsed.searchParams.get("uddg");
+              if (redirected) href = redirected;
+            }
+            const target = new URL(href);
+            if (!["http:", "https:"].includes(target.protocol) || target.username || target.password) continue;
+
+            const title = stripTags(match[2]).slice(0, 220);
+            const after = html.slice(pattern.lastIndex, pattern.lastIndex + 1800);
+            const snippetMatch = after.match(/class=["'][^"']*\bresult__snippet\b[^"']*["'][^>]*>([\s\S]*?)<\/(?:a|div|td)/i);
+            const snippet = stripTags(snippetMatch?.[1] || "").slice(0, 700);
+            if (!title || results.some((item) => item.url === target.href)) continue;
+
+            results.push({ title, url: target.href, snippet, domain: target.hostname });
+          } catch {
+            continue;
+          }
+        }
+        return results;
+      },
+    },
+    {
+      name: "Bing",
+      url: () => {
+        const url = new URL("https://www.bing.com/search");
+        url.searchParams.set("q", cleanQuery);
+        return url;
+      },
+      parse: (html) => {
+        const results = [];
+        const blocks = html.match(/<li\b[^>]*class=["'][^"']*\bb_algo\b[^"']*["'][\s\S]*?<\/li>/gi) || [];
+
+        for (const block of blocks) {
+          if (results.length >= 5) break;
+          const link = block.match(/<h2\b[^>]*>\s*<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i);
+          if (!link) continue;
+
+          try {
+            const target = new URL(decodeEntities(link[1]));
+            if (!["http:", "https:"].includes(target.protocol) || target.username || target.password) continue;
+            const title = stripTags(link[2]).slice(0, 220);
+            const snippetMatch = block.match(/<(?:p|div)\b[^>]*class=["'][^"']*(?:b_caption|b_lineclamp)[^"']*["'][^>]*>([\s\S]*?)<\/(?:p|div)>/i);
+            const snippet = stripTags(snippetMatch?.[1] || "").slice(0, 700);
+            if (!title || results.some((item) => item.url === target.href)) continue;
+
+            results.push({ title, url: target.href, snippet, domain: target.hostname });
+          } catch {
+            continue;
+          }
+        }
+        return results;
+      },
+    },
+  ];
+
+  const failures = [];
+  for (const provider of providers) {
+    if (signal?.aborted) break;
+
     try {
-      const parsed = new URL(href, "https://html.duckduckgo.com");
-      if (parsed.hostname.endsWith("duckduckgo.com")) {
-        const redirected = parsed.searchParams.get("uddg");
-        if (redirected) href = redirected;
-      }
-      const target = new URL(href);
-      if (!["http:", "https:"].includes(target.protocol)) continue;
-      if (target.username || target.password) continue;
+      const providerSignal = signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(5000)])
+        : AbortSignal.timeout(5000);
 
-      const title = stripTags(match[2]).slice(0, 220);
-      const after = html.slice(pattern.lastIndex, pattern.lastIndex + 1800);
-      const snippetMatch = after.match(/class=["'][^"']*\bresult__snippet\b[^"']*["'][^>]*>([\s\S]*?)<\/(?:a|div|td)/i);
-      const snippet = stripTags(snippetMatch?.[1] || "").slice(0, 700);
-      if (!title || !target.hostname) continue;
-      if (results.some((item) => item.url === target.href)) continue;
-
-      results.push({
-        title,
-        url: target.href,
-        snippet,
-        domain: target.hostname,
+      const response = await fetch(provider.url(), {
+        method: "GET",
+        signal: providerSignal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml",
+          "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
+        },
       });
-    } catch {
-      continue;
+
+      if (!response.ok) {
+        throw new Error("HTTP " + response.status);
+      }
+
+      const html = (await response.text()).slice(0, 1500000);
+      const results = provider.parse(html);
+      if (results.length) {
+        console.log("[NOVA AI] Web araması sağlayıcısı:", provider.name, "-", results.length, "kaynak.");
+        return results;
+      }
+
+      failures.push(provider.name + ": sonuç ayrıştırılamadı");
+    } catch (error) {
+      failures.push(provider.name + ": " + (error.name === "TimeoutError" ? "zaman aşımı" : error.message));
+      console.warn("[NOVA AI] " + provider.name + " araması başarısız:", error.message);
     }
   }
 
-  return results;
+  if (failures.length) {
+    console.warn("[NOVA AI] Tüm web arama sağlayıcıları başarısız:", failures.join(" | "));
+  }
+  return [];
 }
 
 function buildWebResearchInstruction(results) {
