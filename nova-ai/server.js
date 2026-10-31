@@ -264,7 +264,7 @@ YANIT KURALLARI:
 ARAÇ KULLANIMI:
 - Güncel veya dış kaynağa bağlı bilgi gerekiyorsa sağlanan arama/araç sonuçlarını kullan; araç çağrılmadıysa canlı doğrulama yaptığını söyleme.
 - Hava durumu ve futbol sonucu gibi yapılandırılmış araç verileri geldiyse yalnızca bu verileri kullan; eksik alanları tahmin etme.
-- Hava durumu önerilerinde anlık gözlemi istenen günün tahmininden ayır. "Yarın" sorusuna bugünkü sıcaklıkla cevap verme. Günlük tahminden saatlik kesinlik çıkarma; kıyafet/şemsiye önerisini yalnızca hedef günün yağış, hissedilen sıcaklık ve rüzgâr verilerine dayandır.
+- Hava durumu önerilerinde anlık gözlemi istenen günün tahmininden ayır. "Yarın" sorusuna bugünkü sıcaklıkla cevap verme. Günlük tahminden saatlik kesinlik çıkarma; kıyafet/şemsiye önerisini yalnızca hedef günün sıcaklık, varsa hissedilen sıcaklık, yağış ve rüzgâr tahminlerine dayandır. Anlık hissedilen sıcaklığı gelecek günün değeri gibi kullanma.
 - Araç sonucu boş, eski veya başarısızsa bunu açıkça belirt; başarılıymış gibi davranma.
 - Basit sohbet, yazım, fikir üretme ve genel açıklama isteklerinde gereksiz araç çağrısı yapma.
 
@@ -1729,12 +1729,18 @@ function getIstanbulDateOffset(offset = 0) {
   return date.toISOString().slice(0, 10);
 }
 
+function addWeatherDateOffset(baseDate, offset = 0) {
+  const date = new Date(String(baseDate) + "T00:00:00Z");
+  date.setUTCDate(date.getUTCDate() + Number(offset || 0));
+  return date.toISOString().slice(0, 10);
+}
+
 function getWeatherTargetDates(query = "", availableDates = []) {
   const dates = Array.isArray(availableDates)
     ? availableDates.map((value) => String(value || "").slice(0, 10)).filter(Boolean)
     : [];
   const value = normalizeWeatherText(query);
-  const today = getIstanbulDateOffset(0);
+  const today = dates[0] || getIstanbulDateOffset(0);
   let targets = [];
 
   if (value.includes("hafta sonu")) {
@@ -1744,7 +1750,7 @@ function getWeatherTargetDates(query = "", availableDates = []) {
     });
   } else if (value.includes("bu hafta")) {
     const todayDay = new Date(today + "T00:00:00Z").getUTCDay();
-    const weekEnd = getIstanbulDateOffset((7 - todayDay) % 7);
+    const weekEnd = addWeatherDateOffset(today, (7 - todayDay) % 7);
     targets = dates.filter((date) => date >= today && date <= weekEnd);
   } else if (value.includes("haftalik") || value.includes("7 gun")) {
     targets = dates.slice(0, 7);
@@ -1752,12 +1758,12 @@ function getWeatherTargetDates(query = "", availableDates = []) {
     const afterMatch = value.match(/(\d{1,2})\s+gun\s+sonra/);
     const rangeMatch = value.match(/(?:onumuzdeki\s+)?(\d{1,2})\s+gun(?:luk)?/);
     if (afterMatch) {
-      targets = [getIstanbulDateOffset(Number(afterMatch[1]))];
+      targets = [addWeatherDateOffset(today, Number(afterMatch[1]))];
     } else if (rangeMatch) {
       const count = Math.max(1, Math.min(7, Number(rangeMatch[1])));
-      targets = Array.from({ length: count }, (_, index) => getIstanbulDateOffset(index));
+      targets = Array.from({ length: count }, (_, index) => addWeatherDateOffset(today, index));
     } else if (value.includes("yarin")) {
-      targets = [getIstanbulDateOffset(1)];
+      targets = [addWeatherDateOffset(today, 1)];
     } else {
       const weekdays = [
         ["pazar", 0], ["pazartesi", 1], ["sali", 2], ["carsamba", 3],
@@ -1766,7 +1772,7 @@ function getWeatherTargetDates(query = "", availableDates = []) {
       const requestedDay = weekdays.find(([name]) => value.includes(name));
       if (requestedDay) {
         const todayDay = new Date(today + "T00:00:00Z").getUTCDay();
-        targets = [getIstanbulDateOffset((requestedDay[1] - todayDay + 7) % 7)];
+        targets = [addWeatherDateOffset(today, (requestedDay[1] - todayDay + 7) % 7)];
       } else {
         targets = [today];
       }
@@ -2193,6 +2199,8 @@ async function searchWeatherWithWttr(location, signal, query = "") {
       "Tahmin tarihi: " + date,
       "Durum: " + (representativeHour?.weatherDesc?.[0]?.value || "Belirtilmedi"),
       "En yüksek/en düşük sıcaklık: " + (day?.maxtempC ?? "Belirtilmedi") + " / " + (day?.mintempC ?? "Belirtilmedi") + " °C",
+      "Hissedilen en yüksek/en düşük: " + (hours.length ? Math.max(...hours.map((hour) => Number(hour.FeelsLikeC)).filter(Number.isFinite)) : "Belirtilmedi") + " / " + (hours.length ? Math.min(...hours.map((hour) => Number(hour.FeelsLikeC)).filter(Number.isFinite)) : "Belirtilmedi") + " °C",
+      "En yüksek rüzgâr hızı: " + (hours.length ? Math.max(...hours.map((hour) => Number(hour.windspeedKmph)).filter(Number.isFinite)) : "Belirtilmedi") + " km/sa",
       "Günlük en yüksek yağış olasılığı: " + (maxRainChance == null ? "Belirtilmedi" : maxRainChance + "%"),
       "Günlük toplam yağış: " + (day?.totalPrecip_mm ?? "Belirtilmedi") + " mm"
     ].join("\n");
@@ -2276,9 +2284,9 @@ async function searchCurrentWeather(query, signal) {
     forecastUrl.searchParams.set("latitude", String(place.latitude));
     forecastUrl.searchParams.set("longitude", String(place.longitude));
     forecastUrl.searchParams.set("current", "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m");
-    forecastUrl.searchParams.set("daily", "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,sunrise,sunset");
+    forecastUrl.searchParams.set("daily", "weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,sunrise,sunset");
     forecastUrl.searchParams.set("forecast_days", "7");
-    forecastUrl.searchParams.set("timezone", "Europe/Istanbul");
+    forecastUrl.searchParams.set("timezone", "auto");
     const weather = await request(forecastUrl);
     const current = weather.current;
     const daily = weather.daily;
@@ -2301,6 +2309,7 @@ async function searchCurrentWeather(query, signal) {
         "Tahmin tarihi: " + date,
         "Durum: " + weatherDescription(daily.weather_code?.[index]),
         "En yüksek/en düşük sıcaklık: " + (daily.temperature_2m_max?.[index] ?? "Belirtilmedi") + " / " + (daily.temperature_2m_min?.[index] ?? "Belirtilmedi") + " °C",
+        "Hissedilen en yüksek/en düşük: " + (daily.apparent_temperature_max?.[index] ?? "Belirtilmedi") + " / " + (daily.apparent_temperature_min?.[index] ?? "Belirtilmedi") + " °C",
         "Günlük en yüksek yağış olasılığı: " + (daily.precipitation_probability_max?.[index] == null ? "Belirtilmedi" : daily.precipitation_probability_max[index] + "%"),
         "Günlük toplam yağış: " + (daily.precipitation_sum?.[index] ?? "Belirtilmedi") + " mm",
         "En yüksek rüzgâr hızı: " + (daily.wind_speed_10m_max?.[index] ?? "Belirtilmedi") + " km/sa",
@@ -2311,7 +2320,7 @@ async function searchCurrentWeather(query, signal) {
 
     const snippet = [
       "Konum: " + placeName,
-      "Saat dilimi: Europe/Istanbul",
+      "Saat dilimi: " + (weather.timezone || "Belirtilmedi"),
       "Anlık gözlem zamanı: " + (current.time || "Belirtilmedi"),
       "Anlık hava durumu: " + weatherDescription(current.weather_code),
       "Anlık sıcaklık: " + current.temperature_2m + " °C",
@@ -3093,6 +3102,7 @@ app.get("/health", (req, res) => {
       elevenlabs: Boolean(ELEVENLABS_API_KEY && ELEVENLABS_VOICE_ID),
       supabase: Boolean(supabase),
       apiFootball: Boolean(API_FOOTBALL_KEY),
+      imageGeneration: Boolean(POLLINATIONS_API_KEY || (CLOUDFLARE_API_TOKEN && CLOUDFLARE_ACCOUNT_ID)),
       knowledgeBaseConfigured: Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY),
       embeddingModel: EMBEDDING_MODEL,
     },
@@ -3316,6 +3326,13 @@ app.post(
     }
 
     const { controller, clear } = createAbortController();
+    let clientDisconnected = false;
+    res.on("close", () => {
+      if (!res.writableEnded) {
+        clientDisconnected = true;
+        controller.abort();
+      }
+    });
 
     try {
       const response = await fetch(
@@ -3359,6 +3376,7 @@ app.post(
       }
 
       const audio = Buffer.from(await response.arrayBuffer());
+      if (clientDisconnected) return;
 
       res.setHeader("Content-Type", "audio/mpeg");
       res.setHeader("Content-Length", audio.length);
@@ -3367,6 +3385,7 @@ app.post(
       return res.send(audio);
     } catch (error) {
       if (error.name === "AbortError") {
+        if (clientDisconnected) return;
         return res.status(504).json({
           error: "Ses oluşturma işlemi zaman aşımına uğradı.",
         });
@@ -3425,6 +3444,13 @@ app.post(
     }[aspectRatio];
 
     const { controller, clear } = createAbortController(120000);
+    let clientDisconnected = false;
+    res.on("close", () => {
+      if (!res.writableEnded) {
+        clientDisconnected = true;
+        controller.abort();
+      }
+    });
 
     try {
       const model =
@@ -3439,6 +3465,9 @@ app.post(
       if (GEMINI_API_KEY) {
         try {
           const translationController = new AbortController();
+          const abortTranslation = () => translationController.abort(controller.signal.reason);
+          if (controller.signal.aborted) abortTranslation();
+          else controller.signal.addEventListener("abort", abortTranslation, { once: true });
           const translationTimeout = setTimeout(
             () => translationController.abort(),
             15000
@@ -3446,11 +3475,11 @@ app.post(
 
           try {
             const translationResponse = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
+              `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
               {
                 method: "POST",
                 signal: translationController.signal,
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY },
                 body: JSON.stringify({
                   systemInstruction: {
                     parts: [{
@@ -3529,6 +3558,7 @@ app.post(
             }
           } finally {
             clearTimeout(translationTimeout);
+            controller.signal.removeEventListener("abort", abortTranslation);
           }
         } catch (translationError) {
           console.warn("[NOVA AI] İstem düzenleyiciye ulaşılamadı; özgün istem kullanılacak.");
@@ -3536,6 +3566,9 @@ app.post(
       } else {
         console.warn("[NOVA AI] GEMINI_API_KEY tanımlı değil; özgün istem doğrudan kullanılacak.");
       }
+
+      if (clientDisconnected) return;
+      if (controller.signal.aborted) return res.status(504).json({ error: "Görsel istemi hazırlanırken zaman aşımı oluştu." });
 
       // Gemini kotası doluysa, mevcut metin model sağlayıcılarını yedek olarak kullan.
       // Türkçe istemi doğrudan görsel modeline göndermek, özellikle hayvan türünü bozabilir.
@@ -3552,6 +3585,8 @@ app.post(
               "Return only the English image prompt, with no explanation or quotation marks."
             ].join("\n")
           );
+          if (clientDisconnected) return;
+          if (controller.signal.aborted) return res.status(504).json({ error: "Görsel istemi hazırlanırken zaman aşımı oluştu." });
           if (compiled?.answer?.trim()) {
             imagePrompt = compiled.answer.trim();
             console.log(
@@ -3565,6 +3600,9 @@ app.post(
           );
         }
       }
+
+      if (clientDisconnected) return;
+      if (controller.signal.aborted) return res.status(504).json({ error: "Görsel istemi hazırlanırken zaman aşımı oluştu." });
 
       // Modelin ana konuyu kaybetmesini azaltan kısa, tutarlı son kontrol notları.
       // Kullanıcının isteğiyle çelişebilecek uzun ve tekrarlı negatif etiketler ekleme.
@@ -3639,6 +3677,7 @@ app.post(
       }
       }
 
+      if (clientDisconnected) return;
       if (!response.ok) {
         const details = await response.text().catch(() => "");
 
@@ -3684,6 +3723,7 @@ app.post(
       });
     } catch (error) {
       if (error.name === "AbortError") {
+        if (clientDisconnected) return;
         return res.status(504).json({
           error: "Görsel oluşturma şu anda uzun sürdü. Lütfen biraz sonra tekrar dene.",
         });
@@ -3742,6 +3782,7 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("OpenRouter:", OPENROUTER_API_KEY ? "Ayarlı" : "Ayarlı değil");
   console.log("Groq:", GROQ_API_KEY ? "Ayarlı" : "Ayarlı değil");
   console.log("API-Football:", API_FOOTBALL_KEY ? "Ayarlı" : "Ayarlı değil");
+  console.log("Görsel üretimi:", POLLINATIONS_API_KEY ? "Pollinations ayarlı" : (CLOUDFLARE_API_TOKEN && CLOUDFLARE_ACCOUNT_ID) ? "Cloudflare ayarlı" : "Ayarlı değil");
   console.log(
     "ElevenLabs:",
     ELEVENLABS_API_KEY && ELEVENLABS_VOICE_ID
