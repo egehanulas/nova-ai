@@ -958,3 +958,36 @@ body, .main-panel { background: #111015; color: #f3eff8; }
 @media (max-width:680px) {
   .sidebar { background: #17151d; }
 }
+
+
+/* NOVA logo fit: keep every existing position, remove the visible tile behind the mark. */
+.logo-image,
+.profile-avatar,
+.nova-avatar-image {
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  border-radius: inherit;
+}
+
+.assistant-message .message-avatar,
+.welcome-icon {
+  padding: 0 !important;
+  overflow: hidden;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.assistant-message .message-avatar .nova-avatar-image,
+.welcome-icon .nova-avatar-image {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  border-radius: inherit;
+}
