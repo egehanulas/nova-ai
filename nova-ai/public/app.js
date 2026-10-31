@@ -756,12 +756,12 @@
       welcome.className = "welcome";
 
       const heading = document.createElement("h1");
-      heading.textContent = "Merhaba, ben NOVA AI.";
+      heading.textContent = "Selam, ben NOVA.";
 
       const description = document.createElement("p");
       description.textContent =
-        "Aklındaki soruları sor, fikirlerini geliştir veya " +
-        "yeni bir şey keşfet. Sana nasıl yardımcı olabilirim?";
+        "Aklındakileri anlat, birlikte düşünelim. Bir sorunun, fikrin " +
+        "ya da sadece sohbet etme isteğin varsa buradayım.";
 
       welcome.append(
         createNovaAvatar("welcome-icon"),
