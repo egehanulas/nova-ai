@@ -11,6 +11,12 @@
   const newChatButton = $("#newChat");
   const researchButton = $("#research");
   const menuButton = $("#menu");
+  const memoryButton = document.createElement("button");
+  memoryButton.type = "button";
+  memoryButton.className = "research-toggle nova-memory-button";
+  memoryButton.innerHTML = '<span class="research-icon" aria-hidden="true">✧</span><span class="research-copy"><span class="research-title">NOVA hafızası</span><span class="research-subtitle">Seni daha iyi tanısın</span></span><span class="research-indicator" aria-hidden="true">↗</span>';
+  $("#research")?.parentElement?.insertBefore(memoryButton, $("#research"));
+
   const scrim = $("#scrim");
   const layout = $("#layout");
 
@@ -1343,6 +1349,151 @@
   function previewSigned(src,alt){const content=document.createElement("div"),img=document.createElement("img");img.src=src;img.alt=alt;img.style.cssText="display:block;max-width:100%;max-height:65vh;object-fit:contain;margin:auto";content.append(img);studio({title:"Görsel önizleme",subtitle:alt,content});}
   imageGenerateButton?.addEventListener("click",openImagePrompt);
   galleryButton?.addEventListener("click",openImageGallery);
+
+  async function memoryRequest(path, options = {}) {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    const token = data.session?.access_token;
+    if (!token) throw new Error("Oturum süren dolmuş. Yeniden giriş yap.");
+    const response = await fetch(path, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+        ...(options.headers || {}),
+      },
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "İşlem tamamlanamadı.");
+    return result;
+  }
+
+  async function openMemoryManager() {
+    if (!currentUser) return;
+    const content = document.createElement("div");
+    const intro = document.createElement("p");
+    intro.className = "image-studio-note";
+    intro.textContent = "NOVA'nın sonraki sohbetlerde hatırlamasını istediğin tercihleri ve bilgileri buraya ekle. İstediğin zaman düzenleyebilir veya silebilirsin. Şifre gibi hassas bilgileri kaydetme.";
+    const formEl = document.createElement("form");
+    formEl.className = "nova-memory-form";
+    const input = document.createElement("textarea");
+    input.className = "image-studio-prompt";
+    input.maxLength = 1000;
+    input.rows = 3;
+    input.placeholder = "Örn. Bana samimi ve kısa cevaplar ver; Unreal Engine'de yeni başlayan biriyim.";
+    input.required = true;
+    const category = document.createElement("input");
+    category.className = "nova-memory-category";
+    category.maxLength = 40;
+    category.placeholder = "Kategori (örn. Tercihler)";
+    const save = document.createElement("button");
+    save.type = "submit";
+    save.className = "image-studio-primary";
+    save.textContent = "＋ Hafızaya ekle";
+    const status = document.createElement("p");
+    status.className = "image-studio-note";
+    status.setAttribute("role", "status");
+    const listTitle = document.createElement("h3");
+    listTitle.className = "nova-memory-list-title";
+    listTitle.textContent = "Hatırlananlar";
+    const list = document.createElement("div");
+    list.className = "nova-memory-list";
+    formEl.append(input, category, save);
+    content.append(intro, formEl, status, listTitle, list);
+    let overlay;
+    const close = () => closeStudio(overlay);
+    overlay = studio({ title: "NOVA hafızası", subtitle: "Önemli tercihlerin burada kalır; kontrolü sende.", content, onClose: close });
+
+    async function refresh() {
+      list.replaceChildren();
+      const loading = document.createElement("p");
+      loading.className = "image-studio-note";
+      loading.textContent = "Hafıza yükleniyor…";
+      list.append(loading);
+      const result = await memoryRequest("/api/memories");
+      list.replaceChildren();
+      if (!result.memories?.length) {
+        const empty = document.createElement("p");
+        empty.className = "image-studio-note";
+        empty.textContent = "Henüz kayıt yok. Yukarıdan ilk notunu ekleyebilirsin.";
+        list.append(empty);
+        return;
+      }
+      result.memories.forEach((memory) => {
+        const card = document.createElement("article");
+        card.className = "nova-memory-card";
+        const meta = document.createElement("small");
+        meta.textContent = memory.category || "Genel";
+        const text = document.createElement("p");
+        text.textContent = memory.content;
+        const actions = document.createElement("div");
+        actions.className = "nova-memory-actions";
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "image-studio-secondary";
+        edit.textContent = "Düzenle";
+        edit.onclick = async () => {
+          const updated = window.prompt("Hafıza notunu düzenle:", memory.content);
+          if (updated === null) return;
+          if (!updated.trim() || updated.trim().length > 1000) {
+            status.textContent = "Not 1–1000 karakter arasında olmalı.";
+            return;
+          }
+          try {
+            await memoryRequest(`/api/memories/${encodeURIComponent(memory.id)}`, {
+              method: "PATCH",
+              body: JSON.stringify({ content: updated.trim(), category: memory.category || "general" }),
+            });
+            status.textContent = "Not güncellendi.";
+            await refresh();
+          } catch (error) { status.textContent = error.message; }
+        };
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "image-studio-secondary";
+        remove.textContent = "Sil";
+        remove.onclick = async () => {
+          if (!window.confirm("Bu hafıza notunu silmek istiyor musun?")) return;
+          try {
+            await memoryRequest(`/api/memories/${encodeURIComponent(memory.id)}`, { method: "DELETE" });
+            status.textContent = "Not silindi.";
+            await refresh();
+          } catch (error) { status.textContent = error.message; }
+        };
+        actions.append(edit, remove);
+        card.append(meta, text, actions);
+        list.append(card);
+      });
+    }
+
+    formEl.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const value = input.value.trim();
+      if (!value) return;
+      save.disabled = true;
+      try {
+        await memoryRequest("/api/memories", {
+          method: "POST",
+          body: JSON.stringify({ content: value, category: category.value.trim() || "general" }),
+        });
+        input.value = "";
+        category.value = "";
+        status.textContent = "Tamamdır, NOVA bunu hatırlayacak.";
+        await refresh();
+      } catch (error) {
+        status.textContent = error.message;
+      } finally { save.disabled = false; }
+    });
+    try { await refresh(); }
+    catch (error) {
+      list.replaceChildren();
+      const warning = document.createElement("p");
+      warning.className = "image-studio-note";
+      warning.textContent = error.message;
+      list.append(warning);
+    }
+  }
+  memoryButton.addEventListener("click", openMemoryManager);
 
   // Diğer dosyaların kullanacağı NOVA fonksiyonları
   window.NOVA = {
