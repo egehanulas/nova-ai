@@ -15,7 +15,7 @@
   memoryButton.type = "button";
   memoryButton.className = "research-toggle nova-memory-button";
   memoryButton.innerHTML = '<span class="research-icon" aria-hidden="true">✧</span><span class="research-copy"><span class="research-title">NOVA hafızası</span><span class="research-subtitle">Seni daha iyi tanısın</span></span><span class="research-indicator" aria-hidden="true">↗</span>';
-  $("#research")?.parentElement?.insertBefore(memoryButton, $("#research"));
+  $("#openImageGallery")?.parentElement?.insertBefore(memoryButton, $("#openImageGallery"));
 
   const scrim = $("#scrim");
   const layout = $("#layout");
