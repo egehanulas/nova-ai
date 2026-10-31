@@ -1,69 +1,50 @@
-# NOVA AI — başlangıç projesi
+# NOVA AI
 
-Koyu temalı Türkçe sohbet sitesi. Gerçek model yanıtları için sunucu tarafında Gemini API kullanır; ziyaretçilerden API anahtarı istemez.
+NOVA AI; Türkçe sohbet, kalıcı kullanıcı hafızası, canlı web araştırması, yapılandırılmış hava durumu/futbol sorguları ve Unreal Engine 5.8 bilgi tabanı için geliştirilmiş kişisel asistandır.
 
-## Yayınlamadan önce
-- Google AI Studio'dan bir Gemini API anahtarı oluştur.
-- GitHub'a bu projeyi yükle. `.env` dosyasını veya API anahtarını GitHub'a kesinlikle koyma.
-- Render gibi Node.js destekleyen bir hostta repo'yu bağla. Build command: `npm install`; Start command: `npm start`.
-- Host panelindeki Environment Variables bölümüne `GEMINI_API_KEY` değişkenini ekle. İstersen `GEMINI_MODEL` olarak Google AI Studio hesabında erişebildiğin bir model tanımla. Varsayılan sohbet modeli `gemini-2.5-flash`, resim modeli ise `gemini-2.5-flash-image` modelidir; erişilebilirlik ve ücretsiz kota hesaba göre değişebilir.
+## Çalışma yapısı
 
-## Güvenlik ve ücretsiz kullanım
-- Anahtar yalnızca sunucuda tutulur; tarayıcı koduna konmaz.
-- İstek başına IP tabanlı rate limit ve mesaj uzunluğu sınırları var. Bu, kötüye kullanımı tamamen engellemez; sağlayıcı panelinde kota/bildirim ayarlarını da kontrol et.
-- Ücretsiz host planları uykuya geçebilir, sınırlı kaynak veya kullanım koşulları uygulayabilir. Gemini ücretsiz kullanım koşulları ve kotaları da değişebilir. Herkese açık siteyi “sınırsız ve kesin ücretsiz” sayma.
-- Giriş yapan kullanıcının sohbet geçmişi Supabase `conversations` tablosuna kaydedilir; SQL şemasını Supabase SQL Editor'da çalıştır.
-- Resim oluşturma düğmesi Gemini Image modelini kullanır. `GEMINI_API_KEY` ve model erişimi/kota gerekir; sağlayıcı ücretleri değişebilir.
-- Araştırma modu şu an canlı web araması yapmaz; yalnızca modelin araştırma yönergesiyle yanıt üretir.
+- **Sohbet sağlayıcıları:** Groq, Gemini ve OpenRouter sırasıyla denenir. Bir sağlayıcı hata verirse, yanıt akışı henüz başlamadıysa sonraki sağlayıcıya geçilir.
+- **Araştırma:** Google News RSS, Bing ve DuckDuckGo kaynakları kullanılır. Haber aramalarında Google News önceliklidir; diğer güncel/faktüel sorgularda önce Bing ve DuckDuckGo denenir. Arama sonucu, kaynağın tamamının okunduğu veya bilginin bağımsız doğrulandığı anlamına gelmez.
+- **Hava durumu:** Open-Meteo birincil, wttr.in yedek kaynaktır. Bugün/yarın, haftalık görünüm, hafta sonu ve uygun gün adları için tarih aralığı seçilir. Saatlik tahmin istenirse günlük özetin saatlik kesinlik sağlamadığı belirtilmelidir.
+- **Futbol:** API-Football anahtarı tanımlanırsa yapılandırılmış fikstür/son maç verisi kullanılır. Anahtar yoksa web araştırmasına geri dönülür; web sonuçları doğrulanmış fikstür veya skor olarak kabul edilmemelidir.
+- **Hafıza:** Supabase RLS ile kullanıcıya özel kayıtlar saklanır. Hassas bilgiler otomatik hafızaya alınmamalıdır.
+- **Unreal Engine bilgi tabanı:** Blueprint sorularında Supabase vektör araması ve yerel `Xenova/all-MiniLM-L6-v2` embedding modeli kullanılır.
+- **Görsel üretimi:** Pollinations anahtarı varsa Pollinations, yoksa Cloudflare Workers AI kullanılır. Gemini/metin sağlayıcıları Türkçe istemi görsel modeli için düzenlemeye yardımcı olabilir.
+- **Ses:** Tarayıcıdaki Web Speech API ile sesli sohbet kullanılabilir. ElevenLabs endpoint'i ayrıca isteğe bağlıdır.
 
-## Yerel test
-1. Node.js kurulu olmalı.
-2. `npm install`
-3. `.env.example` dosyasını `.env` olarak kopyala ve `GEMINI_API_KEY` değerini gir.
-4. `npm start` çalıştırıp `http://localhost:3000` adresini aç.
+## Kurulum
 
+1. Node.js 20 veya üzeri kur.
+2. Bu klasörde `npm install` çalıştır.
+3. `.env.example` dosyasını `.env` olarak kopyala.
+4. En az bir sohbet sağlayıcısının API anahtarını ve Supabase bağlantı bilgilerini yerel `.env` dosyasına ekle.
+5. `npm start` çalıştır ve `http://localhost:3000` adresini aç.
 
-## Unreal Engine 5.8 bilgi tabanı (RAG) — ilk aşama
+Render'da servis kök dizini `nova-ai/`, build komutu `npm install`, start komutu `npm start` olmalıdır. Gerçek API anahtarlarını GitHub'a veya istemci koduna koyma.
 
-Bu dal, NOVA'nın Blueprint/Unreal Engine sorularında Supabase'teki yayınlanmış bilgi parçalarını arayıp yanıt sağlayıcılarına bağlam ekler.
+## Ortam değişkenleri
 
-### Embedding modeli ve gerekli Render değişkenleri
-- Embedding üretimi, ücretsiz ve açık ağırlıklı `Xenova/all-MiniLM-L6-v2` modeliyle sunucuda yerel olarak yapılır (384 boyut).
-- Embedding için `OPENAI_API_KEY` veya ücretli bir embedding API'si gerekmez. Model ilk kullanımda Hugging Face üzerinden indirilir ve Transformers.js önbelleğinde saklanır.
-- Mevcut `SUPABASE_URL` ve `SUPABASE_PUBLISHABLE_KEY` değişkenleri kullanılır.
-- Render'a `SUPABASE_SERVICE_ROLE_KEY` eklemek sorgulama akışı için gerekli değildir.
+- `GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`: sohbet sağlayıcıları; en az biri gerekli.
+- `GEMINI_MODEL`, `GROQ_MODEL`, `OPENROUTER_MODEL`: isteğe bağlı model seçimi.
+- `API_FOOTBALL_KEY`: yapılandırılmış futbol verisi için isteğe bağlı API anahtarı.
+- `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`: oturum, sohbet ve hafıza.
+- `SUPABASE_SERVICE_ROLE_KEY`: yalnızca güvenilir ortamda bilgi tabanı içe aktarımı için; uygulama istemcisine ekleme.
+- `POLLINATIONS_API_KEY` veya `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`: görsel üretimi.
+- `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID`: isteğe bağlı TTS endpoint'i.
+- `REQUEST_TIMEOUT_MS`, `PROVIDER_TIMEOUT_MS`: istek ve sağlayıcı zaman aşımı.
 
-### Supabase kurulumu
-1. Supabase Dashboard > SQL Editor bölümünü aç.
-2. `supabase/migrations/001_unreal_knowledge_base.sql` dosyasının tamamını çalıştır.
-3. SQL tamamlandığında `knowledge_sources`, `knowledge_documents`, `knowledge_chunks` ve `knowledge_ingestion_jobs` tabloları ile ilk `match_knowledge_chunks` arama fonksiyonu oluşturulur. Ardından `002_local_embeddings_384.sql` dosyasını da çalıştırarak ücretsiz yerel model için `knowledge_chunks_384` ve `match_knowledge_chunks_384` nesnelerini oluştur.
-4. Mevcut `conversations` tablosuna ve kullanıcı sohbetlerine dokunulmaz.
+## Supabase
 
-### Veri yükleme notu
-Bilgi tabanı tabloları oluşturulduğunda henüz otomatik olarak dokümanla dolmaz. İçerik aktarımı ayrı bir toplu içe aktarma adımıdır. Yalnızca kullanım ve lisans koşulları uygun kaynakları ekleyin; resmî Epic dokümanlarını birincil kaynak kabul edin. Topluluk içeriğini daha düşük güven seviyesinde işaretleyin.
+- `supabase-schema.sql`: sohbet geçmişi tablosu ve RLS politikaları.
+- `supabase/migrations/003_nova_memories.sql` ve `004_nova_memory_sources.sql`: kalıcı hafıza tabloları/alanları.
+- `supabase/migrations/001_unreal_knowledge_base.sql` ve `002_local_embeddings_384.sql`: Unreal Engine bilgi tabanı ve vektör araması.
 
-### Davranış ve güvenli geri dönüş
-- RAG yalnızca Unreal/Blueprint sorularında çalışır.
-- Eşleşen yayınlanmış içerik bulunmazsa NOVA mevcut model akışına devam eder.
-- Embedding veya vektör araması hata verirse sohbeti durdurmaz; hatayı sunucu loguna yazar ve mevcut yanıta geri döner.
-- Kaynak alıntıları model bağlamına başlık ve URL ile eklenir; kaynak metni güvenilmeyen içerik olarak ele alınır.
+Unreal dokümanlarını içe aktarmak için `SUPABASE_URL` ve `SUPABASE_SERVICE_ROLE_KEY` tanımlı güvenilir ortamda `npm run ingest:knowledge` çalıştır. GitHub Actions iş akışı da manuel olarak başlatılabilir.
 
+## Güvenilirlik notları
 
-### İlk resmî dokümanları içe aktarma
-
-İlk aktarım aracı `scripts/ingest-knowledge.js` dosyasındadır. Şimdilik yalnızca küçük ve seçilmiş Epic Developer Community sayfalarını işler; tüm siteyi taramaz.
-
-Gerekli ortam değişkenleri:
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY` — yalnızca güvenilir sunucu/yerel ortamda; tarayıcıya veya GitHub'a asla koyma.
-- OpenAI API anahtarı gerekmez; embedding modeli ücretsiz olarak yerel çalışır.
-
-Yerel kullanım:
-1. Proje klasöründe `npm install` çalıştır.
-2. Gizli değerleri yalnızca yerel `.env` dosyana ekle. `.env` dosyasını GitHub'a yükleme.
-3. `npm run ingest:knowledge` çalıştır.
-4. Terminalde her sayfa için `OK` veya `ATLANDI` sonucunu kontrol et.
-
-Araç; doküman metnini parçalara ayırır, Transformers.js ile 384 boyutlu yerel embedding'ler üretir ve Supabase bilgi tablolarına yazar. Aynı sayfa ve aynı içerik tekrar çalıştırıldığında aynı dokümanın parçalarını yeniden oluşturur. Başarısız sayfalar atlanır; hiçbir API anahtarı terminale yazdırılmaz.
-
-Not: Bu ilk sürüm, seçilmiş sayfaların metnini indekslemek içindir; Epic'in içerik kullanım koşulları ve atıf gereklilikleri geçerlidir. Kaynak bağlantıları veritabanında korunur. Daha geniş tarama veya topluluk kaynakları eklemeden önce ilgili kullanım koşulları ayrıca incelenmelidir.
+- Arama motoru sonuçları özet/snippet olabilir; NOVA kaynakta açıkça bulunmayan skor, tarih veya tahmin değerlerini uydurmamalıdır.
+- Hava durumu önerileri hedef günün tahminine dayanmalı; anlık gözlemle gelecek gün karıştırılmamalıdır.
+- API anahtarı, kota veya sağlayıcı erişimi yoksa ilgili özellik çalışmayabilir. Ücretsiz servislerin kota, hız ve kullanılabilirlik koşulları değişebilir.
+- `/health` endpoint'i servis durumunu ve anahtarların yalnızca ayarlı olup olmadığını gösterir; anahtar değerlerini döndürmez.
