@@ -1559,11 +1559,12 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
 
       if (isResearchRoute) {
         try {
-          const searchTimeout = setTimeout(() => controller.abort(), 12000);
+          const searchController = new AbortController();
+          const searchTimeout = setTimeout(() => searchController.abort(), 12000);
           try {
             const webResults = await searchPublicWeb(
               getLatestUserMessage(messages),
-              controller.signal
+              searchController.signal
             );
             webSearchInstruction = buildWebResearchInstruction(webResults);
             console.log("[NOVA AI] Web araması:", webResults.length, "kaynak bulundu.");
