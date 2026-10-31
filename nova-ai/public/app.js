@@ -440,7 +440,7 @@
 
       const icon = document.createElement("div");
       icon.className = danger ? "nova-dialog-icon danger" : "nova-dialog-icon";
-      icon.textContent = danger ? "!" : "✦";
+      icon.textContent = danger ? "⌫" : "i";
       icon.setAttribute("aria-hidden", "true");
 
       const heading = document.createElement("h2");
@@ -506,9 +506,9 @@
     if (!conversation) return;
 
     const approved = await showNovaDialog({
-      title: "Sohbet silinsin mi?",
-      message: `"${conversation.title || "Yeni sohbet"}" sohbeti kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
-      confirmText: "Sohbeti Sil",
+      title: "Bu sohbet silinsin mi?",
+      message: `“${conversation.title || "Yeni sohbet"}” başlıklı sohbet ve içindeki tüm mesajlar silinecek. Bu işlem geri alınamaz.`,
+      confirmText: "Sohbeti sil",
       cancelText: "Vazgeç",
       danger: true
     });
