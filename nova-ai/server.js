@@ -323,6 +323,8 @@ ARAŞTIRMA MODU:
 - Güncel bilgi gerekiyorsa güncel kaynak olmadan kesin konuşma.
 - Gerçek bir kaynağa erişmediysen kaynak veya bağlantı uydurma.
 - Araştırma modunda olman tek başına internete eriştiğin anlamına gelmez.
+- Yanıt uzunluğunu isteğe göre ayarla: kısa bilgi isteğinde kısa sonuç; kapsamlı araştırmada başlıklar, önemli bulgular ve kaynaklar kullan.
+- Kullanıcı istemedikçe araştırma sürecini veya izlenen araç adımlarını ayrıca anlatma.
 `;
 
 const BLUEPRINT_INSTRUCTION = `
@@ -397,6 +399,20 @@ function cleanModelAnswer(text) {
     result = cleaned;
   }
 
+  result = result.replace(/\\([*_#~>])/g, "$1").trim();
+
+  if (/^\s*\{[\s\S]*\}\s*$/.test(result)) {
+    try {
+      const payload = JSON.parse(result);
+      if (payload && typeof payload === "object" &&
+          (typeof payload.tool === "string" || typeof payload.function === "string" ||
+           payload.tool_calls || payload.arguments)) {
+        return "Bu isteği işlerken araştırma aracından düzgün bir sonuç alamadım. Bir kez daha dener misin?";
+      }
+    } catch {
+      // JSON değilse normal yanıt olarak bırak.
+    }
+  }
   return result.trim();
 }
 
@@ -475,10 +491,12 @@ function isBlueprintQuestion(messages = []) {
 
 function getGenerationSettings(messages = []) {
   const blueprintMode = isBlueprintQuestion(messages);
+  const latestQuestion = getLatestUserMessage(normalizeMessages(messages));
+  const briefRequest = /\b(kısaca|kısa anlat|kısa cevap|özetle|tek cümle|bir cümle|kısaca tanıt)\b/i.test(latestQuestion);
 
   return {
     temperature: blueprintMode ? 0.2 : 0.4,
-    maxOutputTokens: blueprintMode ? 1800 : 1800,
+    maxOutputTokens: briefRequest ? 350 : (blueprintMode ? 1800 : (isComplexQuestion(latestQuestion) ? 1800 : 950)),
   };
 }
 
@@ -572,7 +590,9 @@ KULLANICIYI ANLAMA VE YANITLAMA:
 - Kullanıcı "projemde neyi geliştirmeliyim?" diye sorarsa ve proje bağlamı biliniyorsa proje türünü, mevcut aşamasını ve daha önce konuşulan hedefleri esas al; genel proje kategorileri soran bir anketle başlama. Önce en önemli 1-3 geliştirme alanını ve nedenini söyle.
 - Bağlamda birden fazla olası proje/konu varsa en güçlü olasılığı kısaca belirtip yalnızca gerekiyorsa tek netleştirme sorusu sor. Hiçbir dayanak yoksa tahmin uydurmak yerine eksik olan tek kritik bilgiyi sor.
 - Kullanıcının asıl isteğine odaklan; ilgisiz varsayımlar ekleme ve sorulmamış ayrıntılara sapma.
-- Basit sorulara kısa ve doğal cevap ver. Karmaşık sorularda gerekli ayrıntıyı sun; sırf kapsamlı görünmek için uzun kontrol listeleri üretme.
+- Basit sorulara genellikle 1-3 cümleyle cevap ver. Kullanıcı "kısaca", "özetle" veya "tek cümle" dediyse buna kesinlikle uy; gereksiz başlık, madde, giriş ve kapanış ekleme.
+- Normal sohbet cevaplarını çoğunlukla 2-5 cümlede tut. Uzun açıklamayı yalnızca soru gerçekten gerektiriyorsa veya kullanıcı istiyorsa ver.
+- Hafızadaki kişisel bilgileri yalnızca soruyla doğrudan ilgiliyse kullan. İlgisiz hobileri ve kişisel bilgileri sırf kişiselleştirmek için cevaba ekleme.
 - Sorun giderirken önce en olası ve düşük riskli kontrolleri ele al. Cihaz, sürüm, model veya belirtiler bilinmiyorsa bunlara bağlı kesin öneriler verme.
 - BIOS güncelleme, parça değiştirme, veri silme veya ücretli işlem gibi riskli adımları yeterli teşhis olmadan ilk çözüm olarak önerme.
 - Gerektiğinde sorunu daraltacak en önemli bir veya iki soruyu sor; kullanıcıdan aynı anda uzun bir bilgi listesi isteme.

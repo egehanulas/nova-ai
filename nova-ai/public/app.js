@@ -830,7 +830,7 @@
         if (!isUser) main.append(name, content);
       } else {
         const answerText = typeof item.content === "string" ? item.content : "";
-        if (useBlueprintLayout || hasMarkdownTable(answerText)) {
+        if (!isUser) {
           renderBlueprintMarkdown(content, answerText);
           if (useBlueprintLayout) {
             content.classList.add("technical-guide-content");
@@ -843,7 +843,6 @@
           }
         } else {
           content.textContent = answerText;
-          if (!isUser) main.append(name, content);
         }
       }
       if (isUser) main.append(name, content);
