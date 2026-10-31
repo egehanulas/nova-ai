@@ -34,7 +34,7 @@ Render'da servis kök dizini `nova-ai/`, build komutu `npm install`, start komut
 - `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID`: isteğe bağlı TTS endpoint'i.
 - `REQUEST_TIMEOUT_MS`, `PROVIDER_TIMEOUT_MS`: istek ve sağlayıcı zaman aşımı.
 
-Kod sözdizimi kontrolü için `npm run check` çalıştır.
+Kod sözdizimi kontrolü için `npm run check` çalıştır; `npm start` öncesinde de bu kontrol otomatik çalışır.
 
 ## Supabase
 
