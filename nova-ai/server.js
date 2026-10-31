@@ -2214,15 +2214,20 @@ function buildWebResearchInstruction(results) {
 
 function isUpcomingFootballQuestion(query = "") {
   const value = normalizeSportsText(query);
-  const asksNext = /\\b(siradaki|sonraki|bir sonraki|gelecek|yaklasan|next)\\b/.test(value);
-  const asksFixture = /\\b(mac|karsilasma|rakip|fikstur|fixture)\\b/.test(value);
+  const asksNext = ["siradaki", "sonraki", "bir sonraki", "gelecek", "yaklasan", "next"]
+    .some((term) => value.includes(term));
+  const asksFixture = ["mac", "karsilasma", "rakip", "fikstur", "fixture"]
+    .some((term) => value.includes(term));
   return asksNext && asksFixture && Boolean(getFootballTeamSearchTerm(query));
 }
 
 function asksOpponentLastFive(query = "") {
   const value = normalizeSportsText(query);
-  return /son 5|son bes|son bes mac|son bes karsilasma/.test(value) ||
-    /rakibin.*son.*mac/.test(value) || /rakip.*form/.test(value);
+  const asksFive = value.includes("son 5") || value.includes("son bes");
+  const asksOpponent = value.includes("rakip");
+  const asksRecentMatches = value.includes("mac") || value.includes("karsilasma") || value.includes("form");
+  return (asksFive && (asksOpponent || asksRecentMatches)) ||
+    (asksOpponent && value.includes("son") && asksRecentMatches);
 }
 
 function buildAgentPlan(query = "", isResearchRoute = false) {
@@ -2249,8 +2254,8 @@ function buildAgentPlan(query = "", isResearchRoute = false) {
   }
   if (isFootballResultQuestion(value)) {
     const plan = [{ tool: "football", query: value, label: "Takımın son maçını ve skorunu doğrula" }];
-    const asksForOpponentAnalysis =
-      /\\b(rakip|rakibin|rakibinin|karşı takım|karsi takim|performans|form durumu|son maçlarını|son maclarini|analiz|değerlendir|degerlendir|karşılaştır|karsilastir)\\b/i.test(value);
+    const asksForOpponentAnalysis = ["rakip", "performans", "form", "analiz", "degerlendir", "karsilastir"]
+      .some((term) => normalizeSportsText(value).includes(term));
     if (asksForOpponentAnalysis) {
       plan.push({
         tool: "web_search",
