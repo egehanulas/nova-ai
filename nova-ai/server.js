@@ -1682,9 +1682,9 @@ function isWeatherQuestion(query = "") {
     "hava durumu", "hava nasil", "hava sicak", "hava soguk", "hava guzel",
     "hava kapali", "hava bulutlu", "hava kac derece", "kac derece",
     "sicaklik", "yagmur", "yagis", "kar yag", "ruzgar", "nem orani",
-    "semsiye", "disari cikilir mi", "disari cikmak", "ne giy",
+    "semsiye", "mont", "ceket", "kar var", "nem", "basinc", "disari cikilir mi", "disari cikmak", "ne giy",
     "gunesli mi", "bulutlu mu", "saganak", "firtina", "don olacak mi",
-    "sicak mi", "soguk mu", "buzlanma"
+    "sicak mi", "soguk mu", "usur muyum", "terler miyim", "buzlanma"
   ];
   return weatherIntents.some((intent) => value.includes(intent));
 }
@@ -1693,13 +1693,13 @@ function extractWeatherLocation(query = "") {
   const stopWords = new Set([
     "hava", "durumu", "nasil", "sicak", "soguk", "guzel", "kapali", "bulutlu",
     "acik", "derece", "kac", "sicaklik", "yagmur", "yagis", "ihtimali",
-    "yagacak", "yagiyor", "yagar", "kar", "ruzgar", "hizi", "nem", "orani",
+    "yagacak", "yagiyor", "yagar", "yagisi", "yagmura", "yagmurlu", "kar", "karli", "ruzgar", "hizi", "nem", "orani", "basinc",
     "semsiye", "alayim", "almaliyim", "disari", "cikilir", "cikmak",
     "gunesli", "saganak", "firtina", "don", "buzlanma", "mi", "mu",
     "var", "olacak", "bugun", "yarin", "su", "an", "simdi", "anlik",
     "icin", "hafta", "sonu", "pazartesi", "sali", "carsamba", "persembe",
     "cuma", "cumartesi", "pazar", "gun", "sonra", "onumuzdeki", "gunluk",
-    "ne", "giyeyim", "giysem", "giy", "aksam", "sabah", "ogle", "gece",
+    "ne", "giyeyim", "giysem", "giy", "mont", "ceket", "gerekli", "gerekir", "mantikli", "bekleniyor", "tahmin", "tahmini", "hissedilen", "km", "sa", "km sa", "aksam", "sabah", "ogle", "gece",
     "turkiye", "turkey"
   ]);
   return String(query)
@@ -1743,7 +1743,9 @@ function getWeatherTargetDates(query = "", availableDates = []) {
   const today = dates[0] || getIstanbulDateOffset(0);
   let targets = [];
 
-  if (value.includes("hafta sonu")) {
+  if (value.includes("onumuzdeki hafta") || value.includes("gelecek hafta")) {
+    targets = [];
+  } else if (value.includes("hafta sonu")) {
     targets = dates.filter((date) => {
       const day = new Date(date + "T00:00:00Z").getUTCDay();
       return day === 0 || day === 6;
@@ -2192,15 +2194,19 @@ async function searchWeatherWithWttr(location, signal, query = "") {
     const day = days[index];
     const hours = Array.isArray(day?.hourly) ? day.hourly : [];
     const representativeHour = hours.find((hour) => String(hour.time) === "1200") || hours[Math.floor(hours.length / 2)];
-    const maxRainChance = hours.length
-      ? Math.max(...hours.map((hour) => Number(hour.chanceofrain) || 0))
-      : null;
+    const rainValues = hours.map((hour) => Number(hour.chanceofrain)).filter(Number.isFinite);
+    const feelsLikeValues = hours.map((hour) => Number(hour.FeelsLikeC)).filter(Number.isFinite);
+    const windValues = hours.map((hour) => Number(hour.windspeedKmph)).filter(Number.isFinite);
+    const maxRainChance = rainValues.length ? Math.max(...rainValues) : null;
+    const maxFeelsLike = feelsLikeValues.length ? Math.max(...feelsLikeValues) : "Belirtilmedi";
+    const minFeelsLike = feelsLikeValues.length ? Math.min(...feelsLikeValues) : "Belirtilmedi";
+    const maxWind = windValues.length ? Math.max(...windValues) : "Belirtilmedi";
     return [
       "Tahmin tarihi: " + date,
       "Durum: " + (representativeHour?.weatherDesc?.[0]?.value || "Belirtilmedi"),
       "En yüksek/en düşük sıcaklık: " + (day?.maxtempC ?? "Belirtilmedi") + " / " + (day?.mintempC ?? "Belirtilmedi") + " °C",
-      "Hissedilen en yüksek/en düşük: " + (hours.length ? Math.max(...hours.map((hour) => Number(hour.FeelsLikeC)).filter(Number.isFinite)) : "Belirtilmedi") + " / " + (hours.length ? Math.min(...hours.map((hour) => Number(hour.FeelsLikeC)).filter(Number.isFinite)) : "Belirtilmedi") + " °C",
-      "En yüksek rüzgâr hızı: " + (hours.length ? Math.max(...hours.map((hour) => Number(hour.windspeedKmph)).filter(Number.isFinite)) : "Belirtilmedi") + " km/sa",
+      "Hissedilen en yüksek/en düşük: " + maxFeelsLike + " / " + minFeelsLike + " °C",
+      "En yüksek rüzgâr hızı: " + maxWind + " km/sa",
       "Günlük en yüksek yağış olasılığı: " + (maxRainChance == null ? "Belirtilmedi" : maxRainChance + "%"),
       "Günlük toplam yağış: " + (day?.totalPrecip_mm ?? "Belirtilmedi") + " mm"
     ].join("\n");
@@ -2370,7 +2376,7 @@ function buildWebResearchInstruction(results) {
     "Arama sonucu bulunması, yanıtın kaynaklarda bulunduğu anlamına gelmez. Kaynaklarda açıkça yer almayan skor, tarih veya güncel bilgiyi tahmin etme ya da hafızandan tamamlama; kanıt yoksa bunu net söyle.",
     "Futbol maç sonucu sorularında yapılandırılmış maç servisi verisi varsa yalnızca oradaki takım adları, tarih, durum ve sayısal skoru kullan. Maç devam ediyorsa canlı skor olduğunu söyle; bitmiş değilmiş gibi gösterme. Servis doğrulanmış maç verisi döndürmediyse haber başlıklarından, hafızandan veya eski sonuçlardan skor çıkarma.",
     "Sıradaki maç/fikstür sorularında yalnızca şu anki tarih ve saatten SONRA başlayacak, açık tarihi bulunan ve henüz başlamamış maçları kabul et. Canlı veya tamamlanmış maçları, eski haberleri ve canlı yayın duyurularını sıradaki maç diye sunma. Gelecek tarih kaynakta açıkça doğrulanmıyorsa fikstür bulunamadığını söyle.",
-    "Hava durumu verisi sağlandıysa yalnızca verilen konum ve gözlem saatine ait sayıları kullan; genel haberlerden anlık sıcaklık veya yağış tahmini çıkarma.",
+    "Hava durumu verisi sağlandıysa anlık gözlem ile istenen günün tahminini ayrı tut. Yalnızca istenen konum ve hedef tarihe ait tahmin sayılarını kullan; anlık sıcaklığı yarının/hafta sonunun tahmini gibi sunma. Günlük tahminden saatlik kesinlik çıkarma.",
     "Yanıtta kullandığın güncel iddiaları [1], [2] biçiminde kaynak numaralarıyla işaretle ve en sonda Kaynaklar başlığı altında tam bağlantıları ver.",
     "Kaynaklar soruyu yanıtlamıyorsa bunu açıkça söyle. Arama sonuçları çelişiyorsa çelişkiyi belirt. Güncel tarih ve yayın tarihlerini ayırt et.",
     sourceText,
@@ -2440,6 +2446,7 @@ function buildAgentPlan(query = "", isResearchRoute = false) {
 
 function buildUpcomingOpponentWebQuery(originalQuery, fixtureResults) {
   const searchTerm = getFootballTeamSearchTerm(originalQuery);
+  if (!searchTerm) return "";
   const aliases = {
     fenerbahce: "fenerbahçe|fenerbahce|fener",
     galatasaray: "galatasaray|gala",
@@ -2448,20 +2455,37 @@ function buildUpcomingOpponentWebQuery(originalQuery, fixtureResults) {
     "istanbul basaksehir": "başakşehir|basaksehir|istanbul başakşehir|istanbul basaksehir",
   };
   const key = normalizeSportsText(searchTerm);
-  const teamPattern = aliases[key];
-  if (!teamPattern) return "";
+  const escapedTeam = searchTerm.replace(/[.*+?^$(){}|[\]\\]/g, "\\$&");
+  const teamPattern = aliases[key] || escapedTeam;
   const candidates = (fixtureResults || []).flatMap((item) => [
     String(item.title || ""),
     String(item.snippet || ""),
   ]);
+
   for (const candidate of candidates) {
+    const normalizedCandidate = normalizeSportsText(candidate);
+    const unreliablePageTerms = [
+      "canli yayin", "canli izle", "canli skor", "canli anlatim",
+      "live stream", "watch live", "mac ozeti", "match highlights"
+    ];
+    if (unreliablePageTerms.some((term) => normalizedCandidate.includes(term))) continue;
+
     const forward = candidate.match(new RegExp("(?:^|[^\\p{L}])(?:" + teamPattern + ")\\s*(?:[-–—]|vs\\.?|v\\.?|ile)\\s*([^|,;()\\n]{2,60})", "iu"));
     const reverse = candidate.match(new RegExp("([^|,;()\\n]{2,60})\\s*(?:[-–—]|vs\\.?|v\\.?|ile)\\s*(?:" + teamPattern + ")(?:$|[^\\p{L}])", "iu"));
     let opponent = (forward?.[1] || reverse?.[1] || "").trim();
-    const opponentSuffixes = [" maçı", " macı", " maç", " mac", " karşılaşması", " karsilasmasi", " fixture", " next match", " upcoming"];
+    opponent = opponent.replace(/^\\d{1,2}\\s+/, "");
+    const opponentSuffixes = [
+      " maçı", " maçını", " macı", " macini", " maç", " mac",
+      " karşılaşması", " karsilasmasi", " fixture", " next match", " upcoming",
+      " canlı", " canli", " izle", " izleme", " yayın", " yayin",
+      " bilgisi", " bilet", " ticket", " stream", " watch", " live",
+      " tv", " today", " tonight", " son dakika"
+    ];
     const lowerOpponent = opponent.toLocaleLowerCase("tr-TR");
     const suffixIndexes = opponentSuffixes.map((suffix) => lowerOpponent.indexOf(suffix)).filter((index) => index > 0);
     if (suffixIndexes.length) opponent = opponent.slice(0, Math.min(...suffixIndexes)).trim();
+    opponent = opponent.replace(/[|,;:–—-]+$/g, "").trim();
+
     if (opponent && opponent.length >= 3 && opponent.length <= 55) {
       return opponent + " son 5 maç sonuçları son karşılaşmalar güncel form";
     }
@@ -2577,6 +2601,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
                 stepResults = result.results || [];
                 stepNote = result.note || "";
               } else if (step.tool === "football_fixture") {
+                if (!API_FOOTBALL_KEY) stepNote = "API-Football anahtarı ayarlı değil; yapılandırılmış fikstür verisi yok. Web aramasında açık gelecek tarih doğrulanamazsa maç veya rakip iddiası kurma.";
                 let result = null;
                 try {
                   result = await searchUpcomingFootballFixtureWithApiFootball(step.query, searchController.signal);
@@ -2596,6 +2621,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
                   if (!stepResults.length) stepNote = "API-Football ve web araması doğrulanmış fikstür bulamadı. Rakip uydurma.";
                 }
               } else if (step.tool === "football_form") {
+                if (!API_FOOTBALL_KEY) stepNote = "API-Football anahtarı ayarlı değil; son 5 maç yalnızca web arama özetleriyle araştırılıyor. Beş tamamlanmış maç açıkça bulunamazsa eksik veriyi belirt, sonuç uydurma.";
                 const fixtureStep = collectedResults.filter((item) =>
                   item.opponentId || /Rakip takım ID:/i.test(item.snippet || "")
                 );
