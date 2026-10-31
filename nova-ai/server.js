@@ -2267,6 +2267,35 @@ function buildAgentPlan(query = "", isResearchRoute = false) {
   return [];
 }
 
+
+function buildUpcomingOpponentWebQuery(originalQuery, fixtureResults) {
+  const searchTerm = getFootballTeamSearchTerm(originalQuery);
+  const aliases = {
+    fenerbahce: "fenerbahçe|fenerbahce|fener",
+    galatasaray: "galatasaray|gala",
+    besiktas: "beşiktaş|besiktas|bjk",
+    trabzonspor: "trabzonspor|trabzon",
+    "istanbul basaksehir": "başakşehir|basaksehir|istanbul başakşehir|istanbul basaksehir",
+  };
+  const key = normalizeSportsText(searchTerm);
+  const teamPattern = aliases[key];
+  if (!teamPattern) return "";
+  const candidates = (fixtureResults || []).flatMap((item) => [
+    String(item.title || ""),
+    String(item.snippet || ""),
+  ]);
+  for (const candidate of candidates) {
+    const forward = candidate.match(new RegExp("(?:^|[^\\p{L}])(?:" + teamPattern + ")\\s*(?:[-–—]|vs\\.?|v\\.?|ile)\\s*([^|,;()\\n]{2,60})", "iu"));
+    const reverse = candidate.match(new RegExp("([^|,;()\\n]{2,60})\\s*(?:[-–—]|vs\\.?|v\\.?|ile)\\s*(?:" + teamPattern + ")(?:$|[^\\p{L}])", "iu"));
+    let opponent = (forward?.[1] || reverse?.[1] || "").trim();
+    opponent = opponent.replace(/\\b(maçı|macı|maç|mac|karşılaşması|karsilasmasi|fixture|next match|upcoming)\\b.*$/i, "").trim();
+    if (opponent && opponent.length >= 3 && opponent.length <= 55) {
+      return opponent + " son 5 maç sonuçları son karşılaşmalar güncel form";
+    }
+  }
+  return "";
+}
+
 function buildOpponentResearchQuery(originalQuery, footballResults) {
   const match = (footballResults || [])
     .map((item) => String(item.snippet || ""))
@@ -2376,11 +2405,17 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
                   item.opponentId || /Rakip takım ID:/i.test(item.snippet || "")
                 );
                 const result = await searchOpponentLastFiveWithApiFootball(fixtureStep, searchController.signal);
-                if (result) {
-                  stepResults = result.results || [];
+                if (result?.results?.length) {
+                  stepResults = result.results;
                   stepNote = result.note || "";
                 } else {
-                  stepNote = "Rakibin takım kimliği doğrulanamadığı veya API-Football kullanılamadığı için son 5 maç güvenilir biçimde alınamadı. Sonuçları tahmin etme.";
+                  const fallbackQuery = buildUpcomingOpponentWebQuery(latestQuestion, collectedResults);
+                  if (fallbackQuery) {
+                    stepResults = await searchPublicWeb(fallbackQuery, searchController.signal);
+                    if (!stepResults.length) stepNote = "Rakip belirlendi ancak son 5 maç için yeterli web kaynağı bulunamadı.";
+                  } else {
+                    stepNote = "Rakibin adı veya takım kimliği kaynaklardan doğrulanamadığı için son 5 maç güvenilir biçimde alınamadı. Sonuçları tahmin etme.";
+                  }
                 }
               } else if (step.tool === "football") {
                 const result = await searchLatestFootballResult(step.query, searchController.signal);
