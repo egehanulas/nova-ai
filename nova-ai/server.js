@@ -259,6 +259,12 @@ YANIT KURALLARI:
 - Gizli düşünce zincirini gösterme; gerektiğinde kısa ve
   denetlenebilir gerekçeler sun.
 
+ARAÇ KULLANIMI:
+- Güncel veya dış kaynağa bağlı bilgi gerekiyorsa sağlanan arama/araç sonuçlarını kullan; araç çağrılmadıysa canlı doğrulama yaptığını söyleme.
+- Hava durumu ve futbol sonucu gibi yapılandırılmış araç verileri geldiyse yalnızca bu verileri kullan; eksik alanları tahmin etme.
+- Araç sonucu boş, eski veya başarısızsa bunu açıkça belirt; başarılıymış gibi davranma.
+- Basit sohbet, yazım, fikir üretme ve genel açıklama isteklerinde gereksiz araç çağrısı yapma.
+
 BİÇİMLENDİRME:
 - Düzgün, okunabilir Markdown kullan.
 - Matematik işlemlerini mümkün olduğunca açık göster.
@@ -1661,6 +1667,21 @@ function isFootballResultQuestion(query = "") {
   return /(son mac|son karsilasma|kac kac|mac sonucu|mac skoru|karsilasma sonucu|sonuc.*mac|skor.*mac|mac.*skor|mac.*kac|skor)/.test(normalized);
 }
 
+// Sohbet sırasında uygun aracı otomatik seç. Belirsiz/genel sohbetlerde araç çağırma.
+function selectAgentTool(query = "") {
+  const value = String(query || "").trim();
+  if (!value) return "none";
+  if (isWeatherQuestion(value)) return "weather";
+  if (isFootballResultQuestion(value)) return "football";
+
+  const explicitResearch = /\\b(araştır|arastir|internette ara|webde ara|web'de ara|kaynak bul|kaynakları bul|kaynaklari bul|güncel bilgi|guncel bilgi|en son haber|son dakika|haberleri araştır|haberleri arastir)\\b/i.test(value);
+  const currentFact = /\\b(güncel|guncel|şu an|su an|şimdi|simdi|bugün|bugun|bu hafta|son durum|en son|latest|current)\\b/i.test(value);
+  const lookupSubject = /\\b(fiyat|ücret|ucret|kaç para|kac para|kampanya|sürüm|surum|versiyon|yayınlandı mı|yayinlandi mi|çıktı mı|cikti mi|açıklandı mı|aciklandi mi|kim kazandı|kim kazandi|ne zaman|takvim|sonuçları|sonuclari|duyuru|haber|seçim sonucu|secim sonucu)\\b/i.test(value);
+
+  if (explicitResearch || (currentFact && lookupSubject)) return "web_search";
+  return "none";
+}
+
 function findSportsTeamInQuery(query, fixtures) {
   const normalizedQuery = normalizeSportsText(query);
   const aliases = [
@@ -2067,14 +2088,17 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
       const memoryInstruction = await loadUserMemoryInstruction(req);
       const controller = new AbortController();
       const isResearchRoute = route === "/api/research/stream";
+      const latestQuestion = getLatestUserMessage(messages);
+      const agentTool = isResearchRoute ? "web_search" : selectAgentTool(latestQuestion);
       let webSearchInstruction = "";
 
-      if (isResearchRoute) {
+      // Kullanıcı araştırma modunu açtıysa ara; normal sohbette ise yalnızca
+      // açık bir canlı bilgi/araştırma ihtiyacı algılandığında uygun aracı seç.
+      if (isResearchRoute || agentTool !== "none") {
         try {
           const searchController = new AbortController();
           const searchTimeout = setTimeout(() => searchController.abort(), 30000);
           try {
-            const latestQuestion = getLatestUserMessage(messages);
             let webResults = [];
             if (isWeatherQuestion(latestQuestion)) {
               try {
@@ -2285,6 +2309,8 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               type: "start",
               provider: providerInfo.provider,
               model: providerInfo.model,
+              tool: agentTool,
+              autoToolSelected: !isResearchRoute && agentTool !== "none",
             });
 
             result = await runProviderWithRetry(provider, providerTimeout.signal, onText);
