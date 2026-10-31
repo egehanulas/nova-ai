@@ -1674,9 +1674,9 @@ function selectAgentTool(query = "") {
   if (isWeatherQuestion(value)) return "weather";
   if (isFootballResultQuestion(value)) return "football";
 
-  const explicitResearch = /\\b(araştır|arastir|internette ara|webde ara|web'de ara|kaynak bul|kaynakları bul|kaynaklari bul|güncel bilgi|guncel bilgi|en son haber|son dakika|haberleri araştır|haberleri arastir)\\b/i.test(value);
-  const currentFact = /\\b(güncel|guncel|şu an|su an|şimdi|simdi|bugün|bugun|bu hafta|son durum|en son|latest|current)\\b/i.test(value);
-  const lookupSubject = /\\b(fiyat|ücret|ucret|kaç para|kac para|kampanya|sürüm|surum|versiyon|yayınlandı mı|yayinlandi mi|çıktı mı|cikti mi|açıklandı mı|aciklandi mi|kim kazandı|kim kazandi|ne zaman|takvim|sonuçları|sonuclari|duyuru|haber|seçim sonucu|secim sonucu)\\b/i.test(value);
+  const explicitResearch = /\b(araştır|arastir|internette ara|webde ara|web'de ara|kaynak bul|kaynakları bul|kaynaklari bul|güncel bilgi|guncel bilgi|en son haber|son dakika|haberleri araştır|haberleri arastir)\b/i.test(value);
+  const currentFact = /\b(güncel|guncel|şu an|su an|şimdi|simdi|bugün|bugun|bu hafta|son durum|en son|latest|current)\b/i.test(value);
+  const lookupSubject = /\b(fiyat|ücret|ucret|kaç para|kac para|kampanya|sürüm|surum|versiyon|yayınlandı mı|yayinlandi mi|çıktı mı|cikti mi|açıklandı mı|aciklandi mi|kim kazandı|kim kazandi|ne zaman|takvim|sonuçları|sonuclari|duyuru|haber|seçim sonucu|secim sonucu)\b/i.test(value);
 
   if (explicitResearch || (currentFact && lookupSubject)) return "web_search";
   return "none";
