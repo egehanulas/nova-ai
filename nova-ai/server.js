@@ -677,19 +677,31 @@ async function runProviderWithRetry(provider, signal, onText) {
         onText(text);
       });
     } catch (error) {
-      const canRetry =
-        error.status === 429 &&
-        !emittedText &&
-        !(signal && signal.aborted) &&
-        attempt < 2;
-      if (!canRetry) throw error;
+      if (
+        error.status !== 429 ||
+        emittedText ||
+        (signal && signal.aborted)
+      ) {
+        throw error;
+      }
 
       const fallbackDelay = 1500 * (2 ** attempt);
       const delayMs = Math.min(15000, Math.max(500, error.retryAfterMs || fallbackDelay));
+
+      // Uzun rate-limit beklemeleri sağlayıcının zaman aşımını tüketmesin.
+      // Bu durumda üst seviye akış sıradaki yedek sağlayıcıya geçer.
+      if (attempt >= 1 || delayMs > 5000) {
+        console.warn(
+          "[NOVA AI] " + provider.name + " rate limit; " + delayMs +
+          "ms beklemek yerine sıradaki sağlayıcıya geçilecek."
+        );
+        throw error;
+      }
+
       attempt += 1;
       console.warn(
         "[NOVA AI] " + provider.name + " rate limit; " + delayMs +
-        "ms sonra tekrar denenecek (deneme " + attempt + " / 2)."
+        "ms sonra bir kez daha denenecek (deneme 1 / 1)."
       );
       await waitForRetry(delayMs, signal);
     }
