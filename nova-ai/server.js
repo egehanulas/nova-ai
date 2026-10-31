@@ -1743,13 +1743,21 @@ function getWeatherTargetDates(query = "", availableDates = []) {
   const today = dates[0] || getIstanbulDateOffset(0);
   let targets = [];
 
-  if (value.includes("onumuzdeki hafta") || value.includes("gelecek hafta")) {
+  if (value.includes("gelecek hafta sonu") || value.includes("onumuzdeki hafta sonu")) {
+    const todayDay = new Date(today + "T00:00:00Z").getUTCDay();
+    const daysUntilSaturday = (6 - todayDay + 7) % 7 || 7;
+    const nextSaturday = addWeatherDateOffset(today, daysUntilSaturday);
+    targets = [nextSaturday, addWeatherDateOffset(nextSaturday, 1)];
+  } else if (value.includes("onumuzdeki hafta") || value.includes("gelecek hafta")) {
     targets = [];
   } else if (value.includes("hafta sonu")) {
-    targets = dates.filter((date) => {
-      const day = new Date(date + "T00:00:00Z").getUTCDay();
-      return day === 0 || day === 6;
-    });
+    const todayDay = new Date(today + "T00:00:00Z").getUTCDay();
+    targets = todayDay === 0
+      ? dates.filter((date) => date === today)
+      : dates.filter((date) => {
+          const day = new Date(date + "T00:00:00Z").getUTCDay();
+          return day === 6 || day === 0;
+        });
   } else if (value.includes("bu hafta")) {
     const todayDay = new Date(today + "T00:00:00Z").getUTCDay();
     const weekEnd = addWeatherDateOffset(today, (7 - todayDay) % 7);
