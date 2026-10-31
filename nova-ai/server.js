@@ -1632,6 +1632,7 @@ function extractWeatherLocation(query = "") {
   return String(query)
     .replace(/\b(hava durumu|hava nasıl|hava nasil|kaç derece|kaç\s*°|yağmur yağacak mı|yağış ihtimali|sıcaklık kaç|anlık hava|şu an|şimdi|bugün|yarın|için)\b/gi, " ")
     .replace(/[?!.,]/g, " ")
+    .trim()
     .replace(/['’]?(nin|nın|nun|nün|in|ın|un|ün|da|de|ta|te)$/i, "")
     .replace(/\s+/g, " ")
     .trim();
