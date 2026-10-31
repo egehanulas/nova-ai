@@ -919,7 +919,19 @@
       role === "user" &&
       conversation.title === "Yeni sohbet"
     ) {
-      conversation.title = content.slice(0, 45);
+      const titleSource = String(content || "").replace(/\s+/g, " ").trim();
+      const firstSentence = titleSource.split(/[.!?](?:\s|$)/)[0].trim();
+      const titleText = firstSentence || titleSource;
+      const maxTitleLength = 48;
+
+      if (titleText.length <= maxTitleLength) {
+        conversation.title = titleText || "Yeni sohbet";
+      } else {
+        const shortened = titleText.slice(0, maxTitleLength);
+        const lastSpace = shortened.lastIndexOf(" ");
+        conversation.title =
+          (lastSpace >= 24 ? shortened.slice(0, lastSpace) : shortened).trimEnd() + "…";
+      }
     }
 
     await save(conversation);
