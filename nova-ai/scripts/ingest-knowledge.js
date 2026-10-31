@@ -210,7 +210,7 @@ async function createEmbeddings(texts) {
 async function saveDocument(sourceId, title, url, content) {
   const hash = crypto.createHash("sha256").update(content).digest("hex");
   const existingQuery = new URLSearchParams({
-    select: "id",
+    select: "id,status",
     canonical_url: "eq." + url,
     content_hash: "eq." + hash,
     limit: "1",
@@ -220,6 +220,27 @@ async function saveDocument(sourceId, title, url, content) {
   );
 
   let documentId = existing?.[0]?.id;
+  const alreadyPublished = existing?.[0]?.status === "published";
+
+  // An unchanged, already-published document is already indexed.
+  // Avoid deleting good chunks and rebuilding them on every importer run.
+  if (alreadyPublished) {
+    const oldVersionsQuery = new URLSearchParams({
+      canonical_url: "eq." + url,
+      status: "eq.published",
+      id: "neq." + documentId,
+    });
+    await requestJson(
+      SUPABASE_URL + "/rest/v1/knowledge_documents?" + oldVersionsQuery,
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ status: "archived", updated_at: new Date().toISOString() }),
+      }
+    );
+    return 0;
+  }
+
   if (!documentId) {
     const created = await requestJson(SUPABASE_URL + "/rest/v1/knowledge_documents", {
       method: "POST",
@@ -233,7 +254,8 @@ async function saveDocument(sourceId, title, url, content) {
         category: "Blueprint",
         topic: "Official Unreal Engine documentation",
         content_hash: hash,
-        status: "published",
+        // Keep the new version hidden until every chunk has been written.
+        status: "draft",
         metadata: { attribution: "Epic Developer Community", indexed_by: "NOVA AI" },
       }),
     });
@@ -242,7 +264,8 @@ async function saveDocument(sourceId, title, url, content) {
 
   if (!documentId) throw new Error("Doküman kaydı oluşturulamadı.");
 
-  // Rebuild chunks for this exact document hash, making reruns idempotent.
+  // A failed retry can reuse its draft document without affecting the
+  // previously published version.
   const deleteQuery = new URLSearchParams({ document_id: "eq." + documentId });
   await requestJson(SUPABASE_URL + "/rest/v1/knowledge_chunks_384?" + deleteQuery, {
     method: "DELETE",
@@ -270,6 +293,31 @@ async function saveDocument(sourceId, title, url, content) {
       body: JSON.stringify(rows),
     });
   }
+
+  // Publish the complete replacement first; only then archive stale versions.
+  const publishQuery = new URLSearchParams({ id: "eq." + documentId });
+  await requestJson(
+    SUPABASE_URL + "/rest/v1/knowledge_documents?" + publishQuery,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ status: "published", updated_at: new Date().toISOString() }),
+    }
+  );
+
+  const archiveQuery = new URLSearchParams({
+    canonical_url: "eq." + url,
+    status: "eq.published",
+    id: "neq." + documentId,
+  });
+  await requestJson(
+    SUPABASE_URL + "/rest/v1/knowledge_documents?" + archiveQuery,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ status: "archived", updated_at: new Date().toISOString() }),
+    }
+  );
 
   return chunks.length;
 }
