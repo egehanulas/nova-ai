@@ -1686,6 +1686,15 @@ function isSafeMemoryContent(content = "") {
   return !/(şifre|parola|password|api.?key|token|iban|tc kimlik|kredi kartı|cvv|sağlık|hastalık|ilaç|teşhis|ameliyat|maaş|borç|gelir|dinî|dini|mezhep|oy tercihi|siyasi görüş|cinsel|travma|istismar)/i.test(value);
 }
 
+function extractExplicitName(text = "") {
+  const value = String(text).trim();
+  const match = value.match(/(?:benim\s+)?(?:adım|ismim)\s+([\p{L}][\p{L}'’-]{1,30}(?:\s+[\p{L}][\p{L}'’-]{1,30})?)/iu);
+  if (!match) return null;
+  const name = match[1].trim().replace(/[.,!?;:]+$/, "");
+  if (!name || name.length > 60) return null;
+  return name;
+}
+
 async function learnUserMemory(req, userText) {
   if (!isMemoryCandidate(userText)) return { saved: false };
 
@@ -1697,6 +1706,33 @@ async function learnUserMemory(req, userText) {
     .order("updated_at", { ascending: false })
     .limit(50);
   if (readError) throw readError;
+
+  // Açık isim beyanlarını model çıkarımına bırakma; doğrudan ve güvenilir biçimde kaydet.
+  const explicitName = extractExplicitName(userText);
+  if (explicitName) {
+    const content = "Kullanıcının adı " + explicitName + ".";
+    const oldName = (existing || []).find((item) =>
+      item.category === "profile" && /kullanıcının adı\s+/i.test(item.content)
+    );
+    if (oldName) {
+      const { data, error } = await client
+        .from("nova_memories")
+        .update({ content, category: "profile", source: "nova", updated_at: new Date().toISOString() })
+        .eq("id", oldName.id)
+        .eq("user_id", req.user.id)
+        .select("id, content, category, source")
+        .maybeSingle();
+      if (error) throw error;
+      return { saved: Boolean(data), memory: data };
+    }
+    const { data, error } = await client
+      .from("nova_memories")
+      .insert({ user_id: req.user.id, content, category: "profile", source: "nova" })
+      .select("id, content, category, source")
+      .single();
+    if (error) throw error;
+    return { saved: Boolean(data), memory: data };
+  }
 
   const instruction = [
     "Kullanıcının mesajından yalnızca gelecekteki sohbetlerde gerçekten işe yarayacak, kalıcı kişisel bilgileri çıkar.",
