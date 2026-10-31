@@ -38,6 +38,7 @@ const PROVIDER_TIMEOUT_MS = Math.min(
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const API_FOOTBALL_KEY = process.env.API_FOOTBALL_KEY;
 
 const GEMINI_MODEL =
   process.env.GEMINI_MODEL || "gemini-3.8-flash";
@@ -1672,7 +1673,130 @@ function findSportsTeamInQuery(query, fixtures) {
   return "";
 }
 
+function getFootballTeamSearchTerm(query = "") {
+  const normalized = normalizeSportsText(query);
+  const aliases = [
+    { terms: ["fenerbahce", "fener"], search: "Fenerbahce" },
+    { terms: ["galatasaray", "gala"], search: "Galatasaray" },
+    { terms: ["besiktas", "bjk"], search: "Besiktas" },
+    { terms: ["trabzonspor", "trabzon"], search: "Trabzonspor" },
+    { terms: ["basaksehir"], search: "Istanbul Basaksehir" },
+  ];
+  const alias = aliases.find((item) => item.terms.some((term) => normalized.includes(term)));
+  if (alias) return alias.search;
+
+  return normalized
+    .replace(/\b(son|en|oynadigi|oynadigi|mac|maci|kac|bitti|skor|sonucu|sonuc|karsilasmasi|karsilasma|ne|oldu|last|match|result|score|finished|ended|final)\b/g, " ")
+    .replace(/\b(nin|nun|nün|in|un|the|was|did|what)\b/g, " ")
+    .replace(/(nin|nun|nün|in|un)$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(" ");
+}
+
+async function requestApiFootball(url, signal) {
+  const response = await fetch(url, {
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(9000)]) : AbortSignal.timeout(9000),
+    headers: {
+      "x-apisports-key": API_FOOTBALL_KEY,
+      "Accept": "application/json",
+      "User-Agent": "NOVA-AI/1.0",
+    },
+  });
+  if (!response.ok) throw new Error("API-Football HTTP " + response.status);
+  const payload = await response.json();
+  if (payload?.errors && Object.keys(payload.errors).length) {
+    throw new Error("API-Football: " + JSON.stringify(payload.errors).slice(0, 300));
+  }
+  return payload;
+}
+
+const apiFootballTeamCache = new Map();
+
+async function searchLatestFootballResultWithApiFootball(query, signal) {
+  if (!API_FOOTBALL_KEY) return null;
+
+  const searchTerm = getFootballTeamSearchTerm(query);
+  if (!searchTerm) return null;
+
+  let teamId = apiFootballTeamCache.get(normalizeSportsText(searchTerm));
+  if (!teamId) {
+    const teamUrl = new URL("https://v3.football.api-sports.io/teams");
+    teamUrl.searchParams.set("search", searchTerm);
+    const teamPayload = await requestApiFootball(teamUrl, signal);
+    const teams = Array.isArray(teamPayload.response) ? teamPayload.response : [];
+    const normalizedTerm = normalizeSportsText(searchTerm);
+    const team = teams.find((item) => normalizeSportsText(item.team?.name) === normalizedTerm) ||
+      teams.find((item) => normalizeSportsText(item.team?.name).includes(normalizedTerm));
+    if (!team?.team?.id) return null;
+    teamId = team.team.id;
+    apiFootballTeamCache.set(normalizeSportsText(searchTerm), teamId);
+  }
+
+  const fixturesUrl = new URL("https://v3.football.api-sports.io/fixtures");
+  fixturesUrl.searchParams.set("team", String(teamId));
+  fixturesUrl.searchParams.set("last", "5");
+  fixturesUrl.searchParams.set("timezone", "Europe/Istanbul");
+  const fixturePayload = await requestApiFootball(fixturesUrl, signal);
+  const fixtures = Array.isArray(fixturePayload.response) ? fixturePayload.response : [];
+  const finishedStatuses = ["FT", "AET", "PEN"];
+  const liveStatuses = ["1H", "HT", "2H", "ET", "BT", "P", "SUSP", "INT"];
+  const relevant = fixtures.filter((item) =>
+    (finishedStatuses.includes(item.fixture?.status?.short) || liveStatuses.includes(item.fixture?.status?.short)) &&
+    Number.isInteger(item.goals?.home) && Number.isInteger(item.goals?.away)
+  ).sort((a, b) => new Date(b.fixture?.date || 0).getTime() - new Date(a.fixture?.date || 0).getTime());
+
+  const fixture = relevant[0];
+  if (!fixture) return null;
+
+  const statusCode = fixture.fixture?.status?.short;
+  const isFinished = finishedStatuses.includes(statusCode);
+  const homeName = fixture.teams?.home?.name || "Ev sahibi";
+  const awayName = fixture.teams?.away?.name || "Deplasman";
+  const date = fixture.fixture?.date
+    ? new Date(fixture.fixture.date).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })
+    : "Tarih belirtilmedi";
+  const score = homeName + " " + fixture.goals.home + "-" + fixture.goals.away + " " + awayName;
+  const penaltyScore = statusCode === "PEN" && fixture.score?.penalty?.home != null && fixture.score?.penalty?.away != null
+    ? " Penaltılar: " + fixture.score.penalty.home + "-" + fixture.score.penalty.away + "."
+    : "";
+  const snippet = [
+    "Maç: " + score,
+    "Tarih (İstanbul): " + date,
+    "Lig: " + (fixture.league?.name || "Belirtilmedi"),
+    "Durum: " + (isFinished ? "Maç tamamlandı (" + (fixture.fixture?.status?.long || statusCode) + ")" : "Maç devam ediyor; bu skor kesin sonuç değildir"),
+    "Skor: " + fixture.goals.home + "-" + fixture.goals.away + ".",
+  ].join("\n") + penaltyScore;
+
+  return {
+    results: [{
+      title: score + " — " + date,
+      url: "https://www.api-football.com/",
+      snippet,
+      publishedAt: fixture.fixture?.date || "",
+      domain: "api-football.com",
+    }],
+    note: "",
+    live: !isFinished,
+  };
+}
+
 async function searchLatestFootballResult(query, signal) {
+  if (API_FOOTBALL_KEY) {
+    try {
+      const apiResult = await searchLatestFootballResultWithApiFootball(query, signal);
+      if (apiResult?.results?.length) {
+        console.log("[NOVA AI] Maç sonucu sağlayıcısı: API-Football.");
+        return apiResult;
+      }
+    } catch (apiError) {
+      console.warn("[NOVA AI] API-Football başarısız, yedek kaynağa geçiliyor:", apiError.message);
+    }
+  }
+
   const response = await fetch("https://api.sportsapi.app/showcase/fixtures", {
     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(9000)]) : AbortSignal.timeout(9000),
     headers: { "Accept": "application/json", "User-Agent": "NOVA-AI/1.0" },
