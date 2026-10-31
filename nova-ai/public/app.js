@@ -1403,8 +1403,126 @@
     const list = document.createElement("div");
     list.className = "nova-memory-list";
     content.append(intro, status, listTitle, list);
-    try { await refresh(); }
-    catch (error) {
+    let overlay;
+    const close = () => closeStudio(overlay);
+    overlay = studio({
+      title: "NOVA hafızası",
+      subtitle: "NOVA öğrenir, kontrol sende kalır.",
+      content,
+      onClose: close
+    });
+
+    async function refresh() {
+      list.replaceChildren();
+      const loading = document.createElement("p");
+      loading.className = "image-studio-note";
+      loading.textContent = "Hafıza yükleniyor…";
+      list.append(loading);
+      const result = await memoryRequest("/api/memories");
+      list.replaceChildren();
+      if (!result.memories?.length) {
+        const empty = document.createElement("p");
+        empty.className = "image-studio-note";
+        empty.textContent = "Henüz hatırlanan bir bilgi yok. Sohbet ettikçe önemli tercihlerin ve uzun vadeli bilgilerin burada görünür.";
+        list.append(empty);
+        return;
+      }
+
+      result.memories.forEach((memory) => {
+        const card = document.createElement("article");
+        card.className = "nova-memory-card";
+        const meta = document.createElement("small");
+        meta.textContent = (memory.category || "Genel") + " · " +
+          (memory.source === "nova" ? "NOVA öğrendi" : "Sen ekledin");
+        const text = document.createElement("p");
+        text.textContent = memory.content;
+        const actions = document.createElement("div");
+        actions.className = "nova-memory-actions";
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "image-studio-secondary";
+        edit.textContent = "Düzenle";
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "image-studio-secondary";
+        remove.textContent = "Sil";
+
+        edit.onclick = () => {
+          const editor = document.createElement("textarea");
+          editor.className = "nova-memory-edit";
+          editor.maxLength = 1000;
+          editor.value = memory.content;
+          const saveEdit = document.createElement("button");
+          saveEdit.type = "button";
+          saveEdit.className = "image-studio-primary";
+          saveEdit.textContent = "Kaydet";
+          const cancelEdit = document.createElement("button");
+          cancelEdit.type = "button";
+          cancelEdit.className = "image-studio-secondary";
+          cancelEdit.textContent = "Vazgeç";
+          const editActions = document.createElement("div");
+          editActions.className = "nova-memory-actions";
+          editActions.append(saveEdit, cancelEdit);
+          card.insertBefore(editor, actions);
+          actions.replaceChildren(editActions);
+          cancelEdit.onclick = () => {
+            editor.remove();
+            actions.replaceChildren(edit, remove);
+          };
+          saveEdit.onclick = async () => {
+            const updated = editor.value.trim();
+            if (!updated) {
+              status.textContent = "Not boş olamaz.";
+              return;
+            }
+            saveEdit.disabled = true;
+            try {
+              await memoryRequest(`/api/memories/${encodeURIComponent(memory.id)}`, {
+                method: "PATCH",
+                body: JSON.stringify({
+                  content: updated,
+                  category: memory.category || "general"
+                })
+              });
+              status.textContent = "Hafıza güncellendi.";
+              await refresh();
+            } catch (error) {
+              status.textContent = error.message;
+              saveEdit.disabled = false;
+            }
+          };
+          editor.focus();
+        };
+
+        remove.onclick = async () => {
+          const approved = await showNovaDialog({
+            title: "Hafıza kaydı silinsin mi?",
+            message: "Bu bilgi NOVA'nın hafızasından kalıcı olarak silinecek.",
+            confirmText: "Kaydı sil",
+            cancelText: "Vazgeç",
+            danger: true
+          });
+          if (!approved) return;
+          try {
+            await memoryRequest(`/api/memories/${encodeURIComponent(memory.id)}`, {
+              method: "DELETE"
+            });
+            status.textContent = "Hafıza kaydı silindi.";
+            await refresh();
+          } catch (error) {
+            status.textContent = error.message;
+          }
+        };
+
+        actions.append(edit, remove);
+        card.append(meta, text, actions);
+        list.append(card);
+      });
+    }
+
+    try {
+      await refresh();
+    } catch (error) {
       list.replaceChildren();
       const warning = document.createElement("p");
       warning.className = "image-studio-note";
