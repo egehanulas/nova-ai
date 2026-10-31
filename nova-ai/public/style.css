@@ -1453,3 +1453,24 @@ button:disabled {
 .nova-code-header button{padding:5px 9px;border:1px solid rgba(160,145,230,.2);border-radius:7px;color:#ddd5ff;background:rgba(142,119,255,.1);cursor:pointer;font:inherit;text-transform:none;letter-spacing:0}
 .nova-code-block pre{max-width:100%;margin:0;padding:14px;overflow-x:auto}.nova-code-block pre code{padding:0;color:#e7e3f8;background:transparent;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.75;white-space:pre}
 @media(max-width:600px){.technical-guide-content{padding:13px}.technical-guide-content h1{font-size:19px}.technical-guide-content h2{font-size:17px}.nova-code-block pre{padding:11px}}
+
+
+/* NOVA CONFIRM DIALOG */
+.nova-dialog-overlay{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:20px;background:rgba(3,4,12,.72);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);opacity:0;transition:opacity 170ms ease}
+.nova-dialog-overlay.is-visible{opacity:1}
+.nova-dialog{width:min(100%,420px);padding:30px 28px 24px;border:1px solid rgba(173,151,255,.22);border-radius:22px;background:linear-gradient(155deg,rgba(27,25,47,.99),rgba(12,14,27,.99));box-shadow:0 28px 100px rgba(0,0,0,.58),0 0 45px rgba(127,94,255,.12);text-align:center;transform:translateY(12px) scale(.98);transition:transform 170ms ease}
+.nova-dialog-overlay.is-visible .nova-dialog{transform:translateY(0) scale(1)}
+.nova-dialog-icon{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 17px;border:1px solid rgba(166,142,255,.25);border-radius:17px;background:rgba(139,111,255,.13);color:#c9baff;font-size:24px;font-weight:800}
+.nova-dialog-icon.danger{border-color:rgba(248,113,113,.25);background:rgba(239,68,68,.1);color:#ff9b9b}
+.nova-dialog h2{margin:0;color:#f4f1ff;font-size:20px;font-weight:750;letter-spacing:-.35px}
+.nova-dialog p{margin:11px 0 25px;color:#aaa8c2;font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+.nova-dialog-actions{display:flex;justify-content:center;gap:10px}
+.nova-dialog-actions button{min-height:42px;padding:0 18px;border-radius:11px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:background 150ms ease,border-color 150ms ease,transform 150ms ease}
+.nova-dialog-actions button:active{transform:scale(.97)}
+.nova-dialog-cancel{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.045);color:#d2cfe4}
+.nova-dialog-cancel:hover{background:rgba(255,255,255,.09)}
+.nova-dialog-confirm{border:1px solid rgba(157,133,255,.35);background:linear-gradient(120deg,#8064ed,#6853cf);color:#fff;box-shadow:0 5px 18px rgba(105,82,207,.2)}
+.nova-dialog-confirm:hover{filter:brightness(1.1)}
+.nova-dialog-confirm.danger{border-color:rgba(255,119,130,.28);background:linear-gradient(120deg,#c94f62,#a9364b);box-shadow:0 5px 18px rgba(169,54,75,.2)}
+.nova-dialog-actions button:focus-visible{outline:2px solid #b9a8ff;outline-offset:3px}
+@media(max-width:480px){.nova-dialog{padding:26px 20px 21px;border-radius:19px}.nova-dialog h2{font-size:18px}.nova-dialog-actions{flex-direction:column-reverse}.nova-dialog-actions button{width:100%}}
