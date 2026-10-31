@@ -619,9 +619,9 @@
 
   function hasMarkdownTable(markdown) {
     const lines = String(markdown || "").replace(/\r\n?/g, "\n").split("\n");
-    const isRow = (value) => /^\\|.*\\|$/.test(value.trim());
+    const isRow = (value) => /^\|.*\|$/.test(value.trim());
     const isDivider = (value) =>
-      isRow(value) && /^\\|[\\s:|\\-]+\\|$/.test(value.trim()) &&
+      isRow(value) && /^\|[\s:|\-]+\|$/.test(value.trim()) &&
       value.includes("-");
     return lines.some((line, index) =>
       isRow(line) && index + 1 < lines.length && isDivider(lines[index + 1])
@@ -672,7 +672,7 @@
         container.appendChild(table);
         continue;
       }
-      if (/^\\\\?[-*_]{3,}$/.test(line)) {
+      if (/^[-*_]{3,}$/.test(line)) {
         const rule = document.createElement("hr");
         container.appendChild(rule);
         i++;
