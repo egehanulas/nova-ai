@@ -1633,7 +1633,7 @@ function extractWeatherLocation(query = "") {
     .replace(/\b(hava durumu|hava nasıl|hava nasil|kaç derece|kaç\s*°|yağmur yağacak mı|yağış ihtimali|sıcaklık kaç|anlık hava|şu an|şimdi|bugün|yarın|için)\b/gi, " ")
     .replace(/[?!.,]/g, " ")
     .trim()
-    .replace(/['’]?(nin|nın|nun|nün|in|ın|un|ün|da|de|ta|te)$/i, "")
+    .replace(/['’]?(nin|nın|nun|nün|in|ın|un|ün|daki|deki|taki|teki|da|de|ta|te)$/i, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -1961,7 +1961,11 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
             } else {
               webResults = await searchPublicWeb(latestQuestion, searchController.signal);
             }
-            if (webResults.length) webSearchInstruction = buildWebResearchInstruction(webResults);
+            if (webResults.length) {
+              webSearchInstruction = buildWebResearchInstruction(webResults);
+              if (webResults.some((item) => item.domain === "sportsapi.app" && item.snippet.includes("Maç devam ediyor"))) {
+                webSearchInstruction += "\n\nÖNEMLİ: Bu maç henüz tamamlanmadı. Yanıtta canlı skor olduğunu açıkça belirt; maç sonucu gibi sunma."; 
+              }
             console.log("[NOVA AI] Web araması:", webResults.length, "kaynak bulundu.");
           } finally {
             clearTimeout(searchTimeout);
