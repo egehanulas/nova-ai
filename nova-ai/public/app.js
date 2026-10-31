@@ -1190,15 +1190,16 @@
 
       await addMessage("assistant", result.answer);
 
-      // Hafıza öğrenme arka planda yürür; ana yanıtı geciktirmez.
-      memoryRequest("/api/memories/learn", {
-        method: "POST",
-        body: JSON.stringify({ message: text })
-      }).then((memoryResult) => {
+      // Mesaj tamamlandığında hafıza kaydını da bitir; yeni sohbete geçişte yarış durumu oluşmasın.
+      try {
+        const memoryResult = await memoryRequest("/api/memories/learn", {
+          method: "POST",
+          body: JSON.stringify({ message: text })
+        });
         if (memoryResult.saved) showMemorySavedNotice();
-      }).catch((memoryError) => {
+      } catch (memoryError) {
         console.warn("[NOVA AI] Otomatik hafıza kaydı atlandı:", memoryError.message);
-      });
+      }
 
       // Sesli sohbet, akış yanıtı tamamlandıktan sonra yanıtı seslendirir.
       if (window.NOVAVoice?.active) {
