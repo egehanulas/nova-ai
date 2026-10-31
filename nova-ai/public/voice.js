@@ -474,10 +474,20 @@
     stopSpeech();
   });
 
+  function handleReplyFailure(message) {
+    if (!voiceEnabled || !waitingForReply) return;
+
+    waitingForReply = false;
+    speaking = false;
+    setVoiceStatus(message || "NOVA yanıt veremedi. Tekrar konuşabilirsin.", "error");
+    scheduleRecognitionRestart(900);
+  }
+
   window.NOVAVoice = Object.freeze({
     start: startVoiceChat,
     stop: stopVoiceChat,
     speak: (text) => speakReply(text),
+    replyFailed: handleReplyFailure,
     get active() {
       return voiceEnabled;
     }
