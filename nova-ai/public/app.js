@@ -1432,28 +1432,48 @@
         edit.type = "button";
         edit.className = "image-studio-secondary";
         edit.textContent = "Düzenle";
-        edit.onclick = async () => {
-          const updated = window.prompt("Hafıza notunu düzenle:", memory.content);
-          if (updated === null) return;
-          if (!updated.trim() || updated.trim().length > 1000) {
-            status.textContent = "Not 1–1000 karakter arasında olmalı.";
-            return;
-          }
-          try {
-            await memoryRequest(`/api/memories/${encodeURIComponent(memory.id)}`, {
-              method: "PATCH",
-              body: JSON.stringify({ content: updated.trim(), category: memory.category || "general" }),
-            });
-            status.textContent = "Not güncellendi.";
-            await refresh();
-          } catch (error) { status.textContent = error.message; }
+        edit.onclick = () => {
+          const editor = document.createElement("textarea");
+          editor.className = "nova-memory-edit";
+          editor.maxLength = 1000;
+          editor.value = memory.content;
+          const saveEdit = document.createElement("button");
+          saveEdit.type = "button";
+          saveEdit.className = "image-studio-primary";
+          saveEdit.textContent = "Kaydet";
+          const cancelEdit = document.createElement("button");
+          cancelEdit.type = "button";
+          cancelEdit.className = "image-studio-secondary";
+          cancelEdit.textContent = "Vazgeç";
+          const editActions = document.createElement("div");
+          editActions.className = "nova-memory-actions";
+          editActions.append(saveEdit, cancelEdit);
+          actions.replaceChildren();
+          card.insertBefore(editor, actions);
+          actions.append(editActions);
+          cancelEdit.onclick = () => { editor.remove(); actions.replaceChildren(edit, remove); };
+          saveEdit.onclick = async () => {
+            const updated = editor.value.trim();
+            if (!updated) { status.textContent = "Not boş olamaz."; return; }
+            saveEdit.disabled = true;
+            try {
+              await memoryRequest(`/api/memories/${encodeURIComponent(memory.id)}`, {
+                method: "PATCH",
+                body: JSON.stringify({ content: updated, category: memory.category || "general" }),
+              });
+              status.textContent = "Not güncellendi.";
+              await refresh();
+            } catch (error) { status.textContent = error.message; saveEdit.disabled = false; }
+          };
+          editor.focus();
         };
         const remove = document.createElement("button");
         remove.type = "button";
         remove.className = "image-studio-secondary";
         remove.textContent = "Sil";
         remove.onclick = async () => {
-          if (!window.confirm("Bu hafıza notunu silmek istiyor musun?")) return;
+          const approved = await showNovaDialog({ title: "Hafıza notunu sil?", message: "Bu not NOVA'nın hafızasından kalıcı olarak silinecek.", confirmText: "Notu sil", cancelText: "Vazgeç", danger: true });
+          if (!approved) return;
           try {
             await memoryRequest(`/api/memories/${encodeURIComponent(memory.id)}`, { method: "DELETE" });
             status.textContent = "Not silindi.";
