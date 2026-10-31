@@ -1648,7 +1648,7 @@ function normalizeSportsText(value = "") {
 
 function isFootballResultQuestion(query = "") {
   const normalized = normalizeSportsText(query);
-  return /(son mac|kac kac|mac sonucu|mac skoru|sonuc.*mac|skor.*mac|mac.*skor|mac.*kac)/.test(normalized);
+  return /(son mac|son karsilasma|kac kac|mac sonucu|mac skoru|karsilasma sonucu|sonuc.*mac|skor.*mac|mac.*skor|mac.*kac|skor)/.test(normalized);
 }
 
 function findSportsTeamInQuery(query, fixtures) {
@@ -1656,7 +1656,7 @@ function findSportsTeamInQuery(query, fixtures) {
   const aliases = [
     { names: ["fenerbahce", "fener"], canonical: "fenerbahce" },
     { names: ["galatasaray", "gala"], canonical: "galatasaray" },
-    { names: ["besiktas"], canonical: "besiktas" },
+    { names: ["besiktas", "bjk"], canonical: "besiktas" },
     { names: ["trabzonspor", "trabzon"], canonical: "trabzonspor" },
     { names: ["basaksehir", "istanbul basaksehir"], canonical: "basaksehir" },
   ];
