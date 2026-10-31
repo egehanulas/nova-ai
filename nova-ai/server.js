@@ -1966,6 +1966,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               if (webResults.some((item) => item.domain === "sportsapi.app" && item.snippet.includes("Maç devam ediyor"))) {
                 webSearchInstruction += "\n\nÖNEMLİ: Bu maç henüz tamamlanmadı. Yanıtta canlı skor olduğunu açıkça belirt; maç sonucu gibi sunma."; 
               }
+            }
             console.log("[NOVA AI] Web araması:", webResults.length, "kaynak bulundu.");
           } finally {
             clearTimeout(searchTimeout);
