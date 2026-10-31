@@ -1508,7 +1508,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               apiKey: GROQ_API_KEY,
               model: GROQ_MODEL,
               messages,
-              effectiveInstruction,
+              extraInstruction,
               providerName: "groq",
               signal: providerSignal,
               onText: emitText,
@@ -1526,7 +1526,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
 
             return streamGemini({
               messages,
-              effectiveInstruction,
+              extraInstruction,
               signal: providerSignal,
               onText: emitText,
             });
@@ -1546,7 +1546,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               apiKey: OPENROUTER_API_KEY,
               model: OPENROUTER_MODEL,
               messages,
-              effectiveInstruction,
+              extraInstruction,
               providerName: "openrouter",
               headers: {
                 "HTTP-Referer":
