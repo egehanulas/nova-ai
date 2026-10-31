@@ -636,3 +636,171 @@ body { background: #0d1014; color: #e8edf2; }
   #form .send-button { width: 32px !important; height: 32px !important; flex-basis: 32px !important; }
   .research-composer-button { min-height: 28px; }
 }
+
+
+/* NOVA signature palette v2 — brighter, welcoming deep-sea teal with coral spark */
+:root {
+  --bg: #19242b;
+  --sidebar: #202e36;
+  --panel: #25343d;
+  --surface: #2c3e48;
+  --surface-hover: #354b56;
+  --text: #f1f7f7;
+  --muted: #a9b9bf;
+  --accent: #62d4c1;
+  --accent-light: #a5f0df;
+  --blue: #79c9d0;
+  --border: rgba(190,225,224,.16);
+  --gradient: linear-gradient(135deg,#75dfca,#45b9b6);
+}
+html { scrollbar-color: #58757a transparent; }
+body { background: #19242b; color: #f1f7f7; }
+.sidebar {
+  background: #202e36;
+  border-right: 1px solid rgba(190,225,224,.12);
+}
+.main-panel { background: #19242b; }
+.topbar {
+  background: rgba(25,36,43,.94);
+  border-bottom: 1px solid rgba(190,225,224,.12);
+}
+.brand-name span { color: #72dfca; }
+.brand-caption, .topbar-badge { color: #a9bdc1; }
+.topbar-badge-icon { color: #ff9b86; }
+.new-chat {
+  color: #f4fffc;
+  background: #31514f;
+  border: 1px solid rgba(117,223,202,.30);
+  box-shadow: 0 5px 18px rgba(30,115,104,.14);
+}
+.new-chat:hover { background: #3a625e; }
+.tools-heading { color: #a9c0c2; }
+.tools-heading span:last-child { color: #ffad99; }
+.research-toggle { color: #e6f1f0; }
+.research-toggle:hover, .research-toggle[aria-pressed="true"] {
+  border-color: rgba(117,223,202,.28);
+  background: rgba(98,212,193,.12);
+}
+.research-icon {
+  color: #82e5d2;
+  border-color: rgba(117,223,202,.22);
+  background: rgba(98,212,193,.10);
+}
+.research-title, .profile-copy strong { color: #f0f8f7; }
+.research-subtitle, .profile-copy span { color: #a8bdc0; }
+.history-heading { color: #a7b9bd; }
+.history-heading-dot { background: #ff9b86; box-shadow: 0 0 10px rgba(255,155,134,.24); }
+.sidebar-bottom, .topbar { border-color: rgba(190,225,224,.12); }
+.profile-avatar { border-color: rgba(190,225,224,.18); }
+.status i { background: #76dfb5; box-shadow: 0 0 9px rgba(118,223,181,.3); }
+.messages { background: transparent; }
+.assistant-message .message-name { color: #8fe5d5; }
+.message-content { color: #e1ebeb; }
+.message-content strong, .message-content h1,
+.message-content h2, .message-content h3 { color: #f5fbfa; }
+.message-content em { color: #ffc0ad; }
+.message-content a { color: #8fe5d5; }
+.message-content blockquote { border-left-color: #62d4c1; color: #b8cbca; }
+.message-content code {
+  border-color: rgba(117,223,202,.18);
+  background: rgba(98,212,193,.10);
+  color: #a8f0df;
+}
+.nova-code-block { border-color: rgba(190,225,224,.16); background: #172229; }
+.nova-code-block .code-header { border-color: rgba(190,225,224,.12); }
+.user-message .message-content {
+  border-color: rgba(117,223,202,.24);
+  background: #31514f;
+  color: #f4fffc;
+}
+.message-actions button:hover { background: rgba(98,212,193,.12); }
+.typing { color: #8fe5d5; }
+.typing::after { background: #ff9b86; }
+.welcome-icon {
+  border: 1px solid rgba(117,223,202,.34);
+  background: linear-gradient(145deg,#3a716d,#294f5a);
+  box-shadow: 0 12px 32px rgba(20,115,104,.18);
+  color: #b5f5e8;
+  animation: none;
+}
+.welcome h1 { color: #f5fbfa; }
+.welcome p { color: #b3c5c7; }
+.composer-area {
+  background: linear-gradient(180deg,transparent,rgba(25,36,43,.97) 30%);
+}
+#form.composer {
+  border-color: rgba(117,223,202,.24) !important;
+  background: #263841 !important;
+  box-shadow: 0 10px 30px rgba(7,22,27,.22) !important;
+}
+#form.composer:focus-within {
+  border-color: rgba(117,223,202,.58) !important;
+  box-shadow: 0 0 0 3px rgba(98,212,193,.10),0 10px 30px rgba(7,22,27,.2) !important;
+}
+#form #prompt { color: #f1f8f7; caret-color: #8fe5d5; }
+#form #prompt::placeholder { color: #a0b5b8; }
+.research-composer-button {
+  color: #b8e8df;
+  border-color: rgba(117,223,202,.20);
+  background: #304850;
+}
+.research-composer-button:hover,
+.research-composer-button[aria-pressed="true"] {
+  color: #f4fffc;
+  border-color: rgba(117,223,202,.46);
+  background: #3b5c60;
+}
+#form .send-button {
+  color: #12302e;
+  border-color: rgba(165,240,223,.45);
+  background: #78dfca !important;
+  box-shadow: 0 4px 14px rgba(52,174,154,.20) !important;
+}
+#form .send-button:hover:not(:disabled) { background: #a0f0df !important; }
+.voice-button {
+  color: #d8eeea;
+  border-color: rgba(117,223,202,.20);
+  background: #30434b;
+}
+.voice-button:hover:not(:disabled) { background: #3a555d; }
+.voice-button.primary {
+  color: #14312e;
+  border-color: #78dfca;
+  background: #78dfca;
+}
+.voice-button.primary:hover:not(:disabled) { background: #a0f0df; }
+.voice-button.primary[aria-pressed="true"] {
+  color: #38201c;
+  border-color: #ff9b86;
+  background: #ff9b86;
+}
+.voice-status { color: #a9bdc1; }
+.image-studio-panel {
+  border-color: rgba(117,223,202,.22);
+  background: linear-gradient(145deg,#304850,#22343c);
+}
+.image-studio-eyebrow, .image-gallery-links a { color: #8fe5d5; }
+.image-studio-prompt, .nova-memory-category { background: #1d2d34; }
+.image-format:has(input:checked) {
+  border-color: #62d4c1;
+  background: rgba(98,212,193,.13);
+}
+.nova-memory-card { border-color: rgba(117,223,202,.18); background: #293d45; }
+.nova-memory-card small { color: #8fe5d5; }
+.nova-memory-button { order: -1; }
+.auth-screen { background: rgba(17,27,32,.96) !important; }
+.auth-card { border-color: rgba(117,223,202,.20) !important; background: #263841 !important; }
+.auth-brand strong span { color: #78dfca !important; }
+.auth-tabs { background: #1d2d34 !important; }
+.auth-tabs button.active { color: #f4fffc !important; background: #3a5d60 !important; }
+.auth-field input { border-color: #49616a !important; background: #1d2d34 !important; }
+.auth-field input:focus { border-color: #62d4c1 !important; }
+.auth-submit {
+  color: #14312e !important;
+  background: #78dfca !important;
+  box-shadow: 0 4px 14px rgba(52,174,154,.16) !important;
+}
+.auth-submit:hover { background: #a0f0df !important; }
+@media (max-width:680px) {
+  .sidebar { background: #202e36; }
+}
