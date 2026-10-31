@@ -1763,7 +1763,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
       if (isResearchRoute) {
         try {
           const searchController = new AbortController();
-          const searchTimeout = setTimeout(() => searchController.abort(), 12000);
+          const searchTimeout = setTimeout(() => searchController.abort(), 20000);
           try {
             const latestQuestion = getLatestUserMessage(messages);
             let webResults = [];
