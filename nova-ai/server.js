@@ -1638,6 +1638,109 @@ function extractWeatherLocation(query = "") {
     .trim();
 }
 
+function normalizeSportsText(value = "") {
+  return String(value).toLocaleLowerCase("tr-TR")
+    .replace(/[ıİ]/g, "i").replace(/[şŞ]/g, "s").replace(/[çÇ]/g, "c")
+    .replace(/[ğĞ]/g, "g").replace(/[üÜ]/g, "u").replace(/[öÖ]/g, "o")
+    .replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function isFootballResultQuestion(query = "") {
+  const normalized = normalizeSportsText(query);
+  return /(son mac|kac kac|mac sonucu|mac skoru|sonuc.*mac|skor.*mac|mac.*skor|mac.*kac)/.test(normalized);
+}
+
+function findSportsTeamInQuery(query, fixtures) {
+  const normalizedQuery = normalizeSportsText(query);
+  const aliases = [
+    { names: ["fenerbahce", "fener"], canonical: "fenerbahce" },
+    { names: ["galatasaray", "gala"], canonical: "galatasaray" },
+    { names: ["besiktas"], canonical: "besiktas" },
+    { names: ["trabzonspor", "trabzon"], canonical: "trabzonspor" },
+    { names: ["basaksehir", "istanbul basaksehir"], canonical: "basaksehir" },
+  ];
+  for (const alias of aliases) {
+    if (alias.names.some((name) => normalizedQuery.includes(name))) return alias.canonical;
+  }
+  for (const fixture of fixtures) {
+    for (const team of [fixture.home, fixture.away]) {
+      const name = normalizeSportsText(team?.name);
+      if (name && normalizedQuery.includes(name)) return name;
+    }
+  }
+  return "";
+}
+
+async function searchLatestFootballResult(query, signal) {
+  const response = await fetch("https://api.sportsapi.app/showcase/fixtures", {
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(9000)]) : AbortSignal.timeout(9000),
+    headers: { "Accept": "application/json", "User-Agent": "NOVA-AI/1.0" },
+  });
+  if (!response.ok) throw new Error("Maç sonuç servisi HTTP " + response.status);
+
+  const payload = await response.json();
+  const fixtures = Array.isArray(payload?.data) ? payload.data : [];
+  if (!fixtures.length) {
+    return { results: [], note: "Canlı maç servisi şu anda maç verisi döndürmedi. Skor tahmin etme; doğrulanmış son maç sonucuna ulaşılamadığını açıkça belirt." };
+  }
+
+  const requestedTeam = findSportsTeamInQuery(query, fixtures);
+  if (!requestedTeam) {
+    return { results: [], note: "Kullanıcının sorduğu takım güncel maç verilerinde eşleştirilemedi. Takım adını netleştirmesini iste; skor uydurma." };
+  }
+
+  const teamFixtures = fixtures.filter((fixture) => {
+    const home = normalizeSportsText(fixture.home?.name);
+    const away = normalizeSportsText(fixture.away?.name);
+    return home === requestedTeam || away === requestedTeam ||
+      home.includes(requestedTeam) || away.includes(requestedTeam);
+  });
+  const byNewest = (a, b) => new Date(b.startTime || 0).getTime() - new Date(a.startTime || 0).getTime();
+  const finished = teamFixtures.filter((fixture) =>
+    ["finished", "ended"].includes(String(fixture.status?.type || "").toLowerCase()) &&
+    Number.isInteger(fixture.homeScore) && Number.isInteger(fixture.awayScore)
+  ).sort(byNewest);
+  const live = teamFixtures.filter((fixture) =>
+    ["inprogress", "live"].includes(String(fixture.status?.type || "").toLowerCase()) &&
+    Number.isInteger(fixture.homeScore) && Number.isInteger(fixture.awayScore)
+  ).sort(byNewest);
+
+  const fixture = finished[0] || live[0];
+  if (!fixture) {
+    return { results: [], note: "Güncel maç servisi bu takım için doğrulanmış tamamlanmış maç skoru döndürmedi. Yaklaşan maçı son maç gibi sunma; skor tahmin etme." };
+  }
+
+  const isFinished = finished.length > 0;
+  const homeName = fixture.home?.name || "Ev sahibi";
+  const awayName = fixture.away?.name || "Deplasman";
+  const date = fixture.startTime
+    ? new Date(fixture.startTime).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })
+    : "Tarih belirtilmedi";
+  const status = isFinished ? "Maç tamamlandı" : "Maç devam ediyor; bu skor kesin sonuç değildir";
+  const score = homeName + " " + fixture.homeScore + "-" + fixture.awayScore + " " + awayName;
+  const snippet = [
+    "Sorgulanan takım: " + (normalizeSportsText(homeName) === requestedTeam ? homeName : awayName),
+    "Maç: " + score,
+    "Tarih (İstanbul): " + date,
+    "Durum: " + status,
+    "Ev sahibi: " + homeName,
+    "Deplasman: " + awayName,
+    "Skor: " + fixture.homeScore + "-" + fixture.awayScore,
+  ].join("\n");
+
+  return {
+    results: [{
+      title: score + " — " + date,
+      url: fixture.id ? "https://sportsapi.app/match/" + encodeURIComponent(String(fixture.id)) : "https://sportsapi.app/live",
+      snippet,
+      publishedAt: fixture.startTime || "",
+      domain: "sportsapi.app",
+    }],
+    note: "",
+    live: !isFinished,
+  };
+}
+
 function weatherDescription(code) {
   const descriptions = {
     0: "Açık", 1: "Çoğunlukla açık", 2: "Parçalı bulutlu", 3: "Kapalı",
@@ -1650,6 +1753,50 @@ function weatherDescription(code) {
     99: "Kuvvetli dolulu gök gürültülü fırtına",
   };
   return descriptions[Number(code)] || "Hava durumu açıklaması bulunamadı";
+}
+
+async function searchWeatherWithWttr(location, signal) {
+  const url = new URL("https://wttr.in/" + encodeURIComponent(location));
+  url.searchParams.set("format", "j1");
+  const response = await fetch(url, {
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(9000)]) : AbortSignal.timeout(9000),
+    headers: { "Accept": "application/json", "User-Agent": "curl/8.0 NOVA-AI/1.0" },
+  });
+  if (!response.ok) throw new Error("wttr.in HTTP " + response.status);
+
+  const data = await response.json();
+  const current = data.current_condition?.[0];
+  const day = data.weather?.[0];
+  if (!current) throw new Error("wttr.in geçerli anlık veri döndürmedi");
+
+  const area = data.nearest_area?.[0];
+  const placeName = [
+    area?.areaName?.[0]?.value || location,
+    area?.region?.[0]?.value,
+    area?.country?.[0]?.value,
+  ].filter(Boolean).join(", ");
+  const maxRainChance = Array.isArray(day?.hourly)
+    ? day.hourly.reduce((max, hour) => Math.max(max, Number(hour.chanceofrain) || 0), 0)
+    : "Belirtilmedi";
+  const snippet = [
+    "Konum: " + placeName,
+    "Gözlem zamanı: " + (current.localObsDateTime || "Belirtilmedi"),
+    "Durum: " + (current.weatherDesc?.[0]?.value || "Belirtilmedi"),
+    "Sıcaklık: " + (current.temp_C ?? "Belirtilmedi") + " °C",
+    "Hissedilen: " + (current.FeelsLikeC ?? "Belirtilmedi") + " °C",
+    "Nem: " + (current.humidity ?? "Belirtilmedi") + "%",
+    "Rüzgâr: " + (current.windspeedKmph ?? "Belirtilmedi") + " km/sa",
+    "Yağış: " + (current.precipMM ?? "Belirtilmedi") + " mm",
+    "Günlük en yüksek/en düşük: " + (day?.maxtempC ?? "—") + " / " + (day?.mintempC ?? "—") + " °C",
+    "Günlük en yüksek yağış olasılığı: " + maxRainChance + "%",
+  ].join("\n");
+  return {
+    title: placeName + " anlık hava durumu",
+    url: "https://wttr.in/" + encodeURIComponent(location),
+    snippet,
+    publishedAt: current.localObsDateTime || "",
+    domain: "wttr.in",
+  };
 }
 
 async function searchCurrentWeather(query, signal) {
@@ -1673,10 +1820,26 @@ async function searchCurrentWeather(query, signal) {
   geocodeUrl.searchParams.set("language", "tr");
   geocodeUrl.searchParams.set("format", "json");
   geocodeUrl.searchParams.set("countryCode", "TR");
-  const geocoding = await request(geocodeUrl);
-  const place = (geocoding.results || []).find((item) => item.country_code === "TR");
+  let place;
+  try {
+    const geocoding = await request(geocodeUrl);
+    place = (geocoding.results || []).find((item) => item.country_code === "TR");
+  } catch (geocodeError) {
+    console.warn("[NOVA AI] Open-Meteo konum araması başarısız:", geocodeError.message);
+  }
+
   if (!place) {
-    return { results: [], note: "Belirtilen konum bulunamadı. Kullanıcıdan konumu netleştirmesini iste; hava verisi uydurma." };
+    try {
+      const fallback = await searchWeatherWithWttr(location, signal);
+      console.log("[NOVA AI] Hava durumu sağlayıcısı: wttr.in");
+      return { results: [fallback], note: "" };
+    } catch (fallbackError) {
+      console.warn("[NOVA AI] wttr.in hava durumu yedeği başarısız:", fallbackError.message);
+      return {
+        results: [],
+        note: "Open-Meteo ve wttr.in hava durumu servisleri konum için veri sağlayamadı. Kullanıcıya bunu açıkça söyle; sıcaklık, yağış veya rüzgâr değeri uydurma.",
+      };
+    }
   }
 
   const forecastUrl = new URL("https://api.open-meteo.com/v1/forecast");
@@ -1775,6 +1938,19 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               } catch (weatherError) {
                 console.warn("[NOVA AI] Anlık hava durumu alınamadı:", weatherError.message);
                 webSearchInstruction = "CANLI HAVA DURUMU ALINAMADI. Kullanıcıya gerçek zamanlı hava verisine erişemediğini açıkça söyle; sıcaklık, yağış veya rüzgâr değeri uydurma.";
+              }
+            } else if (isFootballResultQuestion(latestQuestion)) {
+              try {
+                const footballResult = await searchLatestFootballResult(latestQuestion, searchController.signal);
+                webResults = footballResult.results;
+                if (footballResult.note) webSearchInstruction = "CANLI MAÇ SONUCU NOTU: " + footballResult.note;
+                if (footballResult.live) {
+                  webSearchInstruction += " Maç henüz bitmedi; kullanıcıya bunun canlı skor olduğunu özellikle belirt, sonucu kesinleşmiş gibi sunma.";
+                }
+                if (webResults.length) console.log("[NOVA AI] Maç sonucu sağlayıcısı: SportsAPI -", webResults.length, "kaynak.");
+              } catch (footballError) {
+                console.warn("[NOVA AI] Maç sonucu servisi başarısız:", footballError.message);
+                webSearchInstruction = "DOĞRULANMIŞ MAÇ SONUCU ALINAMADI. Genel haber arama sonuçlarından veya hafızandan skor tahmin etme; kullanıcıya sonucun şu anda doğrulanamadığını açıkça söyle.";
               }
             } else {
               webResults = await searchPublicWeb(latestQuestion, searchController.signal);
