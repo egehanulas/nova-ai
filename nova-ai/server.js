@@ -1466,57 +1466,46 @@ async function searchPublicWeb(query, signal) {
     String(value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
   );
 
-  const safeTarget = (href, baseUrl) => {
-    try {
-      let value = decodeEntities(href);
-      const parsed = new URL(value, baseUrl);
-      if (parsed.hostname === "www.google.com" || parsed.hostname === "google.com") {
-        const redirected = parsed.searchParams.get("q") || parsed.searchParams.get("url");
-        if (parsed.pathname === "/url" && redirected) value = redirected;
-      }
-      const target = new URL(value, baseUrl);
-      if (!["http:", "https:"].includes(target.protocol) || target.username || target.password) return null;
-      if (/(^|\.)google\.[a-z.]+$/i.test(target.hostname) ||
-          target.hostname.endsWith("bing.com") ||
-          target.hostname.endsWith("duckduckgo.com")) return null;
-      return target;
-    } catch {
-      return null;
-    }
-  };
-
   const providers = [
     {
-      name: "Google",
+      name: "Google News RSS",
       url: () => {
-        const url = new URL("https://www.google.com/search");
+        const url = new URL("https://news.google.com/rss/search");
         url.searchParams.set("q", cleanQuery);
-        url.searchParams.set("num", "10");
         url.searchParams.set("hl", "tr");
-        url.searchParams.set("gbv", "1");
+        url.searchParams.set("gl", "TR");
+        url.searchParams.set("ceid", "TR:tr");
         return url;
       },
-      parse: (html) => {
+      parse: (xml) => {
         const results = [];
-        const pattern = /<a\b([^>]*)>([\s\S]*?<h3\b[^>]*>[\s\S]*?<\/h3>[\s\S]*?)<\/a>/gi;
-        let match;
+        const items = xml.match(/<item\b[^>]*>[\s\S]*?<\/item>/gi) || [];
 
-        while ((match = pattern.exec(html)) && results.length < 5) {
-          const hrefMatch = match[1].match(/\bhref=["']([^"']+)["']/i);
-          if (!hrefMatch) continue;
-          const target = safeTarget(hrefMatch[1], "https://www.google.com");
-          if (!target) continue;
+        for (const item of items) {
+          if (results.length >= 5) break;
+          const titleMatch = item.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
+          const linkMatch = item.match(/<link\b[^>]*>([\s\S]*?)<\/link>/i);
+          const descriptionMatch = item.match(/<description\b[^>]*>([\s\S]*?)<\/description>/i);
+          const title = stripTags(titleMatch?.[1] || "").slice(0, 220);
+          const href = decodeEntities(linkMatch?.[1] || "").trim();
+          let target;
 
-          const heading = match[2].match(/<h3\b[^>]*>([\s\S]*?)<\/h3>/i);
-          const title = stripTags(heading?.[1] || "").slice(0, 220);
-          const blockStart = Math.max(0, html.lastIndexOf('<div class="MjjYud"', match.index));
-          const blockEndCandidate = html.indexOf('<div class="MjjYud"', match.index + match[0].length);
-          const block = html.slice(blockStart, blockEndCandidate > blockStart ? blockEndCandidate : match.index + 5000);
-          const snippetMatch = block.match(/class=["'][^"']*\b(?:VwiC3b|yXK7lf|s3v9rd)\b[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|span)>/i);
-          const snippet = stripTags(snippetMatch?.[1] || "").slice(0, 700);
+          try {
+            target = new URL(href);
+          } catch {
+            continue;
+          }
 
-          if (!title || results.some((item) => item.url === target.href)) continue;
-          results.push({ title, url: target.href, snippet, domain: target.hostname });
+          if (target.protocol !== "https:" || target.hostname !== "news.google.com") continue;
+          const snippet = stripTags(descriptionMatch?.[1] || "").slice(0, 700);
+          if (!title || results.some((entry) => entry.url === target.href)) continue;
+
+          results.push({
+            title,
+            url: target.href,
+            snippet,
+            domain: "news.google.com",
+          });
         }
         return results;
       },
@@ -1536,13 +1525,19 @@ async function searchPublicWeb(query, signal) {
           if (results.length >= 5) break;
           const link = block.match(/<h2\b[^>]*>\s*<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i);
           if (!link) continue;
-          const target = safeTarget(link[1], "https://www.bing.com");
-          if (!target) continue;
-          const title = stripTags(link[2]).slice(0, 220);
-          const snippetMatch = block.match(/<(?:p|div)\b[^>]*class=["'][^"']*(?:b_caption|b_lineclamp)[^"']*["'][^>]*>([\s\S]*?)<\/(?:p|div)>/i);
-          const snippet = stripTags(snippetMatch?.[1] || "").slice(0, 700);
-          if (!title || results.some((item) => item.url === target.href)) continue;
-          results.push({ title, url: target.href, snippet, domain: target.hostname });
+
+          try {
+            const target = new URL(decodeEntities(link[1]));
+            if (!["http:", "https:"].includes(target.protocol) || target.username || target.password) continue;
+            const title = stripTags(link[2]).slice(0, 220);
+            const snippetMatch = block.match(/<(?:p|div)\b[^>]*class=["'][^"']*(?:b_caption|b_lineclamp)[^"']*["'][^>]*>([\s\S]*?)<\/(?:p|div)>/i);
+            const snippet = stripTags(snippetMatch?.[1] || "").slice(0, 700);
+            if (!title || results.some((entry) => entry.url === target.href)) continue;
+
+            results.push({ title, url: target.href, snippet, domain: target.hostname });
+          } catch {
+            continue;
+          }
         }
         return results;
       },
@@ -1560,14 +1555,25 @@ async function searchPublicWeb(query, signal) {
         let match;
 
         while ((match = pattern.exec(html)) && results.length < 5) {
-          const target = safeTarget(match[1], "https://html.duckduckgo.com");
-          if (!target) continue;
-          const title = stripTags(match[2]).slice(0, 220);
-          const after = html.slice(pattern.lastIndex, pattern.lastIndex + 1800);
-          const snippetMatch = after.match(/class=["'][^"']*\bresult__snippet\b[^"']*["'][^>]*>([\s\S]*?)<\/(?:a|div|td)/i);
-          const snippet = stripTags(snippetMatch?.[1] || "").slice(0, 700);
-          if (!title || results.some((item) => item.url === target.href)) continue;
-          results.push({ title, url: target.href, snippet, domain: target.hostname });
+          let href = decodeEntities(match[1]);
+          try {
+            const parsed = new URL(href, "https://html.duckduckgo.com");
+            if (parsed.hostname.endsWith("duckduckgo.com")) {
+              const redirected = parsed.searchParams.get("uddg");
+              if (redirected) href = redirected;
+            }
+            const target = new URL(href);
+            if (!["http:", "https:"].includes(target.protocol) || target.username || target.password) continue;
+            const title = stripTags(match[2]).slice(0, 220);
+            const after = html.slice(pattern.lastIndex, pattern.lastIndex + 1800);
+            const snippetMatch = after.match(/class=["'][^"']*\bresult__snippet\b[^"']*["'][^>]*>([\s\S]*?)<\/(?:a|div|td)/i);
+            const snippet = stripTags(snippetMatch?.[1] || "").slice(0, 700);
+            if (!title || results.some((entry) => entry.url === target.href)) continue;
+
+            results.push({ title, url: target.href, snippet, domain: target.hostname });
+          } catch {
+            continue;
+          }
         }
         return results;
       },
@@ -1580,23 +1586,23 @@ async function searchPublicWeb(query, signal) {
 
     try {
       const providerSignal = signal
-        ? AbortSignal.any([signal, AbortSignal.timeout(7000)])
-        : AbortSignal.timeout(7000);
+        ? AbortSignal.any([signal, AbortSignal.timeout(9000)])
+        : AbortSignal.timeout(9000);
 
       const response = await fetch(provider.url(), {
         method: "GET",
         signal: providerSignal,
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          "Accept": "text/html,application/xhtml+xml",
+          "User-Agent": "Mozilla/5.0 (compatible; NOVAAI/1.0; +https://github.com/egehanulas/nova-ai)",
+          "Accept": "application/rss+xml, application/xml, text/xml, text/html;q=0.9, */*;q=0.8",
           "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
         },
       });
 
       if (!response.ok) throw new Error("HTTP " + response.status);
 
-      const html = (await response.text()).slice(0, 1500000);
-      const results = provider.parse(html);
+      const body = (await response.text()).slice(0, 1500000);
+      const results = provider.parse(body);
       if (results.length) {
         console.log("[NOVA AI] Web araması sağlayıcısı:", provider.name, "-", results.length, "kaynak.");
         return results;
