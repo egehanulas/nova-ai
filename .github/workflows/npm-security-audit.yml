@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "nova-ai/package.json"
+      - "nova-ai/scripts/test-embeddings.js"
       - ".github/workflows/npm-security-audit.yml"
   workflow_dispatch:
 
@@ -14,6 +15,7 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -21,14 +23,26 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "26"
+          node-version: "22"
 
-      - name: Generate a temporary lockfile
+      - name: Generate a lockfile
         working-directory: nova-ai
         run: npm install --package-lock-only --ignore-scripts --no-audit
 
-      - name: Report production dependency vulnerabilities
+      - name: Install dependencies
+        working-directory: nova-ai
+        run: npm ci --no-audit
+
+      - name: Check JavaScript syntax
+        working-directory: nova-ai
+        run: npm run check
+
+      - name: Test local embedding model
+        working-directory: nova-ai
+        run: npm run test:embeddings
+
+      - name: Audit production dependencies
         working-directory: nova-ai
         run: |
           npm audit --omit=dev --json > npm-audit.json || true
-          node -e 'const r=require("./npm-audit.json"); console.log("VULNERABILITY SUMMARY:", JSON.stringify(r.metadata?.vulnerabilities || {})); for (const [name, item] of Object.entries(r.vulnerabilities || {})) { const via=(item.via || []).map(v => typeof v === "string" ? v : v.title).join(" | "); console.log(name + " | severity=" + item.severity + " | range=" + item.range + " | fix=" + JSON.stringify(item.fixAvailable) + " | via=" + via); }'
+          node -e 'const r=require("./npm-audit.json"); const v=r.metadata?.vulnerabilities || {}; console.log("VULNERABILITY SUMMARY:", JSON.stringify(v)); for (const [name, item] of Object.entries(r.vulnerabilities || {})) { const via=(item.via || []).map(x => typeof x === "string" ? x : x.title).join(" | "); console.log(name + " | severity=" + item.severity + " | range=" + item.range + " | fix=" + JSON.stringify(item.fixAvailable) + " | via=" + via); } if ((v.high || 0) + (v.critical || 0) > 0) process.exit(1);'
