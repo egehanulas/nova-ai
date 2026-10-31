@@ -2497,7 +2497,7 @@ function buildUpcomingOpponentWebQuery(originalQuery, fixtureResults) {
     opponent = opponent.replace(/^\\d{1,2}\\s+/, "");
     const opponentSuffixes = [
       " maçı", " maçını", " macı", " macini", " maç", " mac",
-      " karşılaşması", " karsilasmasi", " fixture", " next match", " upcoming",
+      " karşılaşması", " karsilasmasi", " fikstürü", " fiksturu", " fikstür", " fikstur", " fixture", " next match", " upcoming",
       " canlı", " canli", " izle", " izleme", " yayın", " yayin",
       " bilgisi", " bilet", " ticket", " stream", " watch", " live",
       " tv", " today", " tonight", " son dakika"
