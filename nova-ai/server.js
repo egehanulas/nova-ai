@@ -2074,6 +2074,53 @@ function buildWebResearchInstruction(results) {
   ].join("\n\n");
 }
 
+function buildAgentPlan(query = "", isResearchRoute = false) {
+  const value = String(query || "").trim();
+  if (!value) return [];
+  if (isWeatherQuestion(value)) {
+    return [{ tool: "weather", query: value, label: "Güncel hava durumunu al" }];
+  }
+  if (isFootballResultQuestion(value)) {
+    const plan = [{ tool: "football", query: value, label: "Takımın son maçını ve skorunu doğrula" }];
+    const asksForOpponentAnalysis =
+      /\b(rakip|rakibin|rakibinin|karşı takım|karsi takim|performans|form durumu|son maçlarını|son maclarini|analiz|değerlendir|degerlendir|karşılaştır|karsilastir)\b/i.test(value);
+    if (asksForOpponentAnalysis) {
+      plan.push({
+        tool: "web_search",
+        query: "",
+        label: "Rakip takımın güncel performansını araştır",
+        dependsOn: "football_opponent",
+      });
+    }
+    return plan;
+  }
+  if (isResearchRoute || selectAgentTool(value) === "web_search") {
+    return [{ tool: "web_search", query: value, label: "Güvenilir güncel kaynakları araştır" }];
+  }
+  return [];
+}
+
+function buildOpponentResearchQuery(originalQuery, footballResults) {
+  const match = (footballResults || [])
+    .map((item) => String(item.snippet || ""))
+    .map((snippet) => snippet.match(/Maç:\s*(.+?)\s+(\d+)\s*[-–:]\s*(\d+)\s+(.+?)(?:\n|$)/i))
+    .find(Boolean);
+  if (!match) return "";
+  const home = match[1].trim();
+  const away = match[4].trim();
+  const requestedTeam = normalizeSportsText(getFootballTeamSearchTerm(originalQuery));
+  const normalizedHome = normalizeSportsText(home);
+  const normalizedAway = normalizeSportsText(away);
+  let opponent = "";
+  if (requestedTeam && (normalizedHome.includes(requestedTeam) || requestedTeam.includes(normalizedHome))) {
+    opponent = away;
+  } else if (requestedTeam && (normalizedAway.includes(requestedTeam) || requestedTeam.includes(normalizedAway))) {
+    opponent = home;
+  }
+  if (!opponent || opponent.length > 100) return "";
+  return opponent + " son maçları güncel form durumu performansı son haftalar";
+}
+
 function registerStreamingEndpoint(route, extraInstruction, customError) {
   app.post(
     route,
@@ -2089,58 +2136,91 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
       const controller = new AbortController();
       const isResearchRoute = route === "/api/research/stream";
       const latestQuestion = getLatestUserMessage(messages);
-      const agentTool = isResearchRoute ? "web_search" : selectAgentTool(latestQuestion);
+      const agentPlan = buildAgentPlan(latestQuestion, isResearchRoute);
+      const agentTool = agentPlan.length > 1
+        ? "multi_step"
+        : (agentPlan[0]?.tool || "none");
       let webSearchInstruction = "";
 
-      // Kullanıcı araştırma modunu açtıysa ara; normal sohbette ise yalnızca
-      // açık bir canlı bilgi/araştırma ihtiyacı algılandığında uygun aracı seç.
-      if (isResearchRoute || agentTool !== "none") {
+      // NOVA görevleri sıraya koyar. Bağımlı adımlar, önceki adımdan gelen
+      // doğrulanmış veriyi kullanır; sonuç yoksa tahmin ederek devam etmez.
+      if (agentPlan.length) {
+        const searchController = new AbortController();
+        const searchTimeout = setTimeout(() => searchController.abort(), 45000);
+        const collectedResults = [];
+        const planLog = [];
         try {
-          const searchController = new AbortController();
-          const searchTimeout = setTimeout(() => searchController.abort(), 30000);
-          try {
-            let webResults = [];
-            if (isWeatherQuestion(latestQuestion)) {
-              try {
-                const weatherResult = await searchCurrentWeather(latestQuestion, searchController.signal);
-                webResults = weatherResult.results;
-                if (weatherResult.note) webSearchInstruction = "CANLI HAVA DURUMU NOTU: " + weatherResult.note;
-              } catch (weatherError) {
-                console.warn("[NOVA AI] Anlık hava durumu alınamadı:", weatherError.message);
-                webSearchInstruction = "CANLI HAVA DURUMU ALINAMADI. Kullanıcıya gerçek zamanlı hava verisine erişemediğini açıkça söyle; sıcaklık, yağış veya rüzgâr değeri uydurma.";
-              }
-            } else if (isFootballResultQuestion(latestQuestion)) {
-              try {
-                const footballResult = await searchLatestFootballResult(latestQuestion, searchController.signal);
-                webResults = footballResult.results;
-                if (footballResult.note) webSearchInstruction = "CANLI MAÇ SONUCU NOTU: " + footballResult.note;
-                if (footballResult.live) {
-                  webSearchInstruction += " Maç henüz bitmedi; kullanıcıya bunun canlı skor olduğunu özellikle belirt, sonucu kesinleşmiş gibi sunma.";
+          for (let index = 0; index < agentPlan.length; index++) {
+            if (searchController.signal.aborted || controller.signal.aborted) break;
+            const step = agentPlan[index];
+            let stepResults = [];
+            let stepNote = "";
+            try {
+              if (step.tool === "weather") {
+                const result = await searchCurrentWeather(step.query, searchController.signal);
+                stepResults = result.results || [];
+                stepNote = result.note || "";
+              } else if (step.tool === "football") {
+                const result = await searchLatestFootballResult(step.query, searchController.signal);
+                stepResults = result.results || [];
+                stepNote = result.note || "";
+                if (result.live) {
+                  stepNote += " Maç henüz bitmedi; skor canlı skor olarak belirtilmeli, kesin sonuç gibi sunulmamalı.";
                 }
-                if (webResults.length) console.log("[NOVA AI] Maç sonucu sağlayıcısı: SportsAPI -", webResults.length, "kaynak.");
-              } catch (footballError) {
-                console.warn("[NOVA AI] Maç sonucu servisi başarısız:", footballError.message);
-                webSearchInstruction = "DOĞRULANMIŞ MAÇ SONUCU ALINAMADI. Genel haber arama sonuçlarından veya hafızandan skor tahmin etme; kullanıcıya sonucun şu anda doğrulanamadığını açıkça söyle.";
+              } else if (step.tool === "web_search") {
+                let searchQuery = step.query || latestQuestion;
+                if (step.dependsOn === "football_opponent") {
+                  searchQuery = buildOpponentResearchQuery(latestQuestion, collectedResults);
+                  if (!searchQuery) {
+                    stepNote = "İlk adımdaki doğrulanmış maç verisinden rakip takım belirlenemedi. Rakibi tahmin etme; bu araştırma adımını atla.";
+                  }
+                }
+                if (searchQuery) {
+                  stepResults = await searchPublicWeb(searchQuery, searchController.signal);
+                }
               }
-            } else {
-              webResults = await searchPublicWeb(latestQuestion, searchController.signal);
+            } catch (stepError) {
+              stepNote = step.label + " adımı tamamlanamadı: " + stepError.message;
+              console.warn("[NOVA AI] Agent adımı başarısız:", step.tool, stepError.message);
             }
-            if (webResults.length) {
-              webSearchInstruction = buildWebResearchInstruction(webResults);
-              if (webResults.some((item) => item.domain === "sportsapi.app" && item.snippet.includes("Maç devam ediyor"))) {
-                webSearchInstruction += "\n\nÖNEMLİ: Bu maç henüz tamamlanmadı. Yanıtta canlı skor olduğunu açıkça belirt; maç sonucu gibi sunma."; 
-              }
+            if (stepResults.length) {
+              collectedResults.push(...stepResults.map((item) => ({
+                ...item,
+                title: step.label + " — " + item.title,
+              })));
             }
-            console.log("[NOVA AI] Web araması:", webResults.length, "kaynak bulundu.");
-          } finally {
-            clearTimeout(searchTimeout);
+            planLog.push({
+              label: step.label,
+              success: stepResults.length > 0,
+              resultCount: stepResults.length,
+              note: stepNote,
+            });
+            console.log(
+              "[NOVA AI] Agent adımı " + (index + 1) + "/" + agentPlan.length + ":",
+              step.tool, "-", stepResults.length, "sonuç."
+            );
           }
-        } catch (searchError) {
-          if (controller.signal.aborted) {
-            console.warn("[NOVA AI] Web araması zaman aşımına uğradı veya iptal edildi.");
-          } else {
-            console.warn("[NOVA AI] Web araması başarısız:", searchError.message);
+
+          if (collectedResults.length) {
+            webSearchInstruction = buildWebResearchInstruction(collectedResults);
           }
+          const planSummary = [
+            "NOVA AI GÖREV PLANI VE SONUÇ KONTROLÜ:",
+            "Kullanıcının isteğini aşağıdaki adımlarla yürüttün. Yalnızca başarıyla tamamlanan adımların sonuçlarını kullan; başarısız veya atlanan adımı tamamlanmış gibi gösterme.",
+            ...planLog.map((step, index) =>
+              (index + 1) + ". " + step.label + ": " +
+              (step.success ? (step.resultCount + " sonuç alındı") : "doğrulanmış sonuç alınamadı") +
+              (step.note ? " — " + step.note : "")
+            ),
+            agentPlan.length > 1
+              ? "Bu çok adımlı görevde adımları birbirine bağla, ortak noktaları ve çelişkileri kontrol et, ardından tek ve kısa bir analiz üret. Yanıtın sonunda 'NOVA'nın izlediği adımlar' başlığıyla tamamlanan adımları birer kısa madde halinde belirt."
+              : "",
+            "Kaynaklardan gelmeyen ayrıntıları tamamlama veya uydurma.",
+          ].filter(Boolean).join("\n");
+          webSearchInstruction = [planSummary, webSearchInstruction].filter(Boolean).join("\n\n");
+          console.log("[NOVA AI] Agent planı:", planLog.length, "adım işlendi.");
+        } finally {
+          clearTimeout(searchTimeout);
         }
       }
 
@@ -2311,6 +2391,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               model: providerInfo.model,
               tool: agentTool,
               autoToolSelected: !isResearchRoute && agentTool !== "none",
+              agentPlan: agentPlan.map((step) => ({ tool: step.tool, label: step.label })),
             });
 
             result = await runProviderWithRetry(provider, providerTimeout.signal, onText);
