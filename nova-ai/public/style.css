@@ -1501,3 +1501,22 @@ button:disabled {
   padding: 10px; border: 1px solid #514879; border-radius: 9px;
   color: #fff; background: #0d1020; font: inherit; resize: vertical;
 }
+
+
+/* NOVA automatic memory feedback */
+.nova-memory-saved-notice {
+  width: fit-content;
+  margin: -10px auto 4px;
+  padding: 7px 12px;
+  border: 1px solid rgba(167, 145, 255, .2);
+  border-radius: 999px;
+  color: #c9bcff;
+  background: rgba(120, 98, 210, .09);
+  font-size: 11px;
+  line-height: 1.4;
+  animation: novaMemoryNoticeIn 220ms ease both;
+}
+@keyframes novaMemoryNoticeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
