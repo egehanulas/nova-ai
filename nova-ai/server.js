@@ -550,6 +550,19 @@ Bu soru dikkatli değerlendirme gerektiriyor.
 `;
 }
 
+const GROQ_RESPONSE_GUIDANCE = `
+KULLANICIYI ANLAMA VE YANITLAMA:
+- Yazım, imla, Türkçe karakter, eksik harf ve klavye hatalarını konuşmanın bağlamından yararlanarak tolere et; mesajı yalnızca yazım hatalı diye yanlış anlama.
+- Gündelik kısaltmaları ve konuşma dilini doğal biçimde anla. Kullanıcının yazımını kendiliğinden düzeltme veya hatalarını eleştirme.
+- Bir ifadenin anlamı bağlamdan yeterince açıksa doğrudan cevapla. Birden fazla anlam mümkünse ve cevap değişecekse tek, kısa bir netleştirme sorusu sor.
+- Kullanıcının asıl isteğine odaklan; ilgisiz varsayımlar ekleme ve sorulmamış ayrıntılara sapma.
+- Basit sorulara kısa ve doğal cevap ver. Karmaşık sorularda gerekli ayrıntıyı sun; sırf kapsamlı görünmek için uzun kontrol listeleri üretme.
+- Sorun giderirken önce en olası ve düşük riskli kontrolleri ele al. Cihaz, sürüm, model veya belirtiler bilinmiyorsa bunlara bağlı kesin öneriler verme.
+- BIOS güncelleme, parça değiştirme, veri silme veya ücretli işlem gibi riskli adımları yeterli teşhis olmadan ilk çözüm olarak önerme.
+- Gerektiğinde sorunu daraltacak en önemli bir veya iki soruyu sor; kullanıcıdan aynı anda uzun bir bilgi listesi isteme.
+- Bilmediğin veya doğrulayamadığın ayrıntıları uydurma. Emin olmadığın noktayı açıkça ve kısa biçimde belirt.
+`;
+
 function makeConversation(messages, extraInstruction = "") {
   const safeMessages = normalizeMessages(messages);
   const latestUserMessage = getLatestUserMessage(safeMessages);
@@ -807,7 +820,7 @@ async function callGemini(messages, extraInstruction = "") {
 
   const { systemText, conversation } = makeConversation(
     messages,
-    extraInstruction
+    [extraInstruction, GROQ_RESPONSE_GUIDANCE].filter(Boolean).join("\n\n")
   );
 
   const contents = conversation.map((message) => ({
@@ -1508,7 +1521,10 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               apiKey: GROQ_API_KEY,
               model: GROQ_MODEL,
               messages,
-              extraInstruction: effectiveInstruction,
+              extraInstruction: [
+                effectiveInstruction,
+                GROQ_RESPONSE_GUIDANCE,
+              ].filter(Boolean).join("\n\n"),
               providerName: "groq",
               signal: providerSignal,
               onText: emitText,
