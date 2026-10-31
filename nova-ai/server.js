@@ -1702,7 +1702,7 @@ function extractWeatherLocation(query = "") {
     "icin", "hafta", "sonu", "pazartesi", "sali", "carsamba", "persembe",
     "cuma", "cumartesi", "pazar", "gun", "sonra", "onumuzdeki", "gunluk",
     "ne", "giyeyim", "giysem", "giy", "mont", "ceket", "gerekli", "gerekir", "mantikli", "bekleniyor", "tahmin", "tahmini", "hissedilen", "km", "sa", "km sa", "aksam", "sabah", "ogle", "gece",
-    "turkiye", "turkey"
+    "turkiye", "turkey", "gelecek", "sonraki", "bu"
   ]);
   return String(query)
     .replace(/[?!.,:;()[\]{}]/g, " ")
