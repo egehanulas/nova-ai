@@ -1709,8 +1709,11 @@ async function learnUserMemory(req, userText) {
     "Kayıt yoksa action none döndür."
   ].join("\n");
 
-  const context = "MEVCUT HAFIZA:\n" +
-    (existing || []).map((item) => ({ id: item.id, content: item.content, category: item.category }));
+  const context = {
+    memories: (existing || []).map((item) => ({
+      id: item.id, content: item.content, category: item.category
+    }))
+  };
   const result = await generateAnswer(
     [{ role: "user", content: "Kullanıcı mesajı:\n" + userText + "\n\n" + JSON.stringify(context) }],
     instruction
