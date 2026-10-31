@@ -1214,6 +1214,9 @@
     } catch (error) {
       console.error("NOVA AI mesaj hatası:", error);
 
+      // Sesli komut başarısız olursa mikrofonun waitingForReply durumunda kilitlenmesini önle.
+      window.NOVAVoice?.replyFailed?.("Yanıt alınamadı. Tekrar konuşabilirsin.");
+
       if (loading?.wrapper instanceof Element) {
         loading.wrapper.remove();
       }
