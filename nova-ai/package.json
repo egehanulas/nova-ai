@@ -6,7 +6,8 @@
   "scripts": {
     "start": "npm run check && node server.js",
     "ingest:knowledge": "node scripts/ingest-knowledge.js",
-    "check": "node --check server.js && node --check public/app.js && node --check public/voice.js && node --check scripts/ingest-knowledge.js"
+    "check": "node --check server.js && node --check public/app.js && node --check public/voice.js && node --check scripts/ingest-knowledge.js && node --check scripts/test-embeddings.js",
+    "test:embeddings": "node scripts/test-embeddings.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",
@@ -14,7 +15,7 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
-    "@huggingface/transformers": "^3.7.2"
+    "@huggingface/transformers": "^4.3.2"
   },
   "engines": {
     "node": ">=20"
