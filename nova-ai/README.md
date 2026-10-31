@@ -51,3 +51,10 @@ Görsel üretimi için `005_nova_image_storage.sql` dosyasını da Supabase SQL 
 - Hava durumu önerileri hedef günün tahminine dayanmalı; anlık gözlemle gelecek gün karıştırılmamalıdır.
 - API anahtarı, kota veya sağlayıcı erişimi yoksa ilgili özellik çalışmayabilir. Ücretsiz servislerin kota, hız ve kullanılabilirlik koşulları değişebilir.
 - `/health` endpoint'i servis durumunu ve anahtarların yalnızca ayarlı olup olmadığını gösterir; anahtar değerlerini döndürmez.
+
+
+### Developer checks
+
+- `npm run check` — JavaScript syntax checks for the server, client, and utility scripts.
+- `npm run test:embeddings` — downloads/loads the local embedding model and verifies that it returns a finite 384-dimensional vector.
+- `npm start` runs the syntax checks before starting the server.
