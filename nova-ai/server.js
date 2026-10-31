@@ -1766,8 +1766,122 @@ async function requestApiFootball(url, signal) {
   return payload;
 }
 
+
 const apiFootballTeamCache = new Map();
 const apiFootballFixtureCache = new Map();
+const apiFootballUpcomingCache = new Map();
+
+async function resolveApiFootballTeam(searchTerm, signal) {
+  if (!API_FOOTBALL_KEY || !searchTerm) return null;
+  const cacheKey = normalizeSportsText(searchTerm);
+  let cachedId = apiFootballTeamCache.get(cacheKey);
+  if (cachedId) return cachedId;
+  const teamUrl = new URL("https://v3.football.api-sports.io/teams");
+  teamUrl.searchParams.set("search", searchTerm);
+  const payload = await requestApiFootball(teamUrl, signal);
+  const teams = Array.isArray(payload.response) ? payload.response : [];
+  const team = teams.find((item) => normalizeSportsText(item.team?.name) === cacheKey) ||
+    teams.find((item) => normalizeSportsText(item.team?.name).includes(cacheKey));
+  if (!team?.team?.id) return null;
+  apiFootballTeamCache.set(cacheKey, team.team.id);
+  return team.team.id;
+}
+
+function formatApiFootballFixture(item, prefix = "Maç") {
+  const home = item.teams?.home?.name || "Ev sahibi";
+  const away = item.teams?.away?.name || "Deplasman";
+  const date = item.fixture?.date
+    ? new Date(item.fixture.date).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })
+    : "Tarih açıklanmadı";
+  const status = item.fixture?.status?.short || "NS";
+  const finished = ["FT", "AET", "PEN"].includes(status);
+  const score = Number.isInteger(item.goals?.home) && Number.isInteger(item.goals?.away)
+    ? " — Skor: " + item.goals.home + "-" + item.goals.away
+    : "";
+  return {
+    home,
+    away,
+    date,
+    status,
+    snippet: prefix + ": " + home + " - " + away +
+      "\\nTarih (İstanbul): " + date +
+      "\\nLig: " + (item.league?.name || "Belirtilmedi") +
+      "\\nDurum: " + (finished ? "Tamamlandı" : status === "NS" ? "Henüz başlamadı" : "Canlı/devam ediyor") +
+      score,
+  };
+}
+
+async function searchUpcomingFootballFixtureWithApiFootball(query, signal) {
+  if (!API_FOOTBALL_KEY) return null;
+  const searchTerm = getFootballTeamSearchTerm(query);
+  const teamId = await resolveApiFootballTeam(searchTerm, signal);
+  if (!teamId) return null;
+  const cached = apiFootballUpcomingCache.get(teamId);
+  let payload;
+  if (cached && cached.expiresAt > Date.now()) {
+    payload = cached.payload;
+  } else {
+    const url = new URL("https://v3.football.api-sports.io/fixtures");
+    url.searchParams.set("team", String(teamId));
+    url.searchParams.set("next", "1");
+    url.searchParams.set("timezone", "Europe/Istanbul");
+    payload = await requestApiFootball(url, signal);
+    apiFootballUpcomingCache.set(teamId, { payload, expiresAt: Date.now() + 60000 });
+  }
+  const fixture = (Array.isArray(payload.response) ? payload.response : [])
+    .filter((item) => item.fixture?.status?.short === "NS")
+    .sort((a, b) => new Date(a.fixture?.date || 0) - new Date(b.fixture?.date || 0))[0];
+  if (!fixture) return { results: [], note: "API-Football, bu takım için henüz doğrulanmış bir sonraki fikstür kaydı döndürmedi. Rakip veya tarih uydurma." };
+  const formatted = formatApiFootballFixture(fixture, "Sıradaki maç");
+  const requested = normalizeSportsText(searchTerm);
+  const opponent = normalizeSportsText(formatted.home).includes(requested) ? fixture.teams?.away :
+    normalizeSportsText(formatted.away).includes(requested) ? fixture.teams?.home : null;
+  return {
+    results: [{
+      title: formatted.home + " - " + formatted.away + " — " + formatted.date,
+      url: "https://www.api-football.com/",
+      snippet: formatted.snippet + "\\nRakip takım: " + (opponent?.name || "Takım eşleşmesi doğrulanamadı") +
+        "\\nRakip takım ID: " + (opponent?.id || "yok"),
+      publishedAt: fixture.fixture?.date || "",
+      domain: "api-football.com",
+      opponentName: opponent?.name || "",
+      opponentId: opponent?.id || null,
+    }],
+    note: "",
+  };
+}
+
+async function searchOpponentLastFiveWithApiFootball(fixtureResults, signal) {
+  if (!API_FOOTBALL_KEY) return null;
+  const fixtureResult = (fixtureResults || []).find((item) => item.opponentId);
+  if (!fixtureResult) return null;
+  const url = new URL("https://v3.football.api-sports.io/fixtures");
+  url.searchParams.set("team", String(fixtureResult.opponentId));
+  url.searchParams.set("last", "5");
+  url.searchParams.set("timezone", "Europe/Istanbul");
+  const payload = await requestApiFootball(url, signal);
+  const finished = (Array.isArray(payload.response) ? payload.response : [])
+    .filter((item) => ["FT", "AET", "PEN"].includes(item.fixture?.status?.short) &&
+      Number.isInteger(item.goals?.home) && Number.isInteger(item.goals?.away))
+    .sort((a, b) => new Date(b.fixture?.date || 0) - new Date(a.fixture?.date || 0))
+    .slice(0, 5);
+  if (!finished.length) {
+    return { results: [], note: fixtureResult.opponentName + " için tamamlanmış son 5 maç verisi alınamadı; sonuç uydurma." };
+  }
+  const lines = finished.map((item, index) => {
+    const match = formatApiFootballFixture(item, (index + 1) + ". maç");
+    return match.snippet;
+  });
+  return {
+    results: [{
+      title: fixtureResult.opponentName + " — son " + finished.length + " tamamlanmış maç",
+      url: "https://www.api-football.com/",
+      snippet: "Rakip takım: " + fixtureResult.opponentName + "\\nSon tamamlanmış maçlar (yeniden eskiye):\\n" + lines.join("\\n\\n"),
+      domain: "api-football.com",
+    }],
+    note: "",
+  };
+}
 
 async function searchLatestFootballResultWithApiFootball(query, signal) {
   if (!API_FOOTBALL_KEY) return null;
@@ -2098,16 +2212,45 @@ function buildWebResearchInstruction(results) {
   ].join("\n\n").slice(0, 6500);
 }
 
+function isUpcomingFootballQuestion(query = "") {
+  const value = normalizeSportsText(query);
+  const asksNext = /\\b(siradaki|sonraki|bir sonraki|gelecek|yaklasan|next)\\b/.test(value);
+  const asksFixture = /\\b(mac|karsilasma|rakip|fikstur|fixture)\\b/.test(value);
+  return asksNext && asksFixture && Boolean(getFootballTeamSearchTerm(query));
+}
+
+function asksOpponentLastFive(query = "") {
+  const value = normalizeSportsText(query);
+  return /son 5|son bes|son bes mac|son bes karsilasma/.test(value) ||
+    /rakibin.*son.*mac/.test(value) || /rakip.*form/.test(value);
+}
+
 function buildAgentPlan(query = "", isResearchRoute = false) {
   const value = String(query || "").trim();
   if (!value) return [];
   if (isWeatherQuestion(value)) {
     return [{ tool: "weather", query: value, label: "Güncel hava durumunu al" }];
   }
+  if (isUpcomingFootballQuestion(value)) {
+    const plan = [{
+      tool: "football_fixture",
+      query: value,
+      label: "Takımın sıradaki maçını ve rakibini doğrula",
+    }];
+    if (asksOpponentLastFive(value)) {
+      plan.push({
+        tool: "football_form",
+        query: "",
+        label: "Doğrulanan rakibin son 5 tamamlanmış maçını getir",
+        dependsOn: "upcoming_football_opponent",
+      });
+    }
+    return plan;
+  }
   if (isFootballResultQuestion(value)) {
     const plan = [{ tool: "football", query: value, label: "Takımın son maçını ve skorunu doğrula" }];
     const asksForOpponentAnalysis =
-      /\b(rakip|rakibin|rakibinin|karşı takım|karsi takim|performans|form durumu|son maçlarını|son maclarini|analiz|değerlendir|degerlendir|karşılaştır|karsilastir)\b/i.test(value);
+      /\\b(rakip|rakibin|rakibinin|karşı takım|karsi takim|performans|form durumu|son maçlarını|son maclarini|analiz|değerlendir|degerlendir|karşılaştır|karsilastir)\\b/i.test(value);
     if (asksForOpponentAnalysis) {
       plan.push({
         tool: "web_search",
@@ -2209,6 +2352,36 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
                 const result = await searchCurrentWeather(step.query, searchController.signal);
                 stepResults = result.results || [];
                 stepNote = result.note || "";
+              } else if (step.tool === "football_fixture") {
+                let result = null;
+                try {
+                  result = await searchUpcomingFootballFixtureWithApiFootball(step.query, searchController.signal);
+                } catch (apiError) {
+                  console.warn("[NOVA AI] Yaklaşan maç API-Football hatası:", apiError.message);
+                }
+                if (result?.results?.length) {
+                  stepResults = result.results;
+                  stepNote = result.note || "";
+                } else if (result?.note) {
+                  stepNote = result.note;
+                } else {
+                  stepResults = await searchPublicWeb(
+                    getFootballTeamSearchTerm(step.query) + " next upcoming fixture next match 2026",
+                    searchController.signal
+                  );
+                  if (!stepResults.length) stepNote = "API-Football ve web araması doğrulanmış fikstür bulamadı. Rakip uydurma.";
+                }
+              } else if (step.tool === "football_form") {
+                const fixtureStep = collectedResults.filter((item) =>
+                  item.opponentId || /Rakip takım ID:/i.test(item.snippet || "")
+                );
+                const result = await searchOpponentLastFiveWithApiFootball(fixtureStep, searchController.signal);
+                if (result) {
+                  stepResults = result.results || [];
+                  stepNote = result.note || "";
+                } else {
+                  stepNote = "Rakibin takım kimliği doğrulanamadığı veya API-Football kullanılamadığı için son 5 maç güvenilir biçimde alınamadı. Sonuçları tahmin etme.";
+                }
               } else if (step.tool === "football") {
                 const result = await searchLatestFootballResult(step.query, searchController.signal);
                 stepResults = result.results || [];
