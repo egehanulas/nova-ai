@@ -15,6 +15,7 @@ import {
 import { URL } from "node:url";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, createUserFolder, moveUserFile } from "./desktop-assistant.js";
 
 const NOVA_URL = "https://nova-ai-xxid.onrender.com/";
 const NOVA_ORIGIN = new URL(NOVA_URL).origin;
@@ -26,6 +27,7 @@ let isQuitting = false;
 let retryDialogOpen = false;
 let updatePromptOpen = false;
 let updateWindow;
+let assistantWindow;
 
 function openExternal(value) {
   try {
@@ -91,6 +93,7 @@ function createApplicationMenu() {
       label: "Dosya",
       submenu: [
         { label: "NOVA'yı Göster", click: showWindow },
+        { label: "Bilgisayar Asistanı", click: showDesktopAssistant },
         {
           label: "NOVA'yı Yenile",
           accelerator: "CommandOrControl+R",
@@ -256,6 +259,66 @@ function createWindow() {
   });
 
   void mainWindow.loadURL(NOVA_URL);
+}
+
+
+function showDesktopAssistant() {
+  if (assistantWindow && !assistantWindow.isDestroyed()) {
+    assistantWindow.show();
+    assistantWindow.focus();
+    return;
+  }
+  assistantWindow = new BrowserWindow({
+    width: 1040, height: 860, minWidth: 760, minHeight: 650, show: false,
+    backgroundColor: "#090b12", title: "NOVA AI — Bilgisayar Asistanı",
+    webPreferences: {
+      preload: path.join(app.getAppPath(), "src", "preload.cjs"),
+      nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true
+    }
+  });
+  assistantWindow.once("ready-to-show", () => assistantWindow?.show());
+  assistantWindow.on("closed", () => { assistantWindow = undefined; });
+  void assistantWindow.loadFile(path.join(app.getAppPath(), "src", "assistant.html"));
+}
+
+function registerDesktopAssistantIpc() {
+  const allowedSender = (event) => assistantWindow && !assistantWindow.isDestroyed() && event.sender === assistantWindow.webContents;
+  ipcMain.handle("nova-desktop:computer-info", (event) => {
+    if (!allowedSender(event)) throw new Error("Yetkisiz istek.");
+    return getComputerInfo();
+  });
+  ipcMain.handle("nova-desktop:list-folders", (event) => {
+    if (!allowedSender(event)) throw new Error("Yetkisiz istek.");
+    return listUserFolders();
+  });
+  ipcMain.handle("nova-desktop:search-files", (event, query) => {
+    if (!allowedSender(event)) throw new Error("Yetkisiz istek.");
+    return searchUserFiles(query);
+  });
+  ipcMain.handle("nova-desktop:open-app", (event, name) => {
+    if (!allowedSender(event)) throw new Error("Yetkisiz istek.");
+    if (process.platform !== "win32") throw new Error("Bu özellik yalnızca Windows masaüstünde kullanılabilir.");
+    return openAllowedApp(name);
+  });
+  ipcMain.handle("nova-desktop:create-folder", async (event, payload = {}) => {
+    if (!allowedSender(event)) throw new Error("Yetkisiz istek.");
+    const answer = await dialog.showMessageBox(assistantWindow, {
+      type: "question", title: "Klasör oluşturma onayı", message: "Yeni klasör oluşturulsun mu?",
+      detail: String(payload.name || ""), buttons: ["Oluştur", "Vazgeç"], defaultId: 1, cancelId: 1
+    });
+    if (answer.response !== 0) return { message: "İşlem iptal edildi." };
+    return createUserFolder(payload.parent, payload.name);
+  });
+  ipcMain.handle("nova-desktop:move-file", async (event, payload = {}) => {
+    if (!allowedSender(event)) throw new Error("Yetkisiz istek.");
+    const answer = await dialog.showMessageBox(assistantWindow, {
+      type: "warning", title: "Dosya taşıma onayı", message: "Dosya veya klasör taşınsın mı?",
+      detail: String(payload.source || "") + "\n→ " + String(payload.destination || ""),
+      buttons: ["Taşı", "Vazgeç"], defaultId: 1, cancelId: 1
+    });
+    if (answer.response !== 0) return { message: "İşlem iptal edildi." };
+    return moveUserFile(payload.source, payload.destination, payload.newName);
+  });
 }
 
 function checkForUpdates() {
@@ -430,6 +493,7 @@ if (!handleSquirrelEvent()) {
 
   app.whenReady().then(() => {
     configureMicrophonePermissions();
+    registerDesktopAssistantIpc();
     createApplicationMenu();
     createTray();
     createWindow();
