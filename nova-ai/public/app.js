@@ -350,6 +350,50 @@
     try { localStorage.setItem("nova-ai-settings-tab", activeTab); } catch {}
   }
 
+  const installedVersionEl = $("#installedAppVersion");
+  const versionChannelEl = $("#appVersionChannel");
+  const versionDescriptionEl = $("#appVersionDescription");
+  const updateCheckButton = $("#checkForAppUpdates");
+  const updateStatusEl = $("#appUpdateStatus");
+
+  function setUpdateStatus(message, busy = false) {
+    if (updateStatusEl) updateStatusEl.textContent = message;
+    if (updateCheckButton) {
+      updateCheckButton.disabled = busy;
+      updateCheckButton.textContent = busy ? "Denetleniyor…" : "↻ Güncellemeleri denetle";
+    }
+  }
+
+  if (window.novaDesktop?.isDesktop && window.novaDesktop.getAppInfo) {
+    window.novaDesktop.getAppInfo().then((info) => {
+      if (installedVersionEl) installedVersionEl.textContent = info.version || "Bilinmiyor";
+      if (versionChannelEl) versionChannelEl.textContent = String(info.version || "").includes("alpha") ? "Alpha" : "Güncel";
+      if (versionDescriptionEl) versionDescriptionEl.textContent = "Windows masaüstü uygulamasının kurulu sürümü.";
+      setUpdateStatus("Güncelleme denetimine hazır.");
+    }).catch(() => {
+      if (installedVersionEl) installedVersionEl.textContent = "Sürüm okunamadı";
+      setUpdateStatus("Sürüm bilgisi alınamadı.");
+    });
+
+    updateCheckButton?.addEventListener("click", () => {
+      setUpdateStatus("Yeni sürüm aranıyor…", true);
+      window.novaUpdate?.check();
+    });
+    window.novaUpdate?.onStatus((status) => {
+      if (status === "checking") setUpdateStatus("Güncellemeler denetleniyor…", true);
+      else if (status === "available") setUpdateStatus("Yeni sürüm bulundu. Arka planda indiriliyor…", true);
+      else if (status === "not-available") setUpdateStatus("Harika! NOVA zaten güncel.", false);
+      else if (status === "downloaded") setUpdateStatus("Güncelleme hazır. Yenilikler penceresi açıldı.", false);
+      else if (status === "error") setUpdateStatus("Denetim başarısız oldu. İnternet bağlantını kontrol edip tekrar dene.", false);
+    });
+  } else {
+    if (installedVersionEl) installedVersionEl.textContent = "Web sürümü";
+    if (versionChannelEl) versionChannelEl.textContent = "Web";
+    if (versionDescriptionEl) versionDescriptionEl.textContent = "Web sürümü otomatik güncellenir; Windows masaüstü sürümü ayrı güncellenir.";
+    if (updateCheckButton) updateCheckButton.hidden = true;
+    setUpdateStatus("Web sürümü otomatik güncellenir.");
+  }
+
   document.querySelectorAll("[data-settings-tab]").forEach((button) => {
     button.addEventListener("click", () => setSettingsTab(button.dataset.settingsTab));
   });

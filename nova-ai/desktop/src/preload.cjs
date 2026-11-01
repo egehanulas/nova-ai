@@ -2,6 +2,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("novaDesktop", Object.freeze({
   isDesktop: true,
+  getAppInfo: () => ipcRenderer.invoke("nova-desktop:app-info"),
   assistant: Object.freeze({
     computerInfo: () => ipcRenderer.invoke("nova-desktop:computer-info"),
     listFolders: () => ipcRenderer.invoke("nova-desktop:list-folders"),
@@ -13,6 +14,8 @@ contextBridge.exposeInMainWorld("novaDesktop", Object.freeze({
 }));
 contextBridge.exposeInMainWorld("novaUpdate", Object.freeze({
   onInfo(callback) { if (typeof callback === "function") ipcRenderer.on("nova-update:info", (_event, info) => callback(info)); },
+  onStatus(callback) { if (typeof callback === "function") ipcRenderer.on("nova-update:status", (_event, status) => callback(status)); },
+  check() { ipcRenderer.send("nova-update:check"); },
   install() { ipcRenderer.send("nova-update:install"); },
   dismiss() { ipcRenderer.send("nova-update:later"); }
 }));

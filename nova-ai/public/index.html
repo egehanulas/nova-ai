@@ -628,12 +628,17 @@
             </div>
             <div class="audio-check-row">
               <div class="audio-check-copy">
-                <strong>Mevcut sürüm</strong>
-                <span>0.2.0-alpha.9</span>
+                <strong>Yüklü sürüm</strong>
+                <span id="installedAppVersion">Sürüm bilgisi alınıyor…</span>
               </div>
-              <span class="settings-version-status">Alpha</span>
+              <span class="settings-version-status" id="appVersionChannel">Alpha</span>
             </div>
-            <p class="settings-hint">NOVA AI şu anda önizleme aşamasındadır. Yeni sürümler yayımlandığında sürüm numarası burada güncellenecektir.</p>
+            <p class="settings-hint" id="appVersionDescription">Sürüm bilgisi kullandığın NOVA uygulamasından otomatik alınır.</p>
+            <div class="voice-settings-actions" style="margin-top:16px">
+              <button class="voice-test-button" id="checkForAppUpdates" type="button">↻ Güncellemeleri denetle</button>
+              <span class="voice-settings-note" id="appUpdateStatus" role="status" aria-live="polite">Güncelleme durumu bekleniyor.</span>
+            </div>
+            <p class="settings-hint">Yeni sürümlerde yapılan değişiklikler, güncelleme indirildiğinde NOVA'nın kendi tasarımlı yenilikler penceresinde gösterilir.</p>
           </section>
         </div>
       </section>

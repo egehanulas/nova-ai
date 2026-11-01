@@ -322,8 +322,15 @@ function registerDesktopAssistantIpc() {
   });
 }
 
+function sendUpdateStatus(status) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("nova-update:status", status);
+  }
+}
+
 function checkForUpdates() {
   if (!app.isPackaged || process.platform !== "win32") {
+    sendUpdateStatus("error");
     if (mainWindow && !mainWindow.isDestroyed()) {
       void dialog.showMessageBox(mainWindow, {
         type: "info",
@@ -335,10 +342,12 @@ function checkForUpdates() {
     return;
   }
 
+  sendUpdateStatus("checking");
   try {
     autoUpdater.checkForUpdates();
   } catch (error) {
     console.error("NOVA update check failed:", error);
+    sendUpdateStatus("error");
   }
 }
 
@@ -356,12 +365,26 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
       "NOVA'ya özel, animasyonlu güncelleme penceresi",
       "Her sürümde yenilikleri ve iyileştirmeleri gösteren sürüm notları",
       "Daha anlaşılır sürüm karşılaştırması ve yeniden başlatma akışı"
+    ],
+    "0.2.0-alpha.10": [
+      "Windows için NOVA Bilgisayar Asistanı eklendi",
+      "Bilgisayar bilgilerini görüntüleme ve kişisel klasörlerde dosya arama",
+      "Not Defteri, Hesap Makinesi, Dosya Gezgini ve Steam'i açma",
+      "Klasör oluşturma, dosya taşıma ve yeniden adlandırma işlemleri için güvenlik onayları"
     ]
   };
-  const items = releaseHighlights[nextVersion] || [
+  const suppliedNotes = Array.isArray(releaseNotes)
+    ? releaseNotes.map((entry) => typeof entry === "string" ? entry : entry?.note || "").join("\n")
+    : String(releaseNotes || "");
+  const parsedNotes = suppliedNotes
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*[-*+]\s*/, "").replace(/^#+\s*/, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").trim())
+    .filter((line) => line && !/^what's changed/i.test(line) && !/^full changelog/i.test(line) && !/^compare view/i.test(line))
+    .slice(0, 7);
+  const items = releaseHighlights[nextVersion] || (parsedNotes.length ? parsedNotes : [
     "NOVA AI için yeni iyileştirmeler ve hata düzeltmeleri",
     "Daha iyi ve kararlı bir kullanım deneyimi"
-  ];
+  ]);
 
   updateWindow = new BrowserWindow({
     width: 760,
@@ -410,8 +433,10 @@ function configureAutoUpdates() {
   autoUpdater.setFeedURL({ url: UPDATE_FEED_URL });
   autoUpdater.on("error", (error) => {
     console.error("NOVA auto-update error:", error);
+    sendUpdateStatus("error");
   });
   autoUpdater.on("update-available", () => {
+    sendUpdateStatus("available");
     if (Notification.isSupported()) {
       new Notification({
         title: "NOVA AI güncellemesi",
@@ -421,8 +446,10 @@ function configureAutoUpdates() {
   });
   autoUpdater.on("update-not-available", () => {
     console.info("NOVA is up to date.");
+    sendUpdateStatus("not-available");
   });
   autoUpdater.on("update-downloaded", (_event, releaseNotes, releaseName) => {
+    sendUpdateStatus("downloaded");
     if (updatePromptOpen) return;
     updatePromptOpen = true;
     showUpdateWindow(releaseName, releaseNotes);
@@ -482,6 +509,12 @@ if (!handleSquirrelEvent()) {
   app.setName("NOVA AI");
   if (process.platform === "win32") app.setAppUserModelId("com.squirrel.nova_ai.nova_ai");
 
+  ipcMain.handle("nova-desktop:app-info", () => ({
+    version: app.getVersion(),
+    platform: process.platform,
+    packaged: app.isPackaged
+  }));
+  ipcMain.on("nova-update:check", checkForUpdates);
   ipcMain.on("nova-update:later", () => {
     if (updateWindow && !updateWindow.isDestroyed()) updateWindow.close();
   });
