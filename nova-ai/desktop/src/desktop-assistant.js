@@ -23,7 +23,11 @@ async function resolveExistingUserPath(input, { allowRoot = true } = {}) {
   const stat = await fs.lstat(resolved);
   if (stat.isSymbolicLink()) throw new Error("Kısayol ve sembolik bağlantılar güvenlik nedeniyle açılamaz veya değiştirilemez.");
   const realPath = await fs.realpath(resolved);
-  if (!ROOTS.some((root) => inside(root, realPath)) || (!allowRoot && ROOTS.includes(realPath))) throw new Error("Bu konum için işlem yapılamıyor.");
+  const canonicalRoots = await Promise.all(ROOTS.map(async (root) => {
+    try { return await fs.realpath(root); } catch { return null; }
+  }));
+  const approvedRoot = canonicalRoots.find((root) => root && inside(root, realPath));
+  if (!approvedRoot || (!allowRoot && realPath === approvedRoot)) throw new Error("Bu konum için işlem yapılamıyor.");
   return { path: realPath, stat };
 }
 
