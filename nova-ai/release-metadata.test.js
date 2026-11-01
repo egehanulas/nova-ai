@@ -16,7 +16,7 @@ test("backend package and lockfile versions stay synchronized", () => {
 });
 
 test("NOVA Desktop has an independent valid prerelease version", () => {
-  assert.match(desktop.version, /^\\d+\\.\\d+\\.\\d+-alpha\\.\\d+$/);
+  assert.match(desktop.version, /^\d+\.\d+\.\d+-alpha\.\d+$/);
   assert.equal(desktop.version.split("-")[0], backend.version.split("-")[0]);
 });
 
