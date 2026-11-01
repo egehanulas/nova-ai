@@ -8,7 +8,16 @@ NOVA AI web uygulamasını Windows masaüstü penceresinde çalıştıran Electr
 - Node.js 22.17.0 veya üzeri
 - npm
 
-## Kullanım
+## Windows özellikleri
+
+- Pencereyi kapatmak NOVA'yı sonlandırmaz; sistem tepsisine küçültür.
+- Tepsi simgesine çift tıklayarak NOVA'yı tekrar aç.
+- `Ctrl + Shift + Space`: NOVA penceresini göster/gizle.
+- Tepsi menüsünden Windows açılışında otomatik başlatmayı açıp kapat.
+- Tepsi menüsünden NOVA'yı tamamen kapat.
+- Windows bildirimleri güncelleme indirme durumunu bildirir.
+
+## Klavye ve menü
 
 - `Ctrl + R`: NOVA'yı yenile
 - `Ctrl + +`: Yakınlaştır
@@ -16,6 +25,7 @@ NOVA AI web uygulamasını Windows masaüstü penceresinde çalıştıran Electr
 - `Ctrl + 0`: Yakınlaştırmayı sıfırla
 - `Alt`: Gizli menüyü göster (Dosya, Görünüm, Yardım)
 - Görünüm menüsünden tam ekranı aç/kapat.
+- Yardım > Güncellemeleri denetle bölümünden güncellemeyi elle kontrol et.
 - Yardım > NOVA AI Hakkında bölümünden kurulu sürümü gör.
 
 ## Geliştirme
@@ -33,7 +43,13 @@ npm start
 npm run make -- --platform=win32 --arch=x64
 ```
 
-Kurulum paketi `out/make/squirrel.windows/x64/` altında `Setup.exe` olarak üretilir.
+Kurulum paketi `out/make/squirrel.windows/x64/` altında üretilir.
+
+## Otomatik güncelleme yayınlama
+
+Windows Squirrel güncelleme dosyaları GitHub Releases üzerinden dağıtılır. Yeni bir masaüstü sürümü yayınlamak için `desktop-v<package-version>` biçiminde bir Git etiketi oluştur. Örneğin `desktop-v0.2.0-alpha.2`. GitHub Actions Windows kurulumunu ve Squirrel paketlerini üretip ilgili GitHub Release'e yükler. Kurulu uygulama bu yayın kanalını denetler; güncelleme indirildiğinde kurulum için yeniden başlatma onayı ister.
+
+Otomatik güncellemeler yalnızca paketlenmiş Windows uygulamasında çalışır. İlk kurulum yine Setup.exe ile yapılır. Yayınlanmış bir GitHub Release yoksa uygulama güncelleme bulamaz.
 
 ## Güvenlik ve mimari
 
@@ -42,6 +58,7 @@ Kurulum paketi `out/make/squirrel.windows/x64/` altında `Setup.exe` olarak üre
 - Harici bağlantılar varsayılan tarayıcıda açılır.
 - Uygulama yalnızca `https://nova-ai-xxid.onrender.com/` adresindeki NOVA AI servisini yükler.
 - API anahtarları EXE içine gömülmez; mevcut sunucu tarafında kalır.
-- Uygulama web sürümünün oturum, sohbet, hafıza, araştırma ve ses özelliklerini mevcut web uygulaması desteklediği ölçüde kullanır.
+- Windows başlangıçta otomatik açılma kullanıcı tarafından tepsi menüsünden açılıp kapatılır.
+- Güncellemeler indirilir ancak kullanıcı onayı olmadan yüklenmez.
 
-Bu sürüm çevrimiçi istemcidir. Çevrimdışı çalışma, otomatik güncelleme, imzalı kurulum ve gelişmiş işletim sistemi entegrasyonları henüz yoktur.
+Bu sürüm çevrimiçi istemcidir. Çevrimdışı çalışma ve kod imzalama henüz yoktur.
