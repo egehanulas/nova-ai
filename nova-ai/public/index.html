@@ -545,6 +545,11 @@
           </div>
           <button class="settings-back" id="settingsBack" type="button">← Sohbete dön</button>
         </div>
+        <div class="settings-tabs" role="tablist" aria-label="Ayar kategorileri">
+          <button class="settings-tab active" id="appearanceTab" type="button" role="tab" aria-selected="true" aria-controls="settingsAppearancePanel" data-settings-tab="appearance">Görünüm</button>
+          <button class="settings-tab" id="audioTab" type="button" role="tab" aria-selected="false" aria-controls="settingsAudioPanel" data-settings-tab="audio">Ses ve Mikrofon</button>
+        </div>
+        <div id="settingsAppearancePanel" class="settings-tab-panel" role="tabpanel" aria-labelledby="appearanceTab">
         <section class="settings-section" aria-labelledby="themeTitle">
           <div class="settings-section-heading">
             <h2 id="themeTitle">Tema</h2>
@@ -569,6 +574,8 @@
           </div>
           <p class="settings-hint" id="themeStatus" role="status" aria-live="polite">Tema seçimin otomatik kaydedilir.</p>
         </section>
+        </div>
+        <div id="settingsAudioPanel" class="settings-tab-panel" role="tabpanel" aria-labelledby="audioTab" hidden>
         <section class="settings-section voice-settings-section" aria-labelledby="voiceSettingsTitle">
           <div class="settings-section-heading">
             <h2 id="voiceSettingsTitle">NOVA'nın sesi</h2>
@@ -589,6 +596,29 @@
             <span class="voice-settings-note" id="voiceSettingsStatus" role="status" aria-live="polite">Türkçe sesler yükleniyor…</span>
           </div>
         </section>
+        <section class="settings-section audio-diagnostics-section" aria-labelledby="audioDiagnosticsTitle">
+          <div class="settings-section-heading">
+            <h2 id="audioDiagnosticsTitle">Ses ve Mikrofon</h2>
+            <span>Bağlantı kontrolleri</span>
+          </div>
+          <p class="voice-settings-description">Mikrofon erişimini ve konuşma tanıma servisini ayrı ayrı kontrol et. İzinler tarayıcı tarafından hatırlanır.</p>
+          <div class="audio-check-row">
+            <div class="audio-check-copy">
+              <strong>Mikrofon erişimi</strong>
+              <span id="microphoneAccessStatus" role="status" aria-live="polite">Henüz kontrol edilmedi.</span>
+            </div>
+            <button class="voice-test-button" id="microphoneTest" type="button">🎙 Mikrofonu test et</button>
+          </div>
+          <div class="audio-check-row">
+            <div class="audio-check-copy">
+              <strong>Konuşma tanıma servisi</strong>
+              <span id="speechServiceStatus" role="status" aria-live="polite">Henüz test edilmedi.</span>
+            </div>
+            <button class="voice-test-button" id="speechServiceTest" type="button">Bağlantıyı test et</button>
+          </div>
+          <p class="settings-hint">Not: Mikrofon izni ile konuşma tanıma bağlantısı farklı şeylerdir. Mikrofon çalışsa bile tarayıcının konuşma tanıma servisi ağ hatası verebilir.</p>
+        </section>
+        </div>
       </section>
       <section class="messages" id="messages" aria-label="Mesajlar" aria-live="polite" aria-relevant="additions text"></section>
 

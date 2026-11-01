@@ -635,6 +635,111 @@
     return response;
   };
 
+  const microphoneAccessStatus = $("microphoneAccessStatus");
+  const microphoneTestButton = $("microphoneTest");
+  const speechServiceStatus = $("speechServiceStatus");
+  const speechServiceTestButton = $("speechServiceTest");
+
+  async function refreshMicrophonePermissionStatus() {
+    if (!microphoneAccessStatus) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      microphoneAccessStatus.textContent = "Bu tarayıcı mikrofon erişimini desteklemiyor.";
+      return;
+    }
+    try {
+      const permission = await navigator.permissions?.query?.({ name: "microphone" });
+      if (permission?.state === "granted") microphoneAccessStatus.textContent = "İzin verildi · mikrofon erişilebilir.";
+      else if (permission?.state === "denied") microphoneAccessStatus.textContent = "İzin engellendi · tarayıcı site izinlerini kontrol et.";
+      else microphoneAccessStatus.textContent = "İzin henüz verilmedi veya ilk kullanım bekleniyor.";
+    } catch {
+      microphoneAccessStatus.textContent = "Mikrofon izni, ilk test sırasında kontrol edilecek.";
+    }
+  }
+
+  microphoneTestButton?.addEventListener("click", async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      if (microphoneAccessStatus) microphoneAccessStatus.textContent = "Bu ortam mikrofon erişimini desteklemiyor.";
+      return;
+    }
+    microphoneTestButton.disabled = true;
+    if (microphoneAccessStatus) microphoneAccessStatus.textContent = "Mikrofon erişimi deneniyor…";
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+      const tracks = stream.getAudioTracks();
+      const deviceName = tracks[0]?.label;
+      tracks.forEach((track) => track.stop());
+      if (microphoneAccessStatus) {
+        microphoneAccessStatus.textContent = deviceName
+          ? "Mikrofon çalışıyor · " + deviceName
+          : "Mikrofon izni verildi ve erişim başarılı.";
+      }
+    } catch (error) {
+      const message = error?.name === "NotAllowedError" || error?.name === "SecurityError"
+        ? "Mikrofon izni reddedildi. Tarayıcı site izinlerinden NOVA'ya izin ver."
+        : error?.name === "NotFoundError"
+          ? "Kullanılabilir mikrofon bulunamadı."
+          : "Mikrofon açılamadı. Bağlantıyı ve Windows mikrofon gizlilik ayarlarını kontrol et.";
+      if (microphoneAccessStatus) microphoneAccessStatus.textContent = message;
+    } finally {
+      microphoneTestButton.disabled = false;
+    }
+  });
+
+  speechServiceTestButton?.addEventListener("click", () => {
+    if (!SpeechRecognition) {
+      if (speechServiceStatus) speechServiceStatus.textContent = "Bu tarayıcı konuşma tanımayı desteklemiyor. Chrome veya Edge kullan.";
+      return;
+    }
+    const testRecognition = new SpeechRecognition();
+    let finished = false;
+    let started = false;
+    let timer = null;
+    const finish = (message) => {
+      if (finished) return;
+      finished = true;
+      if (timer) window.clearTimeout(timer);
+      try { testRecognition.stop(); } catch {}
+      if (speechServiceStatus) speechServiceStatus.textContent = message;
+      speechServiceTestButton.disabled = false;
+    };
+    speechServiceTestButton.disabled = true;
+    if (speechServiceStatus) speechServiceStatus.textContent = "Konuşma tanıma servisine bağlanılıyor…";
+    testRecognition.lang = "tr-TR";
+    testRecognition.continuous = false;
+    testRecognition.interimResults = false;
+    testRecognition.onstart = () => {
+      started = true;
+      if (speechServiceStatus) speechServiceStatus.textContent = "Servise bağlandı · şimdi kısa bir şey söyleyebilirsin.";
+    };
+    testRecognition.onresult = (event) => {
+      const transcript = event.results?.[0]?.[0]?.transcript;
+      finish(transcript ? "Bağlantı başarılı · algılanan: “" + transcript + "”" : "Servis yanıt verdi; konuşma algılanamadı.");
+    };
+    testRecognition.onerror = (event) => {
+      const message = event.error === "network"
+        ? "Konuşma tanıma servisine ağ üzerinden bağlanılamadı. Mikrofon izni olsa bile bu ayrı bir servis hatasıdır."
+        : event.error === "not-allowed" || event.error === "service-not-allowed"
+          ? "Konuşma tanıma veya mikrofon izni engellendi."
+          : event.error === "audio-capture"
+            ? "Mikrofon yakalanamadı."
+            : "Konuşma tanıma testi başarısız: " + event.error;
+      finish(message);
+    };
+    testRecognition.onend = () => {
+      if (!finished && started) finish("Servis bağlantısı kuruldu. Test sona erdi.");
+      else if (!finished) finish("Konuşma tanıma servisi başlatılamadı.");
+    };
+    timer = window.setTimeout(() => finish(started
+      ? "Servise bağlandı; test süresi doldu."
+      : "Servise zamanında bağlanılamadı."), 8000);
+    try { testRecognition.start(); }
+    catch (error) { finish("Test başlatılamadı: " + (error?.message || "bilinmeyen hata")); }
+  });
+
+  refreshMicrophonePermissionStatus();
+
   updateButtons();
 
   if (!SpeechRecognition) {

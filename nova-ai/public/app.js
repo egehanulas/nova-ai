@@ -314,6 +314,28 @@
     applyTheme("original");
   }
 
+  function setSettingsTab(tab) {
+    const audioActive = tab === "audio";
+    const appearancePanel = $("#settingsAppearancePanel");
+    const audioPanel = $("#settingsAudioPanel");
+    const appearanceTab = $("#appearanceTab");
+    const audioTab = $("#audioTab");
+    if (!appearancePanel || !audioPanel || !appearanceTab || !audioTab) return;
+    appearancePanel.hidden = audioActive;
+    audioPanel.hidden = !audioActive;
+    appearanceTab.classList.toggle("active", !audioActive);
+    audioTab.classList.toggle("active", audioActive);
+    appearanceTab.setAttribute("aria-selected", String(!audioActive));
+    audioTab.setAttribute("aria-selected", String(audioActive));
+    try { localStorage.setItem("nova-ai-settings-tab", audioActive ? "audio" : "appearance"); } catch {}
+  }
+
+  document.querySelectorAll("[data-settings-tab]").forEach((button) => {
+    button.addEventListener("click", () => setSettingsTab(button.dataset.settingsTab));
+  });
+  try { setSettingsTab(localStorage.getItem("nova-ai-settings-tab") || "appearance"); }
+  catch { setSettingsTab("appearance"); }
+
   settingsButton?.addEventListener("click", openSettings);
   settingsBackButton?.addEventListener("click", closeSettings);
   document.querySelectorAll("[data-theme-choice]").forEach((button) => {
