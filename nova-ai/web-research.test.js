@@ -10,6 +10,8 @@ const {
   parseDuckDuckGoHtml,
   isPrivateAddress,
   validatePublicUrl,
+  getSeedSources,
+  hasRelevantTopicEvidence,
 } = require("./web-research");
 
 test("extractUrls finds direct links and removes sentence punctuation", () => {
@@ -67,6 +69,25 @@ test("page parser keeps publication date separate from modification date", () =>
   const page = parsePage(html, "https://example.com/openshell");
   assert.equal(page.publishedAt, "2026-10-21");
   assert.equal(page.modifiedAt, "2026-10-24T12:00:00Z");
+});
+
+test("NVIDIA OpenShell research adds official first-party seed sources", () => {
+  const sources = getSeedSources("NVIDIA OpenShell kapsamlı teknik araştırma");
+  assert.equal(sources.length, 2);
+  assert.equal(sources[0].url, "https://www.nvidia.com/en-us/ai/openshell/");
+  assert.equal(sources[1].url, "https://github.com/NVIDIA/OpenShell");
+});
+
+test("OpenShell research requires evidence that actually mentions the requested project", () => {
+  assert.equal(hasRelevantTopicEvidence("NVIDIA OpenShell nedir?", [
+    { title: "NVIDIA news", url: "https://nvidia.com/news", content: "NVIDIA announced a new GPU." },
+  ]), false);
+  assert.equal(hasRelevantTopicEvidence("NVIDIA OpenShell nedir?", [
+    { title: "NVIDIA OpenShell", url: "https://github.com/NVIDIA/OpenShell", content: "OpenShell runtime. ".repeat(12) },
+  ]), true);
+  assert.equal(hasRelevantTopicEvidence("NVIDIA OpenShell nedir?", [
+    { title: "NVIDIA OpenShell", url: "https://github.com/NVIDIA/OpenShell", content: "" },
+  ]), false);
 });
 
 test("RSS parser extracts article title, link and publication date", () => {

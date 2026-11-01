@@ -5,7 +5,7 @@ const express = require("express");
 const rateLimit = require("express-rate-limit");
 const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
-const { researchWeb } = require("./web-research");
+const { researchWeb, hasRelevantTopicEvidence } = require("./web-research");
 
 let helmet;
 
@@ -1288,7 +1288,10 @@ async function streamOpenAIProvider({
         ...conversation,
       ],
       temperature: generation.temperature,
-      max_tokens: generation.maxOutputTokens,
+      // Keep research requests within Groq free-tier TPM headroom.
+      max_tokens: providerName === "groq" && generation.maxOutputTokens > 1800
+        ? 1600
+        : generation.maxOutputTokens,
       stream: true,
     }),
   });
@@ -2270,7 +2273,7 @@ function buildWebResearchInstruction(results) {
 
   // Search snippets are only discovery hints; fetch and quote the readable page
   // body whenever possible so the model can answer from the actual source.
-  const sourceText = results.slice(0, 6).map((item, index) => [
+  const sourceText = results.slice(0, 4).map((item, index) => [
     "[WEB KAYNAĞI " + (index + 1) + "]",
     "Başlık: " + String(item.title || "").slice(0, 180),
     "Alan adı: " + String(item.domain || "").slice(0, 100),
@@ -2278,9 +2281,9 @@ function buildWebResearchInstruction(results) {
     item.publishedAt ? "Yayın tarihi (kaynakta belirtilen): " + String(item.publishedAt).slice(0, 100) : "",
     item.modifiedAt ? "Son güncelleme tarihi (kaynakta belirtilen): " + String(item.modifiedAt).slice(0, 100) : "",
     item.snippet ? "Arama özeti: " + String(item.snippet || "").slice(0, 500) : "",
-    item.content ? "Açılan sayfanın metni: " + String(item.content).slice(0, 2800) : "Sayfa metni okunamadı; yalnızca arama sonucu özeti mevcut.",
+    item.content ? "Açılan sayfanın metni: " + String(item.content).slice(0, 2200) : "Sayfa metni okunamadı; yalnızca arama sonucu özeti mevcut.",
     item.note ? "Okuma notu: " + String(item.note).slice(0, 180) : "",
-  ].filter(Boolean).join("\n")).join("\n\n").slice(0, 16000);
+  ].filter(Boolean).join("\n")).join("\n\n").slice(0, 11000);
 
   return [
     "CANLI WEB ARAŞTIRMASI SONUÇLARI:",
@@ -2495,6 +2498,8 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
         ? "multi_step"
         : (agentPlan[0]?.tool || "none");
       let webSearchInstruction = "";
+      let webResearchResults = [];
+      const requiresWebEvidence = agentPlan.some((step) => step.tool === "web_search");
 
       // NOVA görevleri sıraya koyar. Bağımlı adımlar, önceki adımdan gelen
       // doğrulanmış veriyi kullanır; sonuç yoksa tahmin ederek devam etmez.
@@ -2611,6 +2616,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
             index++;
           }
 
+          webResearchResults = collectedResults;
           if (collectedResults.length) {
             webSearchInstruction = buildWebResearchInstruction(collectedResults);
           }
@@ -2685,6 +2691,29 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
           text,
         });
       };
+
+      // Never let a research request fall through to an unaided model guess.
+      if (requiresWebEvidence && !hasRelevantTopicEvidence(latestQuestion, webResearchResults)) {
+        const safeMessage = "Bu isteği yanıtlamak için canlı web araştırması yaptım ancak konuyla doğrudan ilgili, doğrulanabilir kaynak metni elde edemedim. Bu nedenle NVIDIA OpenShell'in var olmadığı veya belirli özelliklere sahip olduğu yönünde bir iddiada bulunmayacağım. Araştırma şu anda doğrulanamadı; lütfen daha sonra tekrar dene veya resmî bir bağlantı paylaş.";
+        startSSE();
+        sendSSE(res, {
+          type: "start",
+          provider: "web_search",
+          model: "source-verification",
+          tool: agentTool,
+          autoToolSelected: !isResearchRoute && agentTool !== "none",
+          agentPlan: agentPlan.map((step) => ({ tool: step.tool, label: step.label })),
+        });
+        onText(safeMessage);
+        sendSSE(res, {
+          type: "done",
+          success: true,
+          provider: "web_search",
+          model: "source-verification",
+          truncated: false,
+        });
+        return res.end();
+      }
 
       const providers = [
         {
