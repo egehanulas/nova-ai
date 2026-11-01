@@ -59,32 +59,112 @@
     stopButton.disabled = !voiceEnabled;
   }
 
+  const voiceChoice = $("voiceChoice");
+  const voiceRate = $("voiceRate");
+  const voiceRateValue = $("voiceRateValue");
+  const voiceTestButton = $("voiceTest");
+  const voiceSettingsStatus = $("voiceSettingsStatus");
+  const VOICE_URI_KEY = "nova-ai-voice-uri";
+  const VOICE_RATE_KEY = "nova-ai-voice-rate";
+
+  function readPreference(key, fallback = "") {
+    try {
+      return window.localStorage.getItem(key) ?? fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function savePreference(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      // Private browsing or storage restrictions should not break voice chat.
+    }
+  }
+
+  function getTurkishVoices() {
+    return synth
+      ? synth.getVoices().filter((voice) => String(voice.lang || "").toLowerCase().startsWith("tr"))
+      : [];
+  }
+
   function chooseTurkishVoice() {
-    if (!synth) return null;
-
-    const voices = synth.getVoices();
-    const turkishVoices = voices.filter((voice) =>
-      voice.lang.toLowerCase().startsWith("tr")
-    );
-
+    const voices = getTurkishVoices();
+    const preferredUri = readPreference(VOICE_URI_KEY);
     return (
-      turkishVoices.find((voice) =>
-        /ahmet|emel|tolga|yelda|turkish/i.test(voice.name)
-      ) ||
-      turkishVoices.find((voice) => voice.localService) ||
-      turkishVoices[0] ||
+      voices.find((voice) => voice.voiceURI === preferredUri) ||
+      voices.find((voice) => voice.localService) ||
+      voices[0] ||
       null
     );
   }
 
-  function loadVoices() {
+  function updateVoiceSettings() {
+    const voices = getTurkishVoices();
     selectedVoice = chooseTurkishVoice();
+
+    if (voiceChoice) {
+      const preferredUri = readPreference(VOICE_URI_KEY);
+      const currentValue = voiceChoice.value;
+      voiceChoice.replaceChildren();
+
+      const automatic = document.createElement("option");
+      automatic.value = "";
+      automatic.textContent = "Otomatik Türkçe ses";
+      voiceChoice.append(automatic);
+
+      voices.forEach((voice) => {
+        const option = document.createElement("option");
+        option.value = voice.voiceURI;
+        option.textContent = `${voice.name} · ${voice.lang}${voice.localService ? " · Bu cihazda" : ""}`;
+        voiceChoice.append(option);
+      });
+
+      voiceChoice.value = voices.some((voice) => voice.voiceURI === preferredUri)
+        ? preferredUri
+        : currentValue && voices.some((voice) => voice.voiceURI === currentValue)
+          ? currentValue
+          : "";
+    }
+
+    const savedRate = Number(readPreference(VOICE_RATE_KEY, "0.95"));
+    const rate = Number.isFinite(savedRate) ? Math.min(1.15, Math.max(0.85, savedRate)) : 0.95;
+    if (voiceRate && document.activeElement !== voiceRate) voiceRate.value = String(rate);
+    if (voiceRateValue) voiceRateValue.textContent = `${Number(voiceRate?.value || rate).toFixed(2)}×`;
+
+    if (voiceSettingsStatus) {
+      voiceSettingsStatus.textContent = voices.length
+        ? `${voices.length} Türkçe ses bulundu.`
+        : "Türkçe ses bulunamadı. Windows Ayarları > Saat ve Dil > Dil ve Bölge bölümünden Türkçe konuşma sesini yükleyebilirsin.";
+    }
+  }
+
+  function getSpeechRate() {
+    const value = Number(voiceRate?.value || readPreference(VOICE_RATE_KEY, "0.95"));
+    return Number.isFinite(value) ? Math.min(1.15, Math.max(0.85, value)) : 0.95;
   }
 
   if (synth) {
-    loadVoices();
-    synth.addEventListener?.("voiceschanged", loadVoices);
+    updateVoiceSettings();
+    synth.addEventListener?.("voiceschanged", updateVoiceSettings);
   }
+
+  voiceChoice?.addEventListener("change", () => {
+    savePreference(VOICE_URI_KEY, voiceChoice.value);
+    selectedVoice = chooseTurkishVoice();
+    if (voiceSettingsStatus) {
+      voiceSettingsStatus.textContent = voiceChoice.value
+        ? "Seçtiğin ses kaydedildi."
+        : "Otomatik Türkçe ses seçimi kullanılıyor.";
+    }
+  });
+
+  voiceRate?.addEventListener("input", () => {
+    const rate = getSpeechRate();
+    if (voiceRateValue) voiceRateValue.textContent = `${rate.toFixed(2)}×`;
+    savePreference(VOICE_RATE_KEY, String(rate));
+  });
 
   function clearRestartTimer() {
     if (restartTimer !== null) {
@@ -168,53 +248,64 @@
     speaking = true;
     stopRecognition();
 
-    const utterance = new SpeechSynthesisUtterance(answer.slice(0, 4000));
-
-    utterance.lang = "tr-TR";
-    utterance.rate = 1;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-
     selectedVoice = chooseTurkishVoice();
+    const chunks = answer.slice(0, 4000).match(/[^.!?…]+[.!?…]+["'”’)]*|[^.!?…]+$/g) || [answer.slice(0, 4000)];
+    const speechChunks = [];
+    let pending = "";
 
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-    }
+    chunks.forEach((chunk) => {
+      const part = chunk.trim();
+      if (!part) return;
+      if (pending && (pending.length + part.length + 1 > 260)) {
+        speechChunks.push(pending);
+        pending = part;
+      } else {
+        pending = pending ? `${pending} ${part}` : part;
+      }
+    });
+    if (pending) speechChunks.push(pending);
 
-    utterance.onstart = () => {
-      if (currentRequest !== speechRequest || !voiceEnabled) return;
-      setVoiceStatus("NOVA konuşuyor…", "speaking");
-    };
-
-    utterance.onend = () => {
-      if (currentRequest !== speechRequest) return;
-
+    let completedChunks = 0;
+    const finishSpeech = () => {
+      if (currentRequest !== speechRequest || completedChunks < speechChunks.length) return;
       speaking = false;
-
       if (voiceEnabled) {
         setVoiceStatus("Seni dinliyorum…", "listening");
-        scheduleRecognitionRestart(500);
+        scheduleRecognitionRestart(450);
       } else {
         setVoiceStatus("Sesli sohbet kapalı", "idle");
-      }
-    };
-
-    utterance.onerror = (event) => {
-      if (currentRequest !== speechRequest) return;
-
-      speaking = false;
-      console.warn("NOVA Voice: Tarayıcı ses hatası.", event.error);
-
-      if (voiceEnabled) {
-        setVoiceStatus("Ses okunamadı. Tekrar deneyebilirsin.", "error");
-        scheduleRecognitionRestart(800);
       }
     };
 
     setVoiceStatus("NOVA'nın sesi hazırlanıyor…", "speaking");
 
     try {
-      synth.speak(utterance);
+      speechChunks.forEach((chunk, index) => {
+        const utterance = new SpeechSynthesisUtterance(chunk);
+        utterance.lang = "tr-TR";
+        utterance.rate = getSpeechRate();
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        if (selectedVoice) utterance.voice = selectedVoice;
+
+        utterance.onstart = () => {
+          if (currentRequest === speechRequest && voiceEnabled && index === 0) {
+            setVoiceStatus("NOVA konuşuyor…", "speaking");
+          }
+        };
+        utterance.onend = () => {
+          if (currentRequest !== speechRequest) return;
+          completedChunks += 1;
+          finishSpeech();
+        };
+        utterance.onerror = (event) => {
+          if (currentRequest !== speechRequest) return;
+          console.warn("NOVA Voice: Ses parçası okunamadı.", event.error);
+          completedChunks = speechChunks.length;
+          finishSpeech();
+        };
+        synth.speak(utterance);
+      });
     } catch (error) {
       speaking = false;
       console.error("NOVA Voice: Ses başlatılamadı.", error);
@@ -222,6 +313,28 @@
       scheduleRecognitionRestart(800);
     }
   }
+
+  voiceTestButton?.addEventListener("click", () => {
+    if (!synth || !("SpeechSynthesisUtterance" in window)) {
+      if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Bu uygulamada seslendirme desteklenmiyor.";
+      return;
+    }
+    synth.cancel();
+    const preview = new SpeechSynthesisUtterance("Merhaba, ben NOVA. Bugün sana nasıl yardımcı olabilirim?");
+    preview.lang = "tr-TR";
+    preview.rate = getSpeechRate();
+    preview.pitch = 1;
+    selectedVoice = chooseTurkishVoice();
+    if (selectedVoice) preview.voice = selectedVoice;
+    preview.onend = () => {
+      if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Ses denemesi tamamlandı.";
+    };
+    preview.onerror = () => {
+      if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Ses denemesi başarısız oldu.";
+    };
+    if (voiceSettingsStatus) voiceSettingsStatus.textContent = "NOVA'nın sesi deneniyor…";
+    synth.speak(preview);
+  });
 
   function setupRecognition() {
     if (!SpeechRecognition) {
