@@ -41,20 +41,20 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const API_FOOTBALL_KEY = process.env.API_FOOTBALL_KEY;
 
 const GEMINI_MODEL =
-  process.env.GEMINI_MODEL || "gemini-3.8-flash";
+  process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 
 const OPENROUTER_MODEL =
   process.env.OPENROUTER_MODEL || "openrouter/free";
 
 const GROQ_MODEL =
-  process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+  process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID;
 
 const MAX_MESSAGE_LENGTH = 8000;
-const MAX_MESSAGES = 14;
-const MAX_CONVERSATION_CHARS = 40000;
+const MAX_MESSAGES = 10;
+const MAX_CONVERSATION_CHARS = 20000;
 const MAX_TTS_LENGTH = 5000;
 
 // --------------------------------------------------
@@ -496,7 +496,7 @@ function getGenerationSettings(messages = []) {
 
   return {
     temperature: blueprintMode ? 0.2 : 0.4,
-    maxOutputTokens: briefRequest ? 350 : (blueprintMode ? 1800 : (isComplexQuestion(latestQuestion) ? 1800 : 950)),
+    maxOutputTokens: briefRequest ? 300 : (blueprintMode ? 1400 : (isComplexQuestion(latestQuestion) ? 1200 : 650)),
   };
 }
 
