@@ -491,6 +491,12 @@ if (!handleSquirrelEvent()) {
   app.setName("NOVA AI");
   if (process.platform === "win32") app.setAppUserModelId("com.squirrel.nova_ai.nova_ai");
 
+  ipcMain.handle("nova-desktop:app-info", () => ({
+    version: app.getVersion(),
+    platform: process.platform,
+    packaged: app.isPackaged
+  }));
+  ipcMain.on("nova-update:check", checkForUpdates);
   ipcMain.on("nova-update:later", () => {
     if (updateWindow && !updateWindow.isDestroyed()) updateWindow.close();
   });
