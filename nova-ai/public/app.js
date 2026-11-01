@@ -39,11 +39,10 @@
     return;
   }
 
-  const SUPABASE_URL =
-    "https://rjwjgopzrjnpjwhdccqs.supabase.co";
-
-  const SUPABASE_PUBLISHABLE_KEY =
-    "sb_publishable_qjORMs4iC1ZQ72FmpnSWnA_ciB6adJu";
+  // The server supplies these public browser settings from the same environment
+  // used by authenticated API routes, avoiding a second hard-coded project config.
+  const SUPABASE_URL = window.NOVA_CONFIG?.supabaseUrl || "";
+  const SUPABASE_PUBLISHABLE_KEY = window.NOVA_CONFIG?.supabasePublishableKey || "";
 
   if (!window.supabase?.createClient) {
     console.error("Supabase istemcisi yüklenemedi.");
@@ -64,7 +63,7 @@
 
     if (authMessage) {
       authMessage.textContent =
-        "Supabase Publishable key değerini app.js içine ekle.";
+        "Supabase bağlantı ayarları eksik. Sunucu ortam değişkenlerini kontrol et.";
     }
 
     return;
