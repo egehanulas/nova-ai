@@ -991,3 +991,22 @@ body, .main-panel { background: #111015; color: #f3eff8; }
   object-position: center !important;
   border-radius: inherit;
 }
+
+
+/* TXT attachment control */
+.text-file-status {
+  align-self: center;
+  max-width: 190px;
+  overflow: hidden;
+  color: #a9bfce;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#attachTextFile[aria-pressed="true"] {
+  border-color: rgba(183,160,255,.48);
+  background: rgba(167,139,250,.14);
+}
+@media (max-width: 560px) {
+  .text-file-status { max-width: 105px; }
+}
