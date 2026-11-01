@@ -276,7 +276,8 @@ async function fetchSearchProvider(provider, query, signal) {
     },
   });
   if (!response.ok) throw new Error("HTTP " + response.status);
-  return provider.parse((await response.text()).slice(0, MAX_HTML_BYTES));
+  const body = await readLimitedBody(response, MAX_HTML_BYTES);
+  return provider.parse(body);
 }
 
 function getSeedSources(query = "") {
@@ -437,6 +438,6 @@ async function researchWeb(query, signal) {
 module.exports = {
   extractUrls, fetchPublicPage, parsePage, parseRssFeed,
   parseBingHtml, parseDuckDuckGoHtml, isPrivateAddress,
-  validatePublicUrl, searchPublicWeb, researchWeb,
+  validatePublicUrl, readLimitedBody, searchPublicWeb, researchWeb,
   getSeedSources, hasRelevantTopicEvidence,
 };
