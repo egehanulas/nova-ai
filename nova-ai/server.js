@@ -168,6 +168,16 @@ if (helmet) {
   );
 }
 
+// Publish only the Supabase URL and publishable key; both are designed for browser use.
+app.get("/config.js", (req, res) => {
+  res.type("application/javascript");
+  res.setHeader("Cache-Control", "no-store");
+  res.send("window.NOVA_CONFIG = Object.freeze(" + JSON.stringify({
+    supabaseUrl: SUPABASE_URL || "",
+    supabasePublishableKey: SUPABASE_PUBLISHABLE_KEY || "",
+  }) + ");");
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use(
