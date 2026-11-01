@@ -1,0 +1,36 @@
+name: NOVA Web Research Tests
+
+on:
+  pull_request:
+    paths:
+      - "nova-ai/**"
+      - ".github/workflows/web-research-tests.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "nova-ai/**"
+      - ".github/workflows/web-research-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  web-research:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nova-ai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: nova-ai/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Check syntax and run tests
+        run: npm run check
