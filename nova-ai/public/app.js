@@ -1403,6 +1403,23 @@
     const attachment = selectedTextFile;
 
     if ((!text && !attachment) || busy || imageBusy || !currentUser) return;
+    if (desktopCommandMode) {
+      setBusy(true);
+      try {
+        await addMessage("user", text);
+        prompt.value = "";
+        prompt.style.height = "";
+        const count = $("#characterCount");
+        if (count) count.textContent = "0/4000";
+        const result = await runDesktopCommand(text);
+        await addMessage("assistant", result);
+      } catch (error) {
+        await addMessage("assistant", error?.message || "Komut çalıştırılamadı.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     if (attachment && researchMode) {
       alert("Dosya analizi için Araştır modunu kapatıp normal sohbette gönder.");
       return;
@@ -1828,84 +1845,40 @@
   imageGenerateButton?.addEventListener("click",openImagePrompt);
   galleryButton?.addEventListener("click",openImageGallery);
 
-  // Windows desktop command launcher: a focused command box beside Image.
+  // Desktop command mode keeps input in the regular chat composer.
   const desktopCommandButton = $("#desktopCommand");
+  let desktopCommandMode = false;
   if (window.novaDesktop?.isDesktop && window.novaDesktop.assistant?.openApp) {
     desktopCommandButton.hidden = false;
+    desktopCommandButton.setAttribute("aria-pressed", "false");
     desktopCommandButton.addEventListener("click", () => {
-      const formEl = document.createElement("form");
-      const label = document.createElement("label");
-      label.className = "image-studio-label";
-      label.htmlFor = "novaDesktopCommandInput";
-      label.textContent = "Bilgisayarında ne yapmamı istersin?";
-      const input = document.createElement("input");
-      input.id = "novaDesktopCommandInput";
-      input.className = "image-studio-prompt";
-      input.type = "text";
-      input.maxLength = 240;
-      input.required = true;
-      input.autocomplete = "off";
-      input.placeholder = "Örn. Steam'i aç";
-      const note = document.createElement("p");
-      note.className = "image-studio-note";
-      note.textContent = "Şimdilik Steam, Not Defteri, Hesap Makinesi ve Dosya Gezgini komutları destekleniyor.";
-      const status = document.createElement("p");
-      status.className = "image-studio-note";
-      status.setAttribute("role", "status");
-      status.setAttribute("aria-live", "polite");
-      const actions = document.createElement("div");
-      actions.className = "image-studio-actions";
-      const cancel = document.createElement("button");
-      cancel.type = "button";
-      cancel.className = "image-studio-secondary";
-      cancel.textContent = "Vazgeç";
-      const run = document.createElement("button");
-      run.type = "submit";
-      run.className = "image-studio-primary";
-      run.textContent = "⌘ Komutu çalıştır";
-      actions.append(cancel, run);
-      formEl.append(label, input, note, status, actions);
-      let overlay;
-      const close = () => closeStudio(overlay);
-      cancel.onclick = close;
-      overlay = studio({
-        title: "Bilgisayar komutu",
-        subtitle: "Bir komut yaz, NOVA bilgisayarında gerçekleştirsin.",
-        content: formEl,
-        onClose: close
-      });
-      input.focus();
-      formEl.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const command = input.value.trim().toLocaleLowerCase("tr-TR");
-        const aliases = [
-          { keys: ["steam", "steam'i", "steami"], app: "steam", label: "Steam" },
-          { keys: ["not defteri", "notepad"], app: "notepad", label: "Not Defteri" },
-          { keys: ["hesap makinesi", "calculator", "calc"], app: "calculator", label: "Hesap Makinesi" },
-          { keys: ["dosya gezgini", "explorer", "dosya yöneticisi"], app: "explorer", label: "Dosya Gezgini" }
-        ];
-        const match = aliases.find((item) => item.keys.some((key) => command.includes(key)));
-        if (!match) {
-          status.textContent = "Bu komutu henüz tanıyamadım. Desteklenen uygulamalardan birini yazabilirsin.";
-          return;
-        }
-        run.disabled = true;
-        run.textContent = "Çalıştırılıyor…";
-        status.textContent = match.label + " açılıyor…";
-        try {
-          const result = await window.novaDesktop.assistant.openApp(match.app);
-          status.textContent = result?.message || match.label + " açma isteği gönderildi.";
-          run.textContent = "Tamamlandı";
-          setTimeout(close, 900);
-        } catch (error) {
-          status.textContent = error?.message || match.label + " açılamadı.";
-          run.disabled = false;
-          run.textContent = "Tekrar dene";
-        }
-      });
+      desktopCommandMode = !desktopCommandMode;
+      desktopCommandButton.classList.toggle("active", desktopCommandMode);
+      desktopCommandButton.setAttribute("aria-pressed", String(desktopCommandMode));
+      prompt.placeholder = desktopCommandMode
+        ? "Bilgisayarına ne yaptırmak istersin? Örn. Steam'i aç"
+        : "NOVA AI'ye ne sormak istersin?";
+      if (imageStatus) imageStatus.textContent = desktopCommandMode
+        ? "Bilgisayar komut modu açık · Mesajını normal sohbet alanına yaz."
+        : "";
+      prompt.focus();
     });
   } else if (desktopCommandButton) {
     desktopCommandButton.hidden = true;
+  }
+
+  async function runDesktopCommand(rawCommand) {
+    const command = String(rawCommand || "").trim().toLocaleLowerCase("tr-TR");
+    const aliases = [
+      { keys: ["steam", "steam'i", "steami"], app: "steam", label: "Steam" },
+      { keys: ["not defteri", "notepad"], app: "notepad", label: "Not Defteri" },
+      { keys: ["hesap makinesi", "calculator", "calc"], app: "calculator", label: "Hesap Makinesi" },
+      { keys: ["dosya gezgini", "explorer", "dosya yöneticisi"], app: "explorer", label: "Dosya Gezgini" }
+    ];
+    const match = aliases.find((item) => item.keys.some((key) => command.includes(key)));
+    if (!match) throw new Error("Bu komutu henüz tanıyamadım. Şimdilik Steam, Not Defteri, Hesap Makinesi ve Dosya Gezgini komutlarını destekliyorum.");
+    const result = await window.novaDesktop.assistant.openApp(match.app);
+    return result?.message || match.label + " açma isteği gönderildi.";
   }
 
   async function memoryRequest(path, options = {}) {
