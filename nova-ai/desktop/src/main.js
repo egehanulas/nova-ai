@@ -419,8 +419,10 @@ function configureAutoUpdates() {
   autoUpdater.setFeedURL({ url: UPDATE_FEED_URL });
   autoUpdater.on("error", (error) => {
     console.error("NOVA auto-update error:", error);
+    sendUpdateStatus("error");
   });
   autoUpdater.on("update-available", () => {
+    sendUpdateStatus("available");
     if (Notification.isSupported()) {
       new Notification({
         title: "NOVA AI güncellemesi",
