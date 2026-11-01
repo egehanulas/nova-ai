@@ -1,6 +1,7 @@
 
 require("dotenv").config();
 
+const APP_VERSION = require("./package.json").version;
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 const path = require("path");
@@ -3092,6 +3093,8 @@ app.get("/health", (req, res) => {
   res.json({
     status: "ok",
     name: "NOVA AI",
+    version: APP_VERSION,
+    releaseChannel: "alpha",
     timestamp: new Date().toISOString(),
     providers: {
       gemini: Boolean(GEMINI_API_KEY),

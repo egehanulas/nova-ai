@@ -1,5 +1,12 @@
 # NOVA AI
 
+**Sürüm:** 0.2.0-alpha.1 · **Kanal:** Alfa
+
+NOVA AI; Türkçe sohbet, kalıcı kullanıcı hafızası, canlı web araştırması, yapılandırılmış hava durumu/futbol sorguları ve Unreal Engine 5.8 bilgi tabanı için geliştirilmiş kişisel asistandır.
+
+> **Alfa sürümü:** Aktif geliştirme ve test aşamasındadır. Özellikler, sağlayıcı erişimi ve kullanılabilirlik değişebilir. Kritik işlerde yanıtları bağımsız kaynaklardan doğrulayın; önemli verilerin yedeğini alın.
+
+
 NOVA AI; Türkçe sohbet, kalıcı kullanıcı hafızası, canlı web araştırması, yapılandırılmış hava durumu/futbol sorguları ve Unreal Engine 5.8 bilgi tabanı için geliştirilmiş kişisel asistandır.
 
 ## Çalışma yapısı
@@ -58,3 +65,13 @@ Supabase SQL Editor'de sırasıyla `003`, `004` ve `006` migration dosyalarını
 - `npm run check` — JavaScript syntax checks for the server, client, and utility scripts.
 - `npm run test:embeddings` — downloads/loads the local embedding model and verifies that it returns a finite 384-dimensional vector.
 - `npm start` runs the syntax checks before starting the server.
+
+## Alfa sürümü ve bilinen sınırlar
+
+- Bu sürüm erken test içindir; üretim kararlılığı veya kesintisiz erişim garantisi vermez.
+- Sohbet, web araştırması, hafıza, ses ve görsel üretimi harici servislerin erişimine, kota ve API anahtarlarına bağlıdır.
+- NOVA Desktop mevcut aşamada barındırılan web uygulamasını açan çevrimiçi bir Electron istemcisidir; çevrimdışı çalışmaz.
+- Masaüstü otomatik güncellemesi henüz yoktur. Yeni masaüstü sürümleri için Windows kurulum dosyası yeniden hazırlanır.
+- Discord kişisel hesap otomasyonu ve genel bilgisayar kontrolü henüz desteklenmez.
+- /health endpoint'i sürüm ve kanal bilgisini verir; gizli anahtar değerlerini açığa çıkarmaz.
+- Sürüm numaraları nova-ai/package.json, nova-ai/package-lock.json ve nova-ai/desktop/package.json dosyalarında birlikte tutulur. npm run check bu eşleşmeyi test eder.
