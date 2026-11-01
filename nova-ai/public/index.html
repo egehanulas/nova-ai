@@ -548,6 +548,7 @@
         <div class="settings-tabs" role="tablist" aria-label="Ayar kategorileri">
           <button class="settings-tab active" id="appearanceTab" type="button" role="tab" aria-selected="true" aria-controls="settingsAppearancePanel" data-settings-tab="appearance">Görünüm</button>
           <button class="settings-tab" id="audioTab" type="button" role="tab" aria-selected="false" aria-controls="settingsAudioPanel" data-settings-tab="audio">Ses ve Mikrofon</button>
+          <button class="settings-tab" id="versionTab" type="button" role="tab" aria-selected="false" aria-controls="settingsVersionPanel" data-settings-tab="version">Sürüm</button>
         </div>
         <div id="settingsAppearancePanel" class="settings-tab-panel" role="tabpanel" aria-labelledby="appearanceTab">
         <section class="settings-section" aria-labelledby="themeTitle">
@@ -618,6 +619,22 @@
           </div>
           <p class="settings-hint">Not: Mikrofon izni ile konuşma tanıma bağlantısı farklı şeylerdir. Mikrofon çalışsa bile tarayıcının konuşma tanıma servisi ağ hatası verebilir.</p>
         </section>
+        </div>
+        <div id="settingsVersionPanel" class="settings-tab-panel" role="tabpanel" aria-labelledby="versionTab" hidden>
+          <section class="settings-section" aria-labelledby="appVersionTitle">
+            <div class="settings-section-heading">
+              <h2 id="appVersionTitle">NOVA AI sürümü</h2>
+              <span>Uygulama bilgisi</span>
+            </div>
+            <div class="audio-check-row">
+              <div class="audio-check-copy">
+                <strong>Mevcut sürüm</strong>
+                <span>0.2.0-alpha.4</span>
+              </div>
+              <span class="settings-version-status">Alpha</span>
+            </div>
+            <p class="settings-hint">NOVA AI şu anda önizleme aşamasındadır. Yeni sürümler yayımlandığında sürüm numarası burada güncellenecektir.</p>
+          </section>
         </div>
       </section>
       <section class="messages" id="messages" aria-label="Mesajlar" aria-live="polite" aria-relevant="additions text"></section>
