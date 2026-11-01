@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "desktop-v*"
+    branches:
+      - "desktop-v*"
 
 permissions:
   contents: write
