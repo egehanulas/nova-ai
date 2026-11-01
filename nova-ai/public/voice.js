@@ -25,8 +25,8 @@
   const SILENCE_END_MS = 780;
   const MIN_SPEECH_MS = 350;
   const MAX_SPEECH_MS = 18000;
-  const SPEECH_THRESHOLD = 0.014;
-  const PRE_ROLL_CHUNKS = 7;
+  const SPEECH_THRESHOLD = 0.009;
+  const PRE_ROLL_CHUNKS = 2;
 
   const synth = window.speechSynthesis;
   const voiceChoice = $("voiceChoice");
@@ -62,6 +62,7 @@
   let preRoll = [];
   let silenceSamples = 0;
   let speechSamples = 0;
+  let noiseFloor = 0.002;
   let pendingTranscript = "";
 
   function setVoiceStatus(message, state = "idle") {
@@ -411,8 +412,9 @@
     for (let i = 0; i < copy.length; i += 1) energy += copy[i] * copy[i];
     const rms = Math.sqrt(energy / Math.max(1, copy.length));
     const sampleRate = audioContext?.sampleRate || TARGET_SAMPLE_RATE;
+    const threshold = Math.max(SPEECH_THRESHOLD, noiseFloor * 3.0);
 
-    if (rms >= SPEECH_THRESHOLD) {
+    if (rms >= threshold) {
       if (!capturingSpeech) {
         capturingSpeech = true;
         speechChunks = preRoll.slice();
@@ -428,6 +430,7 @@
       speechSamples += copy.length;
       silenceSamples += copy.length;
     } else {
+      noiseFloor = noiseFloor * 0.96 + rms * 0.04;
       preRoll.push(copy);
       while (preRoll.length > PRE_ROLL_CHUNKS) preRoll.shift();
     }
