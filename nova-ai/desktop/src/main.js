@@ -11,6 +11,8 @@ import {
   shell
 } from "electron";
 import { URL } from "node:url";
+import { spawn } from "node:child_process";
+import path from "node:path";
 
 const NOVA_URL = "https://nova-ai-xxid.onrender.com/";
 const NOVA_ORIGIN = new URL(NOVA_URL).origin;
@@ -280,31 +282,79 @@ function configureAutoUpdates() {
   setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL_MS);
 }
 
-app.setName("NOVA AI");
-if (process.platform === "win32") app.setAppUserModelId("com.egehanulas.novaai");
+function handleSquirrelEvent() {
+  if (process.platform !== "win32") return false;
 
-app.whenReady().then(() => {
-  createApplicationMenu();
-  createTray();
-  createWindow();
-  if (process.platform === "win32") {
-    globalShortcut.register("CommandOrControl+Shift+Space", toggleWindow);
+  const event = process.argv[1];
+  const handledEvents = [
+    "--squirrel-install",
+    "--squirrel-updated",
+    "--squirrel-uninstall",
+    "--squirrel-obsolete"
+  ];
+  if (!handledEvents.includes(event)) return false;
+
+  const appFolder = path.resolve(process.execPath, "..");
+  const rootFolder = path.resolve(appFolder, "..");
+  const updateExe = path.join(rootFolder, "Update.exe");
+  const executableName = path.basename(process.execPath);
+
+  const runUpdate = (args) => {
+    try {
+      const child = spawn(updateExe, args, {
+        detached: true,
+        stdio: "ignore"
+      });
+      child.unref();
+    } catch (error) {
+      console.error("NOVA shortcut setup failed:", error);
+    }
+  };
+
+  if (event === "--squirrel-install" || event === "--squirrel-updated") {
+    // Reuse the same shortcut on install/update; never create a second desktop icon.
+    runUpdate(["--createShortcut", executableName]);
+    setTimeout(() => app.quit(), 1000);
+    return true;
   }
-  configureAutoUpdates();
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) showWindow();
+
+  if (event === "--squirrel-uninstall") {
+    runUpdate(["--removeShortcut", executableName]);
+    setTimeout(() => app.quit(), 1000);
+    return true;
+  }
+
+  app.quit();
+  return true;
+}
+
+if (!handleSquirrelEvent()) {
+  app.setName("NOVA AI");
+  if (process.platform === "win32") app.setAppUserModelId("com.egehanulas.novaai");
+
+  app.whenReady().then(() => {
+    createApplicationMenu();
+    createTray();
+    createWindow();
+    if (process.platform === "win32") {
+      globalShortcut.register("CommandOrControl+Shift+Space", toggleWindow);
+    }
+    configureAutoUpdates();
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) showWindow();
+    });
   });
-});
 
-app.on("before-quit", () => {
-  isQuitting = true;
-});
+  app.on("before-quit", () => {
+    isQuitting = true;
+  });
 
-app.on("will-quit", () => {
-  globalShortcut.unregisterAll();
-});
+  app.on("will-quit", () => {
+    globalShortcut.unregisterAll();
+  });
 
-app.on("window-all-closed", () => {
-  // NOVA stays in the Windows notification area until the user chooses Exit.
-  if (process.platform !== "win32") quitApplication();
-});
+  app.on("window-all-closed", () => {
+    // NOVA stays in the Windows notification area until the user chooses Exit.
+    if (process.platform !== "win32") quitApplication();
+  });
+}
