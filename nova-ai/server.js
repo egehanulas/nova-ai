@@ -47,7 +47,7 @@ const OPENROUTER_MODEL =
   process.env.OPENROUTER_MODEL || "openrouter/free";
 
 const GROQ_MODEL =
-  process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID;
@@ -557,6 +557,11 @@ function isComplexQuestion(text = "") {
     /kontrol et/,
     /hata bul/,
     /kodun tamamı/,
+    /araştır/,
+    /gelişme/,
+    /güncel kaynak/,
+    /kaynakların bağlantıları/,
+    /son dönemde/,
   ];
 
   const signalCount = signals.filter((pattern) =>
