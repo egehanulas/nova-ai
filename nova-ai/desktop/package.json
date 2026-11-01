@@ -14,5 +14,6 @@
     "@electron-forge/cli": "^8.0.1",
     "@electron-forge/maker-squirrel": "^8.0.1",
     "electron": "^45.2.1"
-  }
+  },
+  "productName": "NOVA AI"
 }
