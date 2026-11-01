@@ -93,6 +93,19 @@
   let authMode = "login";
   let selectedTextFile = null;
   let fileReading = false;
+  let activeChatController = null;
+  let chatInterruptRequested = false;
+
+  // Desktop voice chat can stop the active response when the user interrupts.
+  window.NOVAApp = Object.freeze({
+    get busy() { return busy; },
+    interruptCurrentResponse() {
+      if (!activeChatController) return false;
+      chatInterruptRequested = true;
+      activeChatController.abort();
+      return true;
+    }
+  });
 
   const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
   const MAX_EXTRACTED_TEXT = 40000;
@@ -1389,6 +1402,7 @@
         : "/api/chat/stream";
 
       const requestController = new AbortController();
+      activeChatController = requestController;
       const requestTimeout = setTimeout(
         () => requestController.abort(),
         110000
@@ -1428,11 +1442,13 @@
         );
       } catch (error) {
         if (error?.name === "AbortError") {
+          if (chatInterruptRequested) throw error;
           throw new Error("Yanıt 100 saniyede tamamlanmadı. Daha kısa bir istekle tekrar dene.");
         }
         throw error;
       } finally {
         clearTimeout(requestTimeout);
+        if (activeChatController === requestController) activeChatController = null;
       }
 
       const savedAnswer = result.truncated
@@ -1467,6 +1483,10 @@
         result.model || ""
       );
     } catch (error) {
+      if (error?.name === "AbortError" && chatInterruptRequested) {
+        chatInterruptRequested = false;
+        return;
+      }
       console.error("NOVA AI mesaj hatası:", error);
 
       // Sesli komut başarısız olursa mikrofonun waitingForReply durumunda kilitlenmesini önle.
@@ -1490,9 +1510,12 @@
       }
 
       // Gönderme işlemi hata alsa bile giriş alanını tekrar aç.
+      activeChatController = null;
+      chatInterruptRequested = false;
       setBusy(false);
       prompt.disabled = false;
       prompt.focus();
+      window.dispatchEvent(new Event("nova:chat-idle"));
     }
   }
 
