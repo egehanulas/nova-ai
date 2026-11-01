@@ -91,6 +91,8 @@ function getUserSupabase(req) {
 
 function formatMemoryInstruction(rows) {
   const orderedRows = (Array.isArray(rows) ? rows : [])
+    // Do not feed old or manually inserted sensitive records back into the model.
+    .filter((row) => isSafeMemoryContent(row?.content))
     .slice()
     .sort((a, b) => {
       const aProfile = a.category === "profile" ? 1 : 0;
@@ -3069,7 +3071,24 @@ function isMemoryCandidate(text = "") {
 function isSafeMemoryContent(content = "") {
   const value = String(content).trim();
   if (!value || value.length > 500) return false;
-  return !/(şifre|parola|password|api.?key|token|iban|tc kimlik|kredi kartı|cvv|sağlık|hastalık|ilaç|teşhis|ameliyat|maaş|borç|gelir|dinî|dini|mezhep|oy tercihi|siyasi görüş|cinsel|travma|istismar)/i.test(value);
+
+  const sensitivePatterns = [
+    /(?:şifre|parola|password|api.?key|access.?token|secret|iban|tc kimlik|kimlik numarası|kredi kartı|cvv)/i,
+    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i,
+    /\b(?:\+?90|0)\s*\(?\d{3}\)?[\s.-]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}\b/,
+    /\bTR\s?\d{2}(?:[\s-]?\d{4}){5}\b/i,
+    /\b\d{11}\b/,
+    /(?:ev|ikamet|teslimat|iş)?\s*adresim|ikamet adresi|ev adresi|(?:mahalle|mahallesi|sokak|sokağı|cadde|caddesi|apartman|daire no|kapı no|posta kodu)/i,
+    /(?:sağlık|hastalık|ilaç|teşhis|ameliyat|depresyon|anksiyete|psikolojik|tedavi|engellilik)/i,
+    /(?:dinî|dini|inanç|mezhep|müslüman|hristiyan|yahudi|ateist|deist|agnostik)/i,
+    /(?:siyasi görüş|politik görüş|siyasi parti|parti üyesi|oy tercihi|oy verdim|politik aidiyet)/i,
+    /(?:etnik köken|ırkım|ırk|soy kökenim|milliyetim)/i,
+    /(?:cinsel yönelim|cinsel hayat|cinsel ilişki|cinsel yaşam)/i,
+    /(?:travma|istismar|şiddet mağduriyeti)/i,
+    /(?:maaş|borç|gelir|banka hesabı|hesap numarası|yatırım hesabı)/i,
+  ];
+
+  return !sensitivePatterns.some((pattern) => pattern.test(value));
 }
 
 function extractExplicitName(text = "") {
