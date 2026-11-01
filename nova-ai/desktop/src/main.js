@@ -69,6 +69,7 @@ function createTray() {
 
   const contextMenu = Menu.buildFromTemplate([
     { label: "NOVA AI'ı Aç", click: showWindow },
+    { label: "Bilgisayar Asistanı", click: showDesktopAssistant },
     { label: "Göster / Gizle  (Ctrl+Shift+Space)", click: toggleWindow },
     { type: "separator" },
     {
