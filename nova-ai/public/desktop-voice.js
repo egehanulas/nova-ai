@@ -447,7 +447,7 @@
   }
 
   async function startAudioCapture(currentSession) {
-    audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
+    audioContext = new AudioContext();
     await audioContext.resume();
     audioSource = audioContext.createMediaStreamSource(microphoneStream);
     audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
