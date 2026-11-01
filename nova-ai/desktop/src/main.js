@@ -330,7 +330,7 @@ function handleSquirrelEvent() {
 
 if (!handleSquirrelEvent()) {
   app.setName("NOVA AI");
-  if (process.platform === "win32") app.setAppUserModelId("com.squirrel.nova_ai.NOVA AI");
+  if (process.platform === "win32") app.setAppUserModelId("com.squirrel.nova_ai.nova_ai");
 
   app.whenReady().then(() => {
     createApplicationMenu();
