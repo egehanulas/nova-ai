@@ -5,7 +5,10 @@ on:
     branches: [main]
     paths:
       - "nova-ai/package.json"
-      - "nova-ai/scripts/test-embeddings.js"
+      - "nova-ai/package-lock.json"
+      - "nova-ai/server.js"
+      - "nova-ai/public/**/*.js"
+      - "nova-ai/scripts/**/*.js"
       - ".github/workflows/npm-security-audit.yml"
   workflow_dispatch:
 
