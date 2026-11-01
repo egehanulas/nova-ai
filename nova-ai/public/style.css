@@ -1594,3 +1594,54 @@ button:disabled {
   .nova-dialog-actions { flex-direction: row; }
   .nova-dialog-actions button { width: auto; flex: 1; }
 }
+
+
+/* NOVA chat activity: image generation and save status */
+.nova-activity-message .nova-activity-content {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 3px 10px;
+  width: fit-content;
+  max-width: min(100%, 520px);
+  padding: 13px 16px;
+  border: 1px solid rgba(160, 137, 255, .2);
+  border-radius: 5px 16px 16px 16px;
+  background: linear-gradient(120deg, rgba(111, 86, 196, .13), rgba(47, 48, 88, .16));
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .12);
+}
+.nova-activity-spinner {
+  grid-row: 1 / span 2;
+  width: 17px;
+  height: 17px;
+  border: 2px solid rgba(183, 163, 255, .2);
+  border-top-color: var(--accent-light, #bcaaff);
+  border-right-color: #8d7aff;
+  border-radius: 50%;
+  animation: novaActivitySpin .85s linear infinite;
+}
+.nova-activity-copy {
+  color: #e7ddff;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: .01em;
+}
+.nova-activity-detail {
+  grid-column: 2;
+  color: #9e99b6;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.nova-activity-message.is-error .nova-activity-content {
+  border-color: rgba(248, 113, 113, .25);
+  background: rgba(127, 29, 29, .09);
+}
+.nova-activity-message.is-error .nova-activity-copy {
+  color: #fecaca;
+}
+@keyframes novaActivitySpin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nova-activity-spinner { animation-duration: 2.5s; }
+}
