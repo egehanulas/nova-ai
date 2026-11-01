@@ -11,7 +11,7 @@ NOVA AI; Türkçe sohbet, kalıcı kullanıcı hafızası, canlı web araştırm
 - **Hafıza:** Supabase RLS ile kullanıcıya özel kayıtlar saklanır. Hassas bilgiler otomatik hafızaya alınmamalıdır.
 - **Unreal Engine bilgi tabanı:** Blueprint sorularında Supabase vektör araması ve yerel `Xenova/all-MiniLM-L6-v2` embedding modeli kullanılır.
 - **Görsel üretimi:** Pollinations anahtarı varsa Pollinations, yoksa Cloudflare Workers AI kullanılır. Gemini/metin sağlayıcıları Türkçe istemi görsel modeli için düzenlemeye yardımcı olabilir.
-- **Ses:** Tarayıcıdaki Web Speech API ile sesli sohbet kullanılabilir. ElevenLabs endpoint'i ayrıca isteğe bağlıdır.
+- **Ses:** Sesli sohbet ve ElevenLabs kullanılamadığında manuel seslendirme için tarayıcı Web Speech API yedeği bulunur. ElevenLabs endpoint'i isteğe bağlıdır.
 
 ## Kurulum
 
@@ -26,9 +26,9 @@ Render'da servis kök dizini `nova-ai/`, build komutu `npm install`, start komut
 ## Ortam değişkenleri
 
 - `GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`: sohbet sağlayıcıları; en az biri gerekli.
-- `GEMINI_MODEL`, `GROQ_MODEL`, `OPENROUTER_MODEL`: isteğe bağlı model seçimi.
+- `GEMINI_MODEL`, `GROQ_MODEL`, `OPENROUTER_MODEL`: isteğe bağlı model seçimi. Gemini varsayılanı `gemini-3.8-flash`.
 - `API_FOOTBALL_KEY`: yapılandırılmış futbol verisi için isteğe bağlı API anahtarı.
-- `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`: oturum, sohbet ve hafıza.
+- `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`: oturum, sohbet ve hafıza. Bu iki herkese açık istemci ayarı `/config.js` üzerinden sunucu ortamından verilir; anahtar istemci dosyasına sabit yazılmaz.
 - `SUPABASE_SERVICE_ROLE_KEY`: yalnızca güvenilir ortamda bilgi tabanı içe aktarımı için; uygulama istemcisine ekleme.
 - `POLLINATIONS_API_KEY` veya `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`: görsel üretimi.
 - `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID`: isteğe bağlı TTS endpoint'i.
