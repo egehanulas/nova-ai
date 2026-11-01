@@ -54,6 +54,37 @@ jobs:
         working-directory: nova-ai
         run: npm run check
 
+      - name: Smoke test server and public configuration
+        working-directory: nova-ai
+        env:
+          PORT: "43127"
+          SUPABASE_URL: "https://example.supabase.co"
+          SUPABASE_PUBLISHABLE_KEY: "sb_publishable_ci_test"
+          SUPABASE_SERVICE_ROLE_KEY: "ci-secret-must-not-leak"
+        run: |
+          node server.js > /tmp/nova-ai-smoke.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          for attempt in $(seq 1 15); do
+            if curl -fsS "http://127.0.0.1:$PORT/health" > /tmp/nova-health.json; then
+              break
+            fi
+            sleep 1
+          done
+
+          grep -q '"status":"ok"' /tmp/nova-health.json
+          curl -fsS "http://127.0.0.1:$PORT/config.js" > /tmp/nova-config.js
+          grep -q 'https://example.supabase.co' /tmp/nova-config.js
+          grep -q 'sb_publishable_ci_test' /tmp/nova-config.js
+          if grep -q 'ci-secret-must-not-leak' /tmp/nova-config.js; then
+            echo "Service-role secret leaked through public config"
+            exit 1
+          fi
+
+          curl -fsS "http://127.0.0.1:$PORT/" > /tmp/nova-index.html
+          grep -q 'NOVA AI' /tmp/nova-index.html
+
       - name: Test local embedding model
         working-directory: nova-ai
         run: npm run test:embeddings
