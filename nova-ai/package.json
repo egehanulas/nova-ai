@@ -1,6 +1,6 @@
 {
   "name": "nova-ai",
-  "version": "0.2.0-alpha.10",
+  "version": "0.2.0-alpha.9",
   "description": "NOVA AI Türkçe sohbet sitesi",
   "main": "server.js",
   "scripts": {
