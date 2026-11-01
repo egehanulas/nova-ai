@@ -391,7 +391,7 @@
       .composer-meta { display: none; }
     }
   </style>
-  <link rel="stylesheet" href="/layout-fixes.css?v=1">
+  <link rel="stylesheet" href="/layout-fixes.css?v=2">
 </head>
 
 <body>
@@ -489,6 +489,11 @@
       </section>
 
       <div class="sidebar-bottom">
+        <button class="research-toggle settings-nav" id="openSettings" type="button" aria-label="Ayarları aç">
+          <span class="research-icon" aria-hidden="true">⚙</span>
+          <span class="research-copy"><span class="research-title">Ayarlar</span><span class="research-subtitle">NOVA görünümünü kişiselleştir</span></span>
+          <span class="research-indicator" aria-hidden="true">›</span>
+        </button>
         <div class="sidebar-profile">
           <img class="profile-avatar" src="/nova-icon.png" alt="" width="36" height="36">
           <div class="profile-copy">
@@ -515,7 +520,7 @@
           <div class="top-title">
             <span class="top-title-main">NOVA AI</span>
             <span class="top-title-divider">/</span>
-            <span class="top-title-section">Sohbet</span>
+            <span class="top-title-section" id="topTitleSection">Sohbet</span>
           </div>
         </div>
 
@@ -531,6 +536,45 @@
         </div>
       </header>
 
+      <section class="settings-view" id="settingsView" hidden aria-label="Ayarlar">
+        <div class="settings-heading">
+          <div>
+            <span class="settings-eyebrow">NOVA AI · KİŞİSELLEŞTİRME</span>
+            <h1>Görünüm ayarları</h1>
+            <p>NOVA'nın görünümünü ruhuna göre değiştir. Seçimin bu cihazda saklanır.</p>
+          </div>
+          <button class="settings-back" id="settingsBack" type="button">← Sohbete dön</button>
+        </div>
+        <section class="settings-section" aria-labelledby="themeTitle">
+          <div class="settings-section-heading">
+            <h2 id="themeTitle">Tema</h2>
+            <span>3 görünüm</span>
+          </div>
+          <div class="theme-grid">
+            <button class="theme-card" type="button" data-theme-choice="original" aria-pressed="false">
+              <span class="theme-preview theme-preview-original"><i></i><i></i><i></i><b></b></span>
+              <span class="theme-card-copy"><strong>NOVA Original</strong><small>İmza mor · mevcut NOVA görünümü</small></span>
+              <span class="theme-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="theme-card" type="button" data-theme-choice="dark" aria-pressed="false">
+              <span class="theme-preview theme-preview-dark"><i></i><i></i><i></i><b></b></span>
+              <span class="theme-card-copy"><strong>Dark</strong><small>Saf antrasit · buz mavisi vurgular</small></span>
+              <span class="theme-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="theme-card" type="button" data-theme-choice="aurora" aria-pressed="false">
+              <span class="theme-preview theme-preview-aurora"><i></i><i></i><i></i><b></b></span>
+              <span class="theme-card-copy"><strong>Aurora</strong><small>Gece laciverti · turkuaz ve mor ışık</small></span>
+              <span class="theme-check" aria-hidden="true">✓</span>
+            </button>
+          </div>
+          <p class="settings-hint" id="themeStatus" role="status" aria-live="polite">Tema seçimin otomatik kaydedilir.</p>
+        </section>
+        <div class="settings-coming-soon">
+          <span aria-hidden="true">✦</span>
+          <div><strong>Daha fazla kişiselleştirme yolda</strong><p>Ses, dil ve gizlilik seçenekleri sonraki güncellemelerde eklenecek.</p></div>
+          <span class="coming-soon-label">YAKINDA</span>
+        </div>
+      </section>
       <section class="messages" id="messages" aria-label="Mesajlar" aria-live="polite" aria-relevant="additions text"></section>
 
       <footer class="composer-area">
@@ -605,7 +649,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/config.js" defer></script>
-  <script src="/app.js" defer></script>
+  <script src="/app.js?v=themes-1" defer></script>
   <script src="/voice.js" defer></script>
 </body>
 </html>
