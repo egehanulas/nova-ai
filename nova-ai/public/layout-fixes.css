@@ -1166,3 +1166,24 @@ html[data-theme="aurora"] .auth-brand strong span { color:#83e9dc !important; }
   .theme-preview { flex:0 0 112px; width:112px; height:76px; }
   .theme-card-copy { flex:1; }
 }
+
+
+/* NOVA natural Windows voice preferences */
+.voice-settings-section { margin-top: 30px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+.voice-settings-description { margin: -4px 0 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.voice-setting-label { display: block; margin: 0 0 8px; color: var(--text); font-size: 12px; font-weight: 650; }
+.voice-setting-select {
+  box-sizing: border-box; width: 100%; max-width: 520px; min-height: 42px; padding: 9px 12px;
+  border: 1px solid var(--border); border-radius: 10px; color: var(--text);
+  background: var(--panel); font: inherit; font-size: 12px;
+}
+.voice-rate-heading { display:flex; align-items:center; justify-content:space-between; max-width:520px; margin-top:20px; }
+.voice-rate-heading output { color:var(--accent-light); font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
+.voice-rate-slider { display:block; width:100%; max-width:520px; margin:8px 0 18px; accent-color:var(--accent); }
+.voice-settings-actions { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
+.voice-test-button {
+  padding:10px 14px; border:1px solid var(--border); border-radius:10px;
+  color:var(--text); background:var(--surface); font:inherit; font-size:12px; font-weight:650; cursor:pointer;
+}
+.voice-test-button:hover { border-color:var(--accent); }
+.voice-settings-note { color:var(--muted); font-size:11px; line-height:1.5; }
