@@ -1868,17 +1868,120 @@
   }
 
   async function runDesktopCommand(rawCommand) {
-    const command = String(rawCommand || "").trim().toLocaleLowerCase("tr-TR");
-    const aliases = [
+    const raw = String(rawCommand || "").trim();
+    const command = raw.toLocaleLowerCase("tr-TR");
+    const api = window.novaDesktop?.assistant;
+    if (!api) throw new Error("Bilgisayar kontrolü yalnızca NOVA'nın Windows masaüstü uygulamasında kullanılabilir.");
+
+    const appAliases = [
       { keys: ["steam", "steam'i", "steami"], app: "steam", label: "Steam" },
       { keys: ["not defteri", "notepad"], app: "notepad", label: "Not Defteri" },
       { keys: ["hesap makinesi", "calculator", "calc"], app: "calculator", label: "Hesap Makinesi" },
-      { keys: ["dosya gezgini", "explorer", "dosya yöneticisi"], app: "explorer", label: "Dosya Gezgini" }
+      { keys: ["dosya gezgini", "explorer", "dosya yöneticisi"], app: "explorer", label: "Dosya Gezgini" },
+      { keys: ["paint"], app: "paint", label: "Paint" },
+      { keys: ["discord"], app: "discord", label: "Discord" }
     ];
-    const match = aliases.find((item) => item.keys.some((key) => command.includes(key)));
-    if (!match) throw new Error("Bu komutu henüz tanıyamadım. Şimdilik Steam, Not Defteri, Hesap Makinesi ve Dosya Gezgini komutlarını destekliyorum.");
-    const result = await window.novaDesktop.assistant.openApp(match.app);
-    return result?.message || match.label + " açma isteği gönderildi.";
+    const appMatch = appAliases.find((item) =>
+      new RegExp("^(?:aç\\s+)?(?:" + item.keys.map((key) => key.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")).join("|") + ")(?:'i|'ı|'u|'ü)?$", "i").test(raw)
+    );
+    if (appMatch) {
+      const result = await api.openApp(appMatch.app);
+      return result?.message || appMatch.label + " açılıyor.";
+    }
+
+    if (/^(?:yardım|komutlar|neler yapabilirsin|ne yapabilirsin)$/i.test(command)) {
+      return [
+        "NOVA bilgisayar komutları:",
+        "• Steam / Discord / Paint / Not Defteri / Hesap Makinesi / Dosya Gezgini aç",
+        "• bilgisayar bilgileri",
+        "• klasörler",
+        "• dosya ara <dosya adı>",
+        "• aç <Masaüstü, Belgeler veya İndirilenler içindeki tam yol>",
+        "• klasör oluştur <isim> [masaüstünde / belgelerde / indirilenlerde]",
+        "• taşı <kaynak tam yolu> -> <hedef klasör tam yolu>",
+        "• yeniden adlandır <kaynak tam yolu> -> <yeni ad>",
+        "• sil <tam yol> (Geri Dönüşüm Kutusu'na taşır)",
+        "",
+        "Güvenlik: NOVA yalnızca Masaüstü, Belgeler ve İndirilenler alanlarında çalışır. Taşıma, oluşturma ve silme işlemleri Windows onayı ister."
+      ].join("\n");
+    }
+
+    if (/^(?:bilgisayar bilgileri|sistem bilgileri|bilgisayarımın özellikleri)$/i.test(command)) {
+      const info = await api.computerInfo();
+      const gb = (value) => (value / 1024 ** 3).toFixed(1) + " GB";
+      const hours = Math.floor(info.uptimeSeconds / 3600);
+      const minutes = Math.floor((info.uptimeSeconds % 3600) / 60);
+      return [
+        "Bilgisayar bilgileri",
+        "Cihaz: " + info.computer,
+        "İşletim sistemi: " + info.platform,
+        "Mimari: " + info.architecture,
+        "İşlemci: " + info.processor,
+        "Mantıksal çekirdek: " + info.logicalCores,
+        "RAM: " + gb(info.memoryTotal) + " toplam · " + gb(info.memoryFree) + " boş",
+        "Çalışma süresi: " + hours + " saat " + minutes + " dakika"
+      ].join("\n");
+    }
+
+    if (/^(?:klasörler|klasörlerimi göster|dosyalarımı göster|hızlı erişim)$/i.test(command)) {
+      const folders = await api.listFolders();
+      return folders.map((folder) =>
+        folder.name + " (" + folder.items.length + " öğe)\n" +
+        (folder.items.slice(0, 12).map((item) => (item.type === "folder" ? "📁 " : "📄 ") + item.name).join("\n") || "  Boş veya erişilemiyor")
+      ).join("\n\n");
+    }
+
+    const searchMatch = raw.match(/^(?:dosya ara|ara|bul)\\s+(.+)$/i);
+    if (searchMatch) {
+      const found = await api.searchFiles(searchMatch[1].trim());
+      if (!found.length) return "Masaüstü, Belgeler ve İndirilenler içinde eşleşme bulamadım.";
+      return "Bulunan öğeler (en fazla 100 sonuç):\n" + found.slice(0, 30).map((item, index) =>
+        (index + 1) + ". " + (item.type === "folder" ? "📁 " : "📄 ") + item.name + "\n" + item.path
+      ).join("\n");
+    }
+
+    const createMatch = raw.match(/^klasör oluştur\\s+(.+?)(?:\\s+(masaüstünde|masaüstüne|belgelerde|belgelerine|indirilenlerde|indirilenlere))?$/i);
+    if (createMatch) {
+      const folders = await api.listFolders();
+      const location = (createMatch[2] || "masaüstünde").toLocaleLowerCase("tr-TR");
+      const folder = folders.find((item) =>
+        (location.startsWith("masaüst") && item.name === "Desktop") ||
+        (location.startsWith("belge") && item.name === "Documents") ||
+        (location.startsWith("indir") && item.name === "Downloads")
+      );
+      if (!folder) throw new Error("İstenen klasör konumu bulunamadı.");
+      const result = await api.createFolder(folder.path, createMatch[1].trim());
+      return result?.message || "Klasör oluşturma işlemi tamamlandı.";
+    }
+
+    const moveMatch = raw.match(/^(?:taşı|tası)\\s+(.+?)\\s*->\\s*(.+)$/i);
+    if (moveMatch) {
+      const result = await api.moveFile(moveMatch[1].trim(), moveMatch[2].trim(), "");
+      return result?.message || "Taşıma işlemi tamamlandı.";
+    }
+
+    const renameMatch = raw.match(/^yeniden adlandır\\s+(.+?)\\s*->\\s*(.+)$/i);
+    if (renameMatch) {
+      const source = renameMatch[1].trim();
+      const parent = source.replace(/[\\\\/][^\\\\/]+$/, "");
+      if (!parent || parent === source) throw new Error("Kaynak dosyanın tam yolunu yazmalısın.");
+      const result = await api.moveFile(source, parent, renameMatch[2].trim());
+      return result?.message || "Yeniden adlandırma tamamlandı.";
+    }
+
+    const openMatch = raw.match(/^(?:aç|ac|dosyayı aç|klasörü aç)\\s+(.+)$/i);
+    if (openMatch) {
+      const result = await api.openPath(openMatch[1].trim());
+      return result?.message || "Öğe açıldı.";
+    }
+
+    const trashMatch = raw.match(/^(?:sil|çöp kutusuna taşı|geri dönüşüm kutusuna taşı)\\s+(.+)$/i);
+    if (trashMatch) {
+      const result = await api.trashFile(trashMatch[1].trim());
+      return result?.message || "Öğe Geri Dönüşüm Kutusu'na taşındı.";
+    }
+
+    throw new Error("Bu komutu anlayamadım. Desteklenen komutları görmek için 'yardım' yaz. Örnek: 'dosya ara sunum' veya 'bilgisayar bilgileri'.");
   }
 
   async function memoryRequest(path, options = {}) {
