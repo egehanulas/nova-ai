@@ -47,7 +47,7 @@ export async function searchUserFiles(query) {
   for (const root of ROOTS) await walk(root, 2);
   return found;
 }
-export function openAllowedApp(appName) {
+export async function openAllowedApp(appName) {
   const apps = {
     notepad: { label: "Not Defteri", command: "notepad.exe", args: [] },
     calculator: { label: "Hesap Makinesi", command: "calc.exe", args: [] },
@@ -56,6 +56,7 @@ export function openAllowedApp(appName) {
   };
   const selected = apps[appName];
   if (!selected) throw new Error("Bu uygulama güvenlik nedeniyle izin verilen uygulamalar listesinde değil.");
+  try { await fs.access(selected.command); } catch { throw new Error(selected.label + " bilgisayarında bulunamadı."); }
   const child = spawn(selected.command, selected.args, { detached: true, stdio: "ignore", windowsHide: true });
   child.unref();
   return { message: selected.label + " açılıyor." };
