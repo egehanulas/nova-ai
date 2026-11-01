@@ -328,19 +328,26 @@
   }
 
   function setSettingsTab(tab) {
-    const audioActive = tab === "audio";
-    const appearancePanel = $("#settingsAppearancePanel");
-    const audioPanel = $("#settingsAudioPanel");
-    const appearanceTab = $("#appearanceTab");
-    const audioTab = $("#audioTab");
-    if (!appearancePanel || !audioPanel || !appearanceTab || !audioTab) return;
-    appearancePanel.hidden = audioActive;
-    audioPanel.hidden = !audioActive;
-    appearanceTab.classList.toggle("active", !audioActive);
-    audioTab.classList.toggle("active", audioActive);
-    appearanceTab.setAttribute("aria-selected", String(!audioActive));
-    audioTab.setAttribute("aria-selected", String(audioActive));
-    try { localStorage.setItem("nova-ai-settings-tab", audioActive ? "audio" : "appearance"); } catch {}
+    const validTabs = ["appearance", "audio", "version"];
+    const activeTab = validTabs.includes(tab) ? tab : "appearance";
+    const panels = {
+      appearance: $("#settingsAppearancePanel"),
+      audio: $("#settingsAudioPanel"),
+      version: $("#settingsVersionPanel")
+    };
+    const buttons = {
+      appearance: $("#appearanceTab"),
+      audio: $("#audioTab"),
+      version: $("#versionTab")
+    };
+    if (Object.values(panels).some((panel) => !panel) || Object.values(buttons).some((button) => !button)) return;
+    validTabs.forEach((name) => {
+      const active = name === activeTab;
+      panels[name].hidden = !active;
+      buttons[name].classList.toggle("active", active);
+      buttons[name].setAttribute("aria-selected", String(active));
+    });
+    try { localStorage.setItem("nova-ai-settings-tab", activeTab); } catch {}
   }
 
   document.querySelectorAll("[data-settings-tab]").forEach((button) => {
