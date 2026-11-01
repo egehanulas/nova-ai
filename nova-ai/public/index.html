@@ -569,11 +569,26 @@
           </div>
           <p class="settings-hint" id="themeStatus" role="status" aria-live="polite">Tema seçimin otomatik kaydedilir.</p>
         </section>
-        <div class="settings-coming-soon">
-          <span aria-hidden="true">✦</span>
-          <div><strong>Daha fazla kişiselleştirme yolda</strong><p>Ses, dil ve gizlilik seçenekleri sonraki güncellemelerde eklenecek.</p></div>
-          <span class="coming-soon-label">YAKINDA</span>
-        </div>
+        <section class="settings-section voice-settings-section" aria-labelledby="voiceSettingsTitle">
+          <div class="settings-section-heading">
+            <h2 id="voiceSettingsTitle">NOVA'nın sesi</h2>
+            <span>Windows sesleri</span>
+          </div>
+          <p class="voice-settings-description">Bilgisayarında yüklü Türkçe sesleri kullan. Seçimin yalnızca bu cihazda saklanır.</p>
+          <label class="voice-setting-label" for="voiceChoice">Ses seçimi</label>
+          <select class="voice-setting-select" id="voiceChoice">
+            <option value="">Otomatik Türkçe ses</option>
+          </select>
+          <div class="voice-rate-heading">
+            <label class="voice-setting-label" for="voiceRate">Konuşma hızı</label>
+            <output id="voiceRateValue" for="voiceRate">0.95×</output>
+          </div>
+          <input class="voice-rate-slider" id="voiceRate" type="range" min="0.85" max="1.15" step="0.05" value="0.95">
+          <div class="voice-settings-actions">
+            <button class="voice-test-button" id="voiceTest" type="button">▶ Sesi dene</button>
+            <span class="voice-settings-note" id="voiceSettingsStatus" role="status" aria-live="polite">Türkçe sesler yükleniyor…</span>
+          </div>
+        </section>
       </section>
       <section class="messages" id="messages" aria-label="Mesajlar" aria-live="polite" aria-relevant="additions text"></section>
 
@@ -650,6 +665,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/config.js" defer></script>
   <script src="/app.js?v=themes-1" defer></script>
-  <script src="/voice.js" defer></script>
+  <script src="/voice.js?v=voice-2" defer></script>
 </body>
 </html>
