@@ -77,11 +77,11 @@ export async function createUserFolder(parentInput, folderName) {
 export async function moveUserFile(sourceInput, destinationFolderInput, newName) {
   const source = resolveUserPath(sourceInput);
   const destinationFolder = resolveUserPath(destinationFolderInput);
+  const sourceStat = await fs.lstat(source);
+  if (sourceStat.isSymbolicLink()) throw new Error("Kısayol ve sembolik bağlantılar taşınamaz.");
   const [realSource, realDestination] = await Promise.all([fs.realpath(source), fs.realpath(destinationFolder)]);
   if (!ROOTS.some((root) => inside(root, realSource) && realSource !== root) || !ROOTS.some((root) => inside(root, realDestination))) throw new Error("Bu dosya veya klasör için işlem yapılamıyor.");
   if (inside(realSource, realDestination)) throw new Error("Bir klasörü kendi içine veya alt klasörüne taşıyamazsın.");
-  const stat = await fs.lstat(realSource);
-  if (stat.isSymbolicLink()) throw new Error("Kısayol ve sembolik bağlantılar taşınamaz.");
   const targetName = newName ? String(newName).trim() : path.basename(realSource);
   if (!targetName || targetName.length > 180 || /[<>:"/\\|?*]/.test(targetName) || targetName === "." || targetName === "..") throw new Error("Yeni dosya adı geçersiz.");
   const destination = path.join(realDestination, targetName);
