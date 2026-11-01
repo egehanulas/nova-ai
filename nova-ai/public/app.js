@@ -1882,8 +1882,8 @@
       { keys: ["discord"], app: "discord", label: "Discord" }
     ];
     const normalizedAppCommand = command
-      .replace(/^(?:aç|ac)\\s+/, "")
-      .replace(/\\s+(?:aç|ac)$/, "")
+      .replace(/^(?:aç|ac)\s+/, "")
+      .replace(/\s+(?:aç|ac)$/, "")
       .replace(/['’](?:i|ı|u|ü)$/, "")
       .trim();
     const appMatch = appAliases.find((item) => item.keys.includes(normalizedAppCommand));
@@ -1934,7 +1934,7 @@
       ).join("\n\n");
     }
 
-    const searchMatch = raw.match(/^(?:dosya ara|ara|bul)\\s+(.+)$/i);
+    const searchMatch = raw.match(/^(?:dosya ara|ara|bul)\s+(.+)$/i);
     if (searchMatch) {
       const found = await api.searchFiles(searchMatch[1].trim());
       if (!found.length) return "Masaüstü, Belgeler ve İndirilenler içinde eşleşme bulamadım.";
@@ -1943,7 +1943,7 @@
       ).join("\n");
     }
 
-    const createMatch = raw.match(/^klasör oluştur\\s+(.+?)(?:\\s+(masaüstünde|masaüstüne|belgelerde|belgelerine|indirilenlerde|indirilenlere))?$/i);
+    const createMatch = raw.match(/^klasör oluştur\s+(.+?)(?:\s+(masaüstünde|masaüstüne|belgelerde|belgelerine|indirilenlerde|indirilenlere))?$/i);
     if (createMatch) {
       const folders = await api.listFolders();
       const location = (createMatch[2] || "masaüstünde").toLocaleLowerCase("tr-TR");
@@ -1957,13 +1957,13 @@
       return result?.message || "Klasör oluşturma işlemi tamamlandı.";
     }
 
-    const moveMatch = raw.match(/^(?:taşı|tası)\\s+(.+?)\\s*->\\s*(.+)$/i);
+    const moveMatch = raw.match(/^(?:taşı|tası)\s+(.+?)\s*->\s*(.+)$/i);
     if (moveMatch) {
       const result = await api.moveFile(moveMatch[1].trim(), moveMatch[2].trim(), "");
       return result?.message || "Taşıma işlemi tamamlandı.";
     }
 
-    const renameMatch = raw.match(/^yeniden adlandır\\s+(.+?)\\s*->\\s*(.+)$/i);
+    const renameMatch = raw.match(/^yeniden adlandır\s+(.+?)\s*->\s*(.+)$/i);
     if (renameMatch) {
       const source = renameMatch[1].trim();
       const parent = source.replace(/[\\\\/][^\\\\/]+$/, "");
@@ -1972,13 +1972,13 @@
       return result?.message || "Yeniden adlandırma tamamlandı.";
     }
 
-    const openMatch = raw.match(/^(?:aç|ac|dosyayı aç|klasörü aç)\\s+(.+)$/i);
+    const openMatch = raw.match(/^(?:aç|ac|dosyayı aç|klasörü aç)\s+(.+)$/i);
     if (openMatch) {
       const result = await api.openPath(openMatch[1].trim());
       return result?.message || "Öğe açıldı.";
     }
 
-    const trashMatch = raw.match(/^(?:sil|çöp kutusuna taşı|geri dönüşüm kutusuna taşı)\\s+(.+)$/i);
+    const trashMatch = raw.match(/^(?:sil|çöp kutusuna taşı|geri dönüşüm kutusuna taşı)\s+(.+)$/i);
     if (trashMatch) {
       const result = await api.trashFile(trashMatch[1].trim());
       return result?.message || "Öğe Geri Dönüşüm Kutusu'na taşındı.";
