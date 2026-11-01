@@ -279,6 +279,44 @@ async function fetchSearchProvider(provider, query, signal) {
   return provider.parse((await response.text()).slice(0, MAX_HTML_BYTES));
 }
 
+function getSeedSources(query = "") {
+  const value = String(query || "").toLowerCase();
+  if (!/nvidia/.test(value) || !/openshell/.test(value)) return [];
+  // Stable first-party entry points. These are fetched directly, not treated
+  // as evidence unless the page itself can actually be read.
+  return [
+    {
+      title: "NVIDIA OpenShell — official product page",
+      url: "https://www.nvidia.com/en-us/ai/openshell/",
+      domain: "www.nvidia.com",
+      sourceType: "official_seed",
+    },
+    {
+      title: "NVIDIA OpenShell — official GitHub repository",
+      url: "https://github.com/NVIDIA/OpenShell",
+      domain: "github.com",
+      sourceType: "official_seed",
+    },
+  ];
+}
+
+function hasRelevantTopicEvidence(query = "", results = []) {
+  const value = String(query || "").toLowerCase();
+  if (/openshell/.test(value)) {
+    return (Array.isArray(results) ? results : []).some((item) => {
+      const evidence = [
+        item?.title, item?.url, item?.snippet, item?.content,
+        item?.searchTitle, item?.searchSnippet,
+      ].join(" ").toLowerCase();
+      return evidence.includes("openshell") &&
+        (/nvidia/.test(evidence) || /github\.com\/nvidia\//.test(evidence));
+    });
+  }
+  return Array.isArray(results) && results.some((item) =>
+    String([item?.title, item?.url, item?.snippet, item?.content].join(" ")).trim().length > 0
+  );
+}
+
 async function searchPublicWeb(query, signal) {
   const rawQuery = String(query || "")
     .replace(/https?:\/\/[^\s]+/gi, " ")
@@ -291,7 +329,10 @@ async function searchPublicWeb(query, signal) {
     searchQueries.push("NVIDIA AI latest official announcements " + new Date().getUTCFullYear() + " models developer technologies");
   }
   if (/openshell/i.test(cleanQuery)) {
-    searchQueries.push('"OpenShell" NVIDIA official announcement');
+    searchQueries.push('"NVIDIA OpenShell" official announcement');
+    searchQueries.push('site:developer.nvidia.com/blog OpenShell NVIDIA');
+    searchQueries.push('site:github.com/NVIDIA/OpenShell OpenShell');
+    searchQueries.push('site:nvidia.com/en-us/ai/openshell OpenShell');
   }
 
   const providers = [
@@ -364,8 +405,21 @@ async function researchWeb(query, signal) {
     }));
     return pages.filter(Boolean);
   }
-  const results = await searchPublicWeb(query, signal);
-  const pages = await Promise.all(results.slice(0, 6).map(async (item) => {
+
+  const [searchResults] = await Promise.all([searchPublicWeb(query, signal)]);
+  const seedSources = getSeedSources(query);
+  const merged = [...seedSources, ...searchResults];
+  const unique = new Map();
+  for (const item of merged) {
+    try {
+      const url = new URL(item.url);
+      const key = url.hostname.toLowerCase() + url.pathname.replace(/\\/+$/, "");
+      if (!unique.has(key)) unique.set(key, item);
+    } catch {}
+  }
+
+  const candidates = [...unique.values()].slice(0, 8);
+  const pages = await Promise.all(candidates.map(async (item) => {
     try {
       const page = await fetchPublicPage(item.url, signal);
       return { ...item, ...page, searchTitle: item.title, searchSnippet: item.snippet };
@@ -373,11 +427,14 @@ async function researchWeb(query, signal) {
       return { ...item, content: "", note: "Sayfa içeriği açılamadı: " + error.message };
     }
   }));
-  return pages.length ? pages : results;
+  const readablePages = pages.filter((item) => String(item.content || "").length >= 120);
+  const fallbackResults = pages.length ? pages : searchResults;
+  return readablePages.length ? readablePages : fallbackResults;
 }
 
 module.exports = {
   extractUrls, fetchPublicPage, parsePage, parseRssFeed,
   parseBingHtml, parseDuckDuckGoHtml, isPrivateAddress,
   validatePublicUrl, searchPublicWeb, researchWeb,
+  getSeedSources, hasRelevantTopicEvidence,
 };
