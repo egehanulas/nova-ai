@@ -193,7 +193,7 @@ function parseRssFeed(xml) {
   for (const item of items) {
     if (results.length >= 8) break;
     const readTag = (tag) => {
-      const match = item.match(new RegExp("<" + tag + "\\b[^>]*>([\\s\\\\S]*?)<\\/" + tag + ">", "i"));
+      const match = item.match(new RegExp("<" + tag + "\\b[^>]*>([\\s\\S]*?)<\\/" + tag + ">", "i"));
       return stripTags(String(match?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, ""));
     };
     const title = readTag("title").slice(0, 220);
