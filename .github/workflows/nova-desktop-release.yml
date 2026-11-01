@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - "desktop-v*"
+    # Reserved release branches allow a controlled build when a tag cannot be created directly.
+    branches:
+      - "release/desktop-v*"
 
 permissions:
   contents: write
@@ -33,6 +36,60 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path out) { Remove-Item out -Recurse -Force }
+
+      - name: Resolve release tag
+        id: release
+        shell: pwsh
+        run: |
+          $ref = $env:GITHUB_REF
+          if ($ref -match '^refs/tags/(desktop-v.+)
+
+      - name: Publish Windows installer and update feed
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.tag_name }}
+          target_commitish: ${{ github.sha }}
+          name: NOVA AI Desktop ${{ steps.release.outputs.tag_name }}
+          generate_release_notes: true
+          files: |
+            nova-ai/desktop/out/make/squirrel.windows/x64/*.exe
+            nova-ai/desktop/out/make/squirrel.windows/x64/*.nupkg
+            nova-ai/desktop/out/make/squirrel.windows/x64/RELEASES
+) {
+            $tag = $Matches[1]
+          } elseif ($ref -match '^refs/heads/release/(desktop-v.+)
+
+      - name: Publish Windows installer and update feed
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: NOVA AI Desktop ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            nova-ai/desktop/out/make/squirrel.windows/x64/*.exe
+            nova-ai/desktop/out/make/squirrel.windows/x64/*.nupkg
+            nova-ai/desktop/out/make/squirrel.windows/x64/RELEASES
+) {
+            $tag = $Matches[1]
+          } else {
+            throw "Unsupported desktop release ref: $ref"
+          }
+          if ($tag -notmatch '^desktop-v\\d+\\.\\d+\\.\\d+-alpha\\.\\d+
+
+      - name: Publish Windows installer and update feed
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: NOVA AI Desktop ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            nova-ai/desktop/out/make/squirrel.windows/x64/*.exe
+            nova-ai/desktop/out/make/squirrel.windows/x64/*.nupkg
+            nova-ai/desktop/out/make/squirrel.windows/x64/RELEASES
+) {
+            throw "Invalid desktop release tag: $tag"
+          }
+          "tag_name=$tag" >> $env:GITHUB_OUTPUT
 
       - name: Build Squirrel.Windows update packages
         run: npm run make -- --platform=win32 --arch=x64
