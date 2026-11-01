@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: nova-ai
-        run: npm install --omit=dev
+        run: npm ci --omit=dev
 
       - name: Import official Unreal Engine documentation
         working-directory: nova-ai

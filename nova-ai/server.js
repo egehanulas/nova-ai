@@ -41,7 +41,7 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const API_FOOTBALL_KEY = process.env.API_FOOTBALL_KEY;
 
 const GEMINI_MODEL =
-  process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+  process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 const OPENROUTER_MODEL =
   process.env.OPENROUTER_MODEL || "openrouter/free";
@@ -167,6 +167,16 @@ if (helmet) {
     })
   );
 }
+
+// Publish only the Supabase URL and publishable key; both are designed for browser use.
+app.get("/config.js", (req, res) => {
+  res.type("application/javascript");
+  res.setHeader("Cache-Control", "no-store");
+  res.send("window.NOVA_CONFIG = Object.freeze(" + JSON.stringify({
+    supabaseUrl: SUPABASE_URL || "",
+    supabasePublishableKey: SUPABASE_PUBLISHABLE_KEY || "",
+  }) + ");");
+});
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -1289,6 +1299,7 @@ async function streamOpenAIProvider({
   let buffer = "";
   let answer = "";
   let finishReason = null;
+  let truncated = false;
 
   const cleaner = createStreamingTextCleaner(onText);
 
@@ -1327,9 +1338,9 @@ async function streamOpenAIProvider({
     }
 
     if (finishReason === "length") {
-      const error = new Error(`${providerName} yanıtı token sınırında kesildi.`);
-      error.partial = answer.length > 0;
-      throw error;
+      // Keep the valid text already streamed; the client labels it as truncated.
+      truncated = true;
+      return true;
     }
 
     return false;
@@ -1355,6 +1366,7 @@ async function streamOpenAIProvider({
             answer: cleanModelAnswer(answer),
             provider: providerName,
             model,
+            truncated,
           };
         }
       }
@@ -1378,6 +1390,7 @@ async function streamOpenAIProvider({
     answer: cleanModelAnswer(answer),
     provider: providerName,
     model,
+    truncated,
   };
 }
 
@@ -1443,6 +1456,7 @@ async function streamGemini({
   let buffer = "";
   let answer = "";
   let finishReason = null;
+  let truncated = false;
 
   const cleaner = createStreamingTextCleaner(onText);
 
@@ -1479,9 +1493,8 @@ async function streamGemini({
     }
 
     if (finishReason === "MAX_TOKENS") {
-      const error = new Error("Gemini yanıtı token sınırında kesildi.");
-      error.partial = answer.length > 0;
-      throw error;
+      // Preserve the partial answer instead of discarding it as a failed request.
+      truncated = true;
     }
   }
 
@@ -1519,6 +1532,7 @@ async function streamGemini({
     answer: cleanModelAnswer(answer),
     provider: "gemini",
     model: GEMINI_MODEL,
+    truncated,
   };
 }
 
@@ -2997,6 +3011,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
           success: true,
           provider: result.provider,
           model: result.model,
+          truncated: Boolean(result.truncated),
         });
 
         return res.end();
