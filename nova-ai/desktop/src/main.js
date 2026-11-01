@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, shell } from "electron";
+import { app, BrowserWindow, Menu, dialog, shell } from "electron";
 import { URL } from "node:url";
 
 const NOVA_URL = "https://nova-ai-xxid.onrender.com/";
@@ -15,6 +15,72 @@ function openExternal(value) {
   } catch {
     // Ignore malformed or unsupported external URLs.
   }
+}
+
+function createApplicationMenu() {
+  const template = [
+    {
+      label: "Dosya",
+      submenu: [
+        {
+          label: "NOVA'yı Yenile",
+          accelerator: "CommandOrControl+R",
+          click: () => mainWindow?.webContents.reload()
+        },
+        { type: "separator" },
+        { role: "quit", label: "Çıkış" }
+      ]
+    },
+    {
+      label: "Görünüm",
+      submenu: [
+        {
+          label: "Yakınlaştır",
+          accelerator: "CommandOrControl+=",
+          click: () => mainWindow?.webContents.setZoomLevel(
+            Math.min(mainWindow.webContents.getZoomLevel() + 1, 5)
+          )
+        },
+        {
+          label: "Uzaklaştır",
+          accelerator: "CommandOrControl+-",
+          click: () => mainWindow?.webContents.setZoomLevel(
+            Math.max(mainWindow.webContents.getZoomLevel() - 1, -5)
+          )
+        },
+        {
+          label: "Yakınlaştırmayı Sıfırla",
+          accelerator: "CommandOrControl+0",
+          click: () => mainWindow?.webContents.setZoomLevel(0)
+        },
+        { type: "separator" },
+        { role: "togglefullscreen", label: "Tam Ekran" }
+      ]
+    },
+    {
+      label: "Yardım",
+      submenu: [
+        {
+          label: "NOVA AI Hakkında",
+          click: () => {
+            void dialog.showMessageBox(mainWindow, {
+              type: "info",
+              title: "NOVA AI Hakkında",
+              message: "NOVA AI",
+              detail: `Sürüm: ${app.getVersion()}\nAlpha sürümü — geri bildirimlerin geliştirmeye yardımcı olur.`,
+              buttons: ["Tamam"]
+            });
+          }
+        },
+        {
+          label: "NOVA AI Web Sitesini Aç",
+          click: () => openExternal(NOVA_URL)
+        }
+      ]
+    }
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 function createWindow() {
@@ -82,6 +148,7 @@ app.setName("NOVA AI");
 if (process.platform === "win32") app.setAppUserModelId("com.egehanulas.novaai");
 
 app.whenReady().then(() => {
+  createApplicationMenu();
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
