@@ -10,6 +10,9 @@
   const historyEl = $("#history");
   const newChatButton = $("#newChat");
   const researchButton = $("#research");
+  const textFileInput = $("#textFileInput");
+  const attachTextFileButton = $("#attachTextFile");
+  const textFileStatus = $("#textFileStatus");
   const menuButton = $("#menu");
   const memoryButton = document.createElement("button");
   memoryButton.type = "button";
@@ -82,6 +85,19 @@
   let researchMode = false;
   let currentUser = null;
   let authMode = "login";
+  let selectedTextFile = null;
+
+  function updateTextFileStatus() {
+    if (textFileStatus) {
+      textFileStatus.textContent = selectedTextFile
+        ? "📎 " + selectedTextFile.name
+        : "";
+      textFileStatus.title = selectedTextFile ? selectedTextFile.name : "";
+    }
+    if (attachTextFileButton) {
+      attachTextFileButton.setAttribute("aria-pressed", selectedTextFile ? "true" : "false");
+    }
+  }
 
   function createId() {
     return crypto.randomUUID();
@@ -1113,11 +1129,12 @@
     window.setTimeout(() => notice.remove(), 4500);
   }
 
-  // Mesaj gönderme — düzeltilmiş bölüm
+  // Mesaj gönderme — metin dosyası bağlamı destekli.
   async function sendMessage(rawText) {
     const text = String(rawText || "").trim();
+    const attachment = selectedTextFile;
 
-    if (!text || busy || imageBusy || !currentUser) return;
+    if ((!text && !attachment) || busy || imageBusy || !currentUser) return;
 
     setBusy(true);
 
@@ -1127,7 +1144,11 @@
     try {
       const conversation = await ensureConversation();
 
-      await addMessage("user", text);
+      const visibleUserMessage = [
+        text || "Eklediğim metin dosyasını incele.",
+        attachment ? "📎 Dosya: " + attachment.name : ""
+      ].filter(Boolean).join("\n\n");
+      await addMessage("user", visibleUserMessage);
 
       prompt.value = "";
       prompt.style.height = "";
@@ -1177,7 +1198,10 @@
           },
           body: JSON.stringify({
             // Sunucu da sınır uyguluyor; burada gereksiz eski geçmişi göndermiyoruz.
-            messages: conversation.messages.slice(-14)
+            messages: conversation.messages.slice(-14),
+            attachments: attachment
+              ? [{ name: attachment.name, content: attachment.content }]
+              : []
           })
         });
 
@@ -1207,6 +1231,11 @@
         ? result.answer + "\n\nNot: Yanıt modelin çıktı sınırına ulaştı. Yeni mesajını yazabilirsin; gönderme alanı yanıt tamamlanınca yeniden etkinleşir."
         : result.answer;
       await addMessage("assistant", savedAnswer);
+      if (attachment && selectedTextFile === attachment) {
+        selectedTextFile = null;
+        if (textFileInput) textFileInput.value = "";
+        updateTextFileStatus();
+      }
 
       // Mesaj tamamlandığında hafıza kaydını da bitir; yeni sohbete geçişte yarış durumu oluşmasın.
       try {
@@ -1258,6 +1287,41 @@
       prompt.focus();
     }
   }
+
+  attachTextFileButton?.addEventListener("click", () => {
+    if (busy || imageBusy) return;
+    if (selectedTextFile) {
+      selectedTextFile = null;
+      if (textFileInput) textFileInput.value = "";
+      updateTextFileStatus();
+      return;
+    }
+    textFileInput?.click();
+  });
+
+  textFileInput?.addEventListener("change", async () => {
+    const file = textFileInput.files?.[0];
+    if (!file) return;
+    if (!/\.txt$/i.test(file.name)) {
+      alert("Şimdilik yalnızca .txt dosyaları destekleniyor.");
+      textFileInput.value = "";
+      return;
+    }
+    if (file.size > 20 * 1024) {
+      alert("TXT dosyası en fazla 20 KB olabilir.");
+      textFileInput.value = "";
+      return;
+    }
+    try {
+      const content = await file.text();
+      selectedTextFile = { name: file.name, content };
+      updateTextFileStatus();
+    } catch (error) {
+      console.error("NOVA AI dosya okuma hatası:", error);
+      alert("Dosya okunamadı. Lütfen tekrar dene.");
+      textFileInput.value = "";
+    }
+  });
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
