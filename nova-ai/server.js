@@ -3076,7 +3076,7 @@ function isSafeMemoryContent(content = "") {
     /(?:şifre|parola|password|api.?key|access.?token|secret|iban|tc kimlik|kimlik numarası|kredi kartı|cvv)/i,
     /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i,
     /\b(?:\+?90|0)\s*\(?\d{3}\)?[\s.-]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}\b/,
-    /\bTR\s?\d{2}(?:[\s-]?\d{4}){5}\b/i,
+    /\bTR\s?\d{2}(?:[\s-]?\d{4}){5}[\s-]?\d{2}\b/i,
     /\b\d{11}\b/,
     /(?:ev|ikamet|teslimat|iş)?\s*adresim|ikamet adresi|ev adresi|(?:mahalle|mahallesi|sokak|sokağı|cadde|caddesi|apartman|daire no|kapı no|posta kodu)/i,
     /(?:sağlık|hastalık|ilaç|teşhis|ameliyat|depresyon|anksiyete|psikolojik|tedavi|engellilik)/i,
