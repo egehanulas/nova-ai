@@ -1,6 +1,6 @@
 # NOVA AI Desktop
 
-NOVA AI web uygulamasını Windows masaüstü penceresinde çalıştıran Electron istemcisidir. İlk sürüm mevcut Render web/API servisini kullanır; sunucu kodunu veya web arayüzünü kopyalamaz ve API anahtarlarını masaüstü paketine koymaz.
+NOVA AI web uygulamasını Windows masaüstü penceresinde çalıştıran Electron istemcisidir. Mevcut Render web/API servisini kullanır; masaüstü sürümünde Türkçe konuşma tanıma Transformers.js + Whisper ile cihaz üzerinde yapılır. Mikrofon sesi bir konuşma tanıma sunucusuna gönderilmez.
 
 ## Gereksinimler
 
@@ -61,4 +61,6 @@ Otomatik güncellemeler yalnızca paketlenmiş Windows uygulamasında çalışı
 - Windows başlangıçta otomatik açılma kullanıcı tarafından tepsi menüsünden açılıp kapatılır.
 - Güncellemeler indirilir ancak kullanıcı onayı olmadan yüklenmez.
 
-Bu sürüm çevrimiçi istemcidir. Çevrimdışı çalışma ve kod imzalama henüz yoktur.
+Sesli sohbet: Windows masaüstü uygulaması, Chromium SpeechRecognition ağına bağımlı değildir. İlk kullanımda Whisper modeli internetten indirilir ve tarayıcı/Electron önbelleğine alınır; sonraki kullanımlarda konuşma çözümlenmesi cihazda yapılır. NOVA'nın yapay zekâ yanıtı için internet bağlantısı gerekir. Web sürümü mevcut tarayıcı konuşma tanıma yöntemini kullanmaya devam eder.
+
+Bu sürüm çevrimiçi istemcidir. Tam çevrimdışı sohbet ve kod imzalama henüz yoktur.
