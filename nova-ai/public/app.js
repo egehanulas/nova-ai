@@ -14,6 +14,12 @@
   const attachTextFileButton = $("#attachTextFile");
   const textFileStatus = $("#textFileStatus");
   const menuButton = $("#menu");
+  const settingsView = $("#settingsView");
+  const settingsButton = $("#openSettings");
+  const settingsBackButton = $("#settingsBack");
+  const topTitleSection = $("#topTitleSection");
+  const messagesView = $("#messages");
+  const composerArea = $(".composer-area");
   const memoryButton = document.createElement("button");
   memoryButton.type = "button";
   memoryButton.className = "research-toggle nova-memory-button";
@@ -263,6 +269,56 @@
     avatar.appendChild(image);
     return avatar;
   }
+
+  const THEME_STORAGE_KEY = "nova-ai-theme";
+  const VALID_THEMES = new Set(["original", "dark", "aurora"]);
+
+  function applyTheme(theme, announce = false) {
+    const selected = VALID_THEMES.has(theme) ? theme : "original";
+    document.documentElement.dataset.theme = selected;
+    try { localStorage.setItem(THEME_STORAGE_KEY, selected); } catch (error) {
+      console.warn("Tema tercihi bu cihazda saklanamadı:", error);
+    }
+    document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+      const active = button.dataset.themeChoice === selected;
+      button.setAttribute("aria-pressed", String(active));
+    });
+    const status = $("#themeStatus");
+    if (status && announce) {
+      const labels = { original: "NOVA Original", dark: "Dark", aurora: "Aurora" };
+      status.textContent = labels[selected] + " teması uygulandı ve kaydedildi.";
+    }
+  }
+
+  function openSettings() {
+    if (!settingsView) return;
+    closeMenu();
+    settingsView.hidden = false;
+    if (messagesView) messagesView.hidden = true;
+    if (composerArea) composerArea.hidden = true;
+    if (topTitleSection) topTitleSection.textContent = "Ayarlar";
+    applyTheme(document.documentElement.dataset.theme || "original");
+  }
+
+  function closeSettings() {
+    if (settingsView) settingsView.hidden = true;
+    if (messagesView) messagesView.hidden = false;
+    if (composerArea) composerArea.hidden = false;
+    if (topTitleSection) topTitleSection.textContent = "Sohbet";
+  }
+
+  try {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    applyTheme(savedTheme || "original");
+  } catch {
+    applyTheme("original");
+  }
+
+  settingsButton?.addEventListener("click", openSettings);
+  settingsBackButton?.addEventListener("click", closeSettings);
+  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    button.addEventListener("click", () => applyTheme(button.dataset.themeChoice, true));
+  });
 
   function closeMenu() {
     document.body.classList.remove("menu-open");
@@ -1524,6 +1580,7 @@
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closeMenu();
+      if (settingsView && !settingsView.hidden) closeSettings();
     }
   });
 
