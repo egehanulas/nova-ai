@@ -1,12 +1,15 @@
+
 "use strict";
 
 /*
- * NOVA AI — Yerel Türkçe sesli sohbet
- * Konuşma tanıma tarayıcı/masaüstü cihazında Whisper ile çalışır.
- * Mikrofon sesi bir STT sunucusuna gönderilmez.
+ * NOVA AI — Ücretsiz tarayıcı sesli sohbeti
+ * Türkçe konuşma tanıma ve tarayıcı seslendirmesi.
+ * ElevenLabs veya /api/tts kullanılmaz.
  */
+
 (() => {
   const $ = (id) => document.getElementById(id);
+
   const toggleButton = $("voiceToggle");
   const toggleLabel = $("voiceToggleLabel");
   const stopButton = $("voiceStop");
@@ -19,51 +22,21 @@
     return;
   }
 
-  const MODEL_ID = "onnx-community/whisper-base";
-  const TRANSFORMERS_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2";
-  const TARGET_SAMPLE_RATE = 16000;
-  const SILENCE_END_MS = 780;
-  const MIN_SPEECH_MS = 350;
-  const MAX_SPEECH_MS = 18000;
-  const SPEECH_THRESHOLD = 0.009;
-  const PRE_ROLL_CHUNKS = 2;
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
 
   const synth = window.speechSynthesis;
-  const voiceChoice = $("voiceChoice");
-  const voiceRate = $("voiceRate");
-  const voiceRateValue = $("voiceRateValue");
-  const voiceTestButton = $("voiceTest");
-  const voiceSettingsStatus = $("voiceSettingsStatus");
-  const microphoneAccessStatus = $("microphoneAccessStatus");
-  const microphoneTestButton = $("microphoneTest");
-  const speechServiceStatus = $("speechServiceStatus");
-  const speechServiceTestButton = $("speechServiceTest");
 
-  const VOICE_URI_KEY = "nova-ai-voice-uri";
-  const VOICE_RATE_KEY = "nova-ai-voice-rate";
-
+  let recognition = null;
   let voiceEnabled = false;
+  let recognitionRunning = false;
+  let recognitionError = false;
   let waitingForReply = false;
   let speaking = false;
-  let transcribing = false;
-  let microphoneRequestInProgress = false;
-  let microphoneStream = null;
-  let audioContext = null;
-  let audioSource = null;
-  let audioProcessor = null;
-  let silentGain = null;
-  let transcriberPromise = null;
-  let transcriber = null;
+  let restartTimer = null;
   let speechRequest = 0;
   let selectedVoice = null;
-  let sessionId = 0;
-  let capturingSpeech = false;
-  let speechChunks = [];
-  let preRoll = [];
-  let silenceSamples = 0;
-  let speechSamples = 0;
-  let noiseFloor = 0.002;
-  let pendingTranscript = "";
+  let microphoneRequestInProgress = false;
 
   function setVoiceStatus(message, state = "idle") {
     statusLabel.textContent = message;
@@ -71,18 +44,30 @@
   }
 
   function updateButtons() {
-    toggleButton.disabled = !navigator.mediaDevices?.getUserMedia;
+    toggleButton.disabled = !SpeechRecognition;
     toggleButton.setAttribute("aria-pressed", String(voiceEnabled));
     toggleButton.classList.toggle("active", voiceEnabled);
     toggleButton.setAttribute(
       "aria-label",
       voiceEnabled ? "Sesli sohbeti kapat" : "Sesli sohbeti başlat"
     );
+
     if (toggleLabel) {
-      toggleLabel.textContent = voiceEnabled ? "Sesli sohbet açık" : "Sesli sohbeti başlat";
+      toggleLabel.textContent = voiceEnabled
+        ? "Sesli sohbet açık"
+        : "Sesli sohbeti başlat";
     }
+
     stopButton.disabled = !voiceEnabled;
   }
+
+  const voiceChoice = $("voiceChoice");
+  const voiceRate = $("voiceRate");
+  const voiceRateValue = $("voiceRateValue");
+  const voiceTestButton = $("voiceTest");
+  const voiceSettingsStatus = $("voiceSettingsStatus");
+  const VOICE_URI_KEY = "nova-ai-voice-uri";
+  const VOICE_RATE_KEY = "nova-ai-voice-rate";
 
   function readPreference(key, fallback = "") {
     try {
@@ -96,7 +81,7 @@
     try {
       window.localStorage.setItem(key, value);
     } catch {
-      // Depolama kullanılamazsa sesli sohbet çalışmaya devam eder.
+      // Private browsing or storage restrictions should not break voice chat.
     }
   }
 
@@ -109,15 +94,12 @@
   function chooseTurkishVoice() {
     const voices = getTurkishVoices();
     const preferredUri = readPreference(VOICE_URI_KEY);
-    return voices.find((voice) => voice.voiceURI === preferredUri)
-      || voices.find((voice) => voice.localService)
-      || voices[0]
-      || null;
-  }
-
-  function getSpeechRate() {
-    const value = Number(voiceRate?.value || readPreference(VOICE_RATE_KEY, "0.95"));
-    return Number.isFinite(value) ? Math.min(1.15, Math.max(0.85, value)) : 0.95;
+    return (
+      voices.find((voice) => voice.voiceURI === preferredUri) ||
+      voices.find((voice) => voice.localService) ||
+      voices[0] ||
+      null
+    );
   }
 
   function updateVoiceSettings() {
@@ -128,30 +110,41 @@
       const preferredUri = readPreference(VOICE_URI_KEY);
       const currentValue = voiceChoice.value;
       voiceChoice.replaceChildren();
+
       const automatic = document.createElement("option");
       automatic.value = "";
       automatic.textContent = "Otomatik Türkçe ses";
       voiceChoice.append(automatic);
+
       voices.forEach((voice) => {
         const option = document.createElement("option");
         option.value = voice.voiceURI;
-        option.textContent = voice.name + " · " + voice.lang + (voice.localService ? " · Bu cihazda" : "");
+        option.textContent = `${voice.name} · ${voice.lang}${voice.localService ? " · Bu cihazda" : ""}`;
         voiceChoice.append(option);
       });
+
       voiceChoice.value = voices.some((voice) => voice.voiceURI === preferredUri)
         ? preferredUri
-        : currentValue && voices.some((voice) => voice.voiceURI === currentValue) ? currentValue : "";
+        : currentValue && voices.some((voice) => voice.voiceURI === currentValue)
+          ? currentValue
+          : "";
     }
 
     const savedRate = Number(readPreference(VOICE_RATE_KEY, "0.95"));
     const rate = Number.isFinite(savedRate) ? Math.min(1.15, Math.max(0.85, savedRate)) : 0.95;
     if (voiceRate && document.activeElement !== voiceRate) voiceRate.value = String(rate);
-    if (voiceRateValue) voiceRateValue.textContent = Number(voiceRate?.value || rate).toFixed(2) + "×";
+    if (voiceRateValue) voiceRateValue.textContent = `${Number(voiceRate?.value || rate).toFixed(2)}×`;
+
     if (voiceSettingsStatus) {
       voiceSettingsStatus.textContent = voices.length
-        ? voices.length + " Türkçe ses bulundu."
+        ? `${voices.length} Türkçe ses bulundu.`
         : "Türkçe ses bulunamadı. Windows Ayarları > Saat ve Dil > Dil ve Bölge bölümünden Türkçe konuşma sesini yükleyebilirsin.";
     }
+  }
+
+  function getSpeechRate() {
+    const value = Number(voiceRate?.value || readPreference(VOICE_RATE_KEY, "0.95"));
+    return Number.isFinite(value) ? Math.min(1.15, Math.max(0.85, value)) : 0.95;
   }
 
   if (synth) {
@@ -162,489 +155,630 @@
   voiceChoice?.addEventListener("change", () => {
     savePreference(VOICE_URI_KEY, voiceChoice.value);
     selectedVoice = chooseTurkishVoice();
-    if (voiceSettingsStatus) voiceSettingsStatus.textContent = voiceChoice.value
-      ? "Seçtiğin ses kaydedildi."
-      : "Otomatik Türkçe ses seçimi kullanılıyor.";
+    if (voiceSettingsStatus) {
+      voiceSettingsStatus.textContent = voiceChoice.value
+        ? "Seçtiğin ses kaydedildi."
+        : "Otomatik Türkçe ses seçimi kullanılıyor.";
+    }
   });
 
   voiceRate?.addEventListener("input", () => {
     const rate = getSpeechRate();
-    if (voiceRateValue) voiceRateValue.textContent = rate.toFixed(2) + "×";
+    if (voiceRateValue) voiceRateValue.textContent = `${rate.toFixed(2)}×`;
     savePreference(VOICE_RATE_KEY, String(rate));
   });
 
-  async function loadTranscriber() {
-    if (transcriber) return transcriber;
-    if (transcriberPromise) return transcriberPromise;
+  function clearRestartTimer() {
+    if (restartTimer !== null) {
+      window.clearTimeout(restartTimer);
+      restartTimer = null;
+    }
+  }
 
-    transcriberPromise = (async () => {
-      setVoiceStatus("Yerel Türkçe konuşma modeli yükleniyor… İlk kullanımda model indirilecek.", "loading");
-      if (speechServiceStatus) speechServiceStatus.textContent = "Whisper modeli hazırlanıyor…";
+  function stopRecognition() {
+    clearRestartTimer();
 
-      const transformers = await import(TRANSFORMERS_URL);
-      transformers.env.useBrowserCache = true;
-      transformers.env.useWasmCache = true;
-      transformers.env.allowRemoteModels = true;
-
-      const progress = (event) => {
-        if (!voiceEnabled || !event) return;
-        if (event.status === "progress" && Number.isFinite(event.progress)) {
-          const percent = Math.max(0, Math.min(100, Math.round(event.progress)));
-          setVoiceStatus("Türkçe model indiriliyor… %" + percent, "loading");
-          if (speechServiceStatus) speechServiceStatus.textContent = "Model indiriliyor: %" + percent;
-        } else if (event.status === "done" && event.file) {
-          if (speechServiceStatus) speechServiceStatus.textContent = "Model dosyası hazır: " + event.file;
-        }
-      };
-
-      if (navigator.gpu) {
-        try {
-          const gpuPipeline = await transformers.pipeline(
-            "automatic-speech-recognition",
-            MODEL_ID,
-            {
-              device: "webgpu",
-              dtype: "fp16",
-              progress_callback: progress
-            }
-          );
-          if (speechServiceStatus) speechServiceStatus.textContent = "Yerel Türkçe konuşma modeli hazır · GPU";
-          return gpuPipeline;
-        } catch (gpuError) {
-          console.warn("NOVA Voice: WebGPU kullanılamadı, WASM deneniyor.", gpuError);
-        }
-      }
-
-      const cpuPipeline = await transformers.pipeline(
-        "automatic-speech-recognition",
-        MODEL_ID,
-        {
-          device: "wasm",
-          dtype: "q8",
-          progress_callback: progress
-        }
-      );
-      if (speechServiceStatus) speechServiceStatus.textContent = "Yerel Türkçe konuşma modeli hazır · CPU";
-      return cpuPipeline;
-    })();
+    if (!recognition || !recognitionRunning) return;
 
     try {
-      transcriber = await transcriberPromise;
-      return transcriber;
+      recognition.stop();
     } catch (error) {
-      transcriberPromise = null;
-      throw error;
+      console.debug("NOVA Voice: Dinleme durdurulamadı.", error);
+    }
+  }
+
+  function scheduleRecognitionRestart(delay = 500) {
+    clearRestartTimer();
+
+    if (!voiceEnabled || recognitionError || waitingForReply || speaking) return;
+
+    restartTimer = window.setTimeout(() => {
+      restartTimer = null;
+      startRecognition();
+    }, delay);
+  }
+
+  function startRecognition() {
+    if (!voiceEnabled || !recognition || recognitionError) return;
+    if (recognitionRunning || waitingForReply || speaking) return;
+
+    if (!navigator.onLine) {
+      setVoiceStatus("İnternet bağlantısı gerekli.", "error");
+      return;
+    }
+
+    try {
+      recognition.start();
+    } catch (error) {
+      if (error.name !== "InvalidStateError") {
+        console.warn("NOVA Voice: Mikrofon başlatılamadı.", error);
+        setVoiceStatus("Mikrofon başlatılamadı. Tekrar dene.", "error");
+      }
     }
   }
 
   function stopSpeech() {
     speechRequest += 1;
-    if (synth) synth.cancel();
+
+    if (synth) {
+      synth.cancel();
+    }
+
     speaking = false;
   }
 
   function speakReply(text) {
-    const answer = String(text || "").trim().slice(0, 4000);
+    const answer = String(text || "").trim();
+
     if (!answer || !voiceEnabled) {
       waitingForReply = false;
-      setVoiceStatus("Seni dinliyorum…", "listening");
+      scheduleRecognitionRestart();
       return;
     }
+
     if (!synth || !("SpeechSynthesisUtterance" in window)) {
       waitingForReply = false;
-      setVoiceStatus("Bu cihazda seslendirme desteklenmiyor.", "error");
+      setVoiceStatus("Tarayıcı seslendirmeyi desteklemiyor.", "error");
+      scheduleRecognitionRestart();
       return;
     }
 
     stopSpeech();
-    const requestId = speechRequest;
+    const currentRequest = speechRequest;
+
     waitingForReply = false;
     speaking = true;
-    selectedVoice = chooseTurkishVoice();
+    stopRecognition();
 
-    const sentences = answer.match(/[^.!?…]+[.!?…]+["'”’)]*|[^.!?…]+$/g) || [answer];
-    const queue = [];
+    selectedVoice = chooseTurkishVoice();
+    const chunks = answer.slice(0, 4000).match(/[^.!?…]+[.!?…]+["'”’)]*|[^.!?…]+$/g) || [answer.slice(0, 4000)];
+    const speechChunks = [];
     let pending = "";
-    sentences.forEach((sentence) => {
-      const part = sentence.trim();
+
+    chunks.forEach((chunk) => {
+      const part = chunk.trim();
       if (!part) return;
-      if (pending && pending.length + part.length + 1 > 240) {
-        queue.push(pending);
+      if (pending && (pending.length + part.length + 1 > 260)) {
+        speechChunks.push(pending);
         pending = part;
       } else {
-        pending = pending ? pending + " " + part : part;
+        pending = pending ? `${pending} ${part}` : part;
       }
     });
-    if (pending) queue.push(pending);
+    if (pending) speechChunks.push(pending);
 
-    let index = 0;
-    const speakNext = () => {
-      if (requestId !== speechRequest || !voiceEnabled) return;
-      if (index >= queue.length) {
-        speaking = false;
+    let completedChunks = 0;
+    const finishSpeech = () => {
+      if (currentRequest !== speechRequest || completedChunks < speechChunks.length) return;
+      speaking = false;
+      if (voiceEnabled) {
         setVoiceStatus("Seni dinliyorum…", "listening");
-        return;
+        scheduleRecognitionRestart(450);
+      } else {
+        setVoiceStatus("Sesli sohbet kapalı", "idle");
       }
-      const utterance = new SpeechSynthesisUtterance(queue[index++]);
-      utterance.lang = "tr-TR";
-      utterance.rate = getSpeechRate();
-      utterance.pitch = 1;
-      utterance.volume = 1;
-      if (selectedVoice) utterance.voice = selectedVoice;
-      utterance.onstart = () => {
-        if (requestId === speechRequest && voiceEnabled) setVoiceStatus("NOVA konuşuyor… Sözünü kesebilirsin.", "speaking");
-      };
-      utterance.onend = speakNext;
-      utterance.onerror = (event) => {
-        if (requestId !== speechRequest) return;
-        console.warn("NOVA Voice: Ses parçası okunamadı.", event.error);
-        speakNext();
-      };
-      synth.speak(utterance);
     };
 
-    setVoiceStatus("NOVA yanıtını seslendiriyor…", "speaking");
-    speakNext();
-  }
+    setVoiceStatus("NOVA'nın sesi hazırlanıyor…", "speaking");
 
-  function resampleTo16k(inputSamples, sourceRate) {
-    if (sourceRate === TARGET_SAMPLE_RATE) return inputSamples;
-    const outputLength = Math.max(1, Math.floor(inputSamples.length * TARGET_SAMPLE_RATE / sourceRate));
-    const output = new Float32Array(outputLength);
-    const ratio = sourceRate / TARGET_SAMPLE_RATE;
-    for (let i = 0; i < outputLength; i += 1) {
-      const position = i * ratio;
-      const left = Math.floor(position);
-      const right = Math.min(left + 1, inputSamples.length - 1);
-      const fraction = position - left;
-      output[i] = inputSamples[left] * (1 - fraction) + inputSamples[right] * fraction;
+    try {
+      speechChunks.forEach((chunk, index) => {
+        const utterance = new SpeechSynthesisUtterance(chunk);
+        utterance.lang = "tr-TR";
+        utterance.rate = getSpeechRate();
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        if (selectedVoice) utterance.voice = selectedVoice;
+
+        utterance.onstart = () => {
+          if (currentRequest === speechRequest && voiceEnabled && index === 0) {
+            setVoiceStatus("NOVA konuşuyor…", "speaking");
+          }
+        };
+        utterance.onend = () => {
+          if (currentRequest !== speechRequest) return;
+          completedChunks += 1;
+          finishSpeech();
+        };
+        utterance.onerror = (event) => {
+          if (currentRequest !== speechRequest) return;
+          console.warn("NOVA Voice: Ses parçası okunamadı.", event.error);
+          completedChunks += 1;
+          finishSpeech();
+        };
+        synth.speak(utterance);
+      });
+    } catch (error) {
+      speaking = false;
+      console.error("NOVA Voice: Ses başlatılamadı.", error);
+      setVoiceStatus("Ses başlatılamadı.", "error");
+      scheduleRecognitionRestart(800);
     }
-    return output;
   }
 
-  function joinChunks(chunks) {
-    const length = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    const result = new Float32Array(length);
-    let offset = 0;
-    chunks.forEach((chunk) => {
-      result.set(chunk, offset);
-      offset += chunk.length;
-    });
-    return result;
-  }
-
-  function submitTranscript(text) {
-    if (!voiceEnabled || !text) return;
-    if (window.NOVAApp?.busy) {
-      pendingTranscript = text;
-      window.NOVAApp.interruptCurrentResponse?.();
-      setVoiceStatus("Sözünü alıyorum… mevcut yanıt durduruluyor.", "listening");
+  voiceTestButton?.addEventListener("click", () => {
+    if (!synth || !("SpeechSynthesisUtterance" in window)) {
+      if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Bu uygulamada seslendirme desteklenmiyor.";
       return;
     }
+    const resumeListening = voiceEnabled;
+    if (resumeListening) stopRecognition();
+    stopSpeech();
+    speaking = true;
+    const preview = new SpeechSynthesisUtterance("Merhaba, ben NOVA. Bugün sana nasıl yardımcı olabilirim?");
+    preview.lang = "tr-TR";
+    preview.rate = getSpeechRate();
+    preview.pitch = 1;
+    selectedVoice = chooseTurkishVoice();
+    if (selectedVoice) preview.voice = selectedVoice;
+    preview.onend = () => {
+      speaking = false;
+      if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Ses denemesi tamamlandı.";
+      if (resumeListening) scheduleRecognitionRestart(450);
+    };
+    preview.onerror = () => {
+      speaking = false;
+      if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Ses denemesi başarısız oldu.";
+      if (resumeListening) scheduleRecognitionRestart(700);
+    };
+    if (voiceSettingsStatus) voiceSettingsStatus.textContent = "NOVA'nın sesi deneniyor…";
+    synth.speak(preview);
+  });
 
-    input.value = text;
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    waitingForReply = true;
-    setVoiceStatus("Söylediklerin NOVA'ya gönderiliyor…", "speaking");
-    if (typeof form.requestSubmit === "function") form.requestSubmit();
-    else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-  }
-
-  function onSpeechStart() {
-    if (speaking) {
-      stopSpeech();
-      setVoiceStatus("Sözünü alıyorum…", "listening");
-    } else if (waitingForReply) {
-      window.NOVAApp?.interruptCurrentResponse?.();
-      waitingForReply = false;
-      setVoiceStatus("Sözünü alıyorum… mevcut yanıt durduruluyor.", "listening");
+  function setupRecognition() {
+    if (!SpeechRecognition) {
+      setVoiceStatus(
+        "Konuşma tanıma desteklenmiyor. Chrome veya Edge deneyebilirsin.",
+        "error"
+      );
+      return false;
     }
-  }
 
-  async function transcribeSegment(chunks, currentSession) {
-    if (!voiceEnabled || transcribing || currentSession !== sessionId) return;
-    const sampleCount = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    const minimumSamples = Math.floor((audioContext?.sampleRate || TARGET_SAMPLE_RATE) * MIN_SPEECH_MS / 1000);
-    if (sampleCount < minimumSamples) return;
+    recognition = new SpeechRecognition();
+    recognition.lang = "tr-TR";
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
-    transcribing = true;
-    setVoiceStatus("Konuşman cihazında çözümleniyor…", "processing");
-    try {
-      const rawAudio = joinChunks(chunks);
-      const audio16k = resampleTo16k(rawAudio, audioContext?.sampleRate || TARGET_SAMPLE_RATE);
-      const model = await loadTranscriber();
-      if (!voiceEnabled || currentSession !== sessionId) return;
-      const result = await model(audio16k, { language: "turkish", task: "transcribe" });
-      if (!voiceEnabled || currentSession !== sessionId) return;
-      const transcript = String(result?.text || "").trim().replace(/^\s+|\s+$/g, "");
-      if (transcript.length >= 2) {
-        submitTranscript(transcript);
-      } else {
-        setVoiceStatus("Konuşmanı net duyamadım. Seni dinliyorum…", "listening");
-      }
-    } catch (error) {
-      console.error("NOVA Voice: Yerel konuşma tanıma başarısız.", error);
-      setVoiceStatus("Yerel konuşma tanıma başlatılamadı. Model bağlantısını ve cihaz uyumluluğunu kontrol et.", "error");
-      if (speechServiceStatus) speechServiceStatus.textContent = error?.message || "Model yüklenemedi.";
-    } finally {
-      transcribing = false;
-      if (voiceEnabled && currentSession === sessionId && !waitingForReply && !speaking) {
+    recognition.onstart = () => {
+      recognitionRunning = true;
+
+      if (voiceEnabled && !waitingForReply && !speaking) {
         setVoiceStatus("Seni dinliyorum…", "listening");
       }
-    }
-  }
-
-  function finishSpeechSegment(currentSession) {
-    if (!capturingSpeech) return;
-    capturingSpeech = false;
-    const chunks = speechChunks;
-    speechChunks = [];
-    const durationMs = speechSamples * 1000 / (audioContext?.sampleRate || TARGET_SAMPLE_RATE);
-    speechSamples = 0;
-    silenceSamples = 0;
-    if (durationMs >= MIN_SPEECH_MS) transcribeSegment(chunks, currentSession);
-  }
-
-  function handleAudioFrame(frame, currentSession) {
-    if (!voiceEnabled || currentSession !== sessionId || transcribing) return;
-    const copy = new Float32Array(frame);
-    let energy = 0;
-    for (let i = 0; i < copy.length; i += 1) energy += copy[i] * copy[i];
-    const rms = Math.sqrt(energy / Math.max(1, copy.length));
-    const sampleRate = audioContext?.sampleRate || TARGET_SAMPLE_RATE;
-    const threshold = Math.max(SPEECH_THRESHOLD, noiseFloor * 3.0);
-
-    if (rms >= threshold) {
-      if (!capturingSpeech) {
-        capturingSpeech = true;
-        speechChunks = preRoll.slice();
-        speechSamples = speechChunks.reduce((sum, chunk) => sum + chunk.length, 0);
-        silenceSamples = 0;
-        onSpeechStart();
-      }
-      speechChunks.push(copy);
-      speechSamples += copy.length;
-      silenceSamples = 0;
-    } else if (capturingSpeech) {
-      speechChunks.push(copy);
-      speechSamples += copy.length;
-      silenceSamples += copy.length;
-    } else {
-      noiseFloor = noiseFloor * 0.96 + rms * 0.04;
-      preRoll.push(copy);
-      while (preRoll.length > PRE_ROLL_CHUNKS) preRoll.shift();
-    }
-
-    if (capturingSpeech) {
-      if (silenceSamples >= sampleRate * SILENCE_END_MS / 1000) {
-        finishSpeechSegment(currentSession);
-      } else if (speechSamples >= sampleRate * MAX_SPEECH_MS / 1000) {
-        finishSpeechSegment(currentSession);
-      }
-    }
-  }
-
-  async function startAudioCapture(currentSession) {
-    audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
-    await audioContext.resume();
-    audioSource = audioContext.createMediaStreamSource(microphoneStream);
-    audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
-    silentGain = audioContext.createGain();
-    silentGain.gain.value = 0;
-    audioProcessor.onaudioprocess = (event) => {
-      handleAudioFrame(event.inputBuffer.getChannelData(0), currentSession);
     };
-    audioSource.connect(audioProcessor);
-    audioProcessor.connect(silentGain);
-    silentGain.connect(audioContext.destination);
+
+    recognition.onresult = (event) => {
+      let finalText = "";
+
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const result = event.results[i];
+
+        if (result.isFinal && result[0]?.transcript) {
+          finalText += result[0].transcript;
+        }
+      }
+
+      const spokenText = finalText.trim();
+
+      if (!spokenText || !voiceEnabled || waitingForReply || speaking) {
+        return;
+      }
+
+      input.value = spokenText;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+
+      waitingForReply = true;
+      setVoiceStatus("Söylediklerin NOVA'ya gönderiliyor…", "speaking");
+      stopRecognition();
+
+      if (typeof form.requestSubmit === "function") {
+        form.requestSubmit();
+      } else {
+        form.dispatchEvent(
+          new Event("submit", {
+            bubbles: true,
+            cancelable: true
+          })
+        );
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.warn("NOVA Voice: Konuşma tanıma hatası.", event.error);
+
+      if (!voiceEnabled) return;
+
+      if (
+        event.error === "not-allowed" ||
+        event.error === "service-not-allowed"
+      ) {
+        voiceEnabled = false;
+        waitingForReply = false;
+        updateButtons();
+
+        setVoiceStatus(
+          "Mikrofon izni verilmedi. Tarayıcı ayarlarından mikrofon iznini aç.",
+          "error"
+        );
+        return;
+      }
+
+      if (event.error === "audio-capture") {
+        setVoiceStatus("Mikrofon bulunamadı veya kullanılamıyor.", "error");
+        return;
+      }
+
+      if (event.error === "language-not-supported") {
+        setVoiceStatus("Türkçe konuşma tanıma desteklenmiyor.", "error");
+        return;
+      }
+
+      if (event.error === "network") {
+        // Chromium's speech service can report a network error even while the
+        // page itself is online. Do not restart in a tight loop and overwrite
+        // the useful error with "Seni dinliyorum…".
+        recognitionError = true;
+        clearRestartTimer();
+        setVoiceStatus(
+          "Mikrofon açık ancak konuşma tanıma servisine bağlanılamadı. Sesli sohbeti kapatıp yeniden açmayı dene.",
+          "error"
+        );
+        return;
+      }
+
+      if (event.error === "no-speech") {
+        scheduleRecognitionRestart(500);
+      }
+    };
+
+    recognition.onend = () => {
+      recognitionRunning = false;
+
+      if (voiceEnabled && !recognitionError && !waitingForReply && !speaking) {
+        scheduleRecognitionRestart(1000);
+      }
+    };
+
+    return true;
   }
 
   async function startVoiceChat() {
     if (microphoneRequestInProgress || voiceEnabled) return;
+
     if (!navigator.mediaDevices?.getUserMedia) {
-      setVoiceStatus("Bu ortam mikrofon erişimini desteklemiyor.", "error");
+      setVoiceStatus(
+        "Mikrofon erişimi bu ortamda desteklenmiyor. Uygulamayı güncel Chrome, Edge veya NOVA masaüstü sürümünde aç.",
+        "error"
+      );
       return;
     }
 
     microphoneRequestInProgress = true;
     voiceEnabled = true;
+    recognitionError = false;
     waitingForReply = false;
-    pendingTranscript = "";
-    sessionId += 1;
-    const currentSession = sessionId;
     updateButtons();
-    setVoiceStatus("Mikrofon izni isteniyor…", "loading");
+    setVoiceStatus("Mikrofon izni kontrol ediliyor…", "listening");
 
     try {
-      microphoneStream = await navigator.mediaDevices.getUserMedia({
+      // The browser/Windows permission prompt appears on the first request.
+      // Once allowed, the browser remembers the decision for this origin.
+      // Stop this temporary stream; SpeechRecognition will own the live capture.
+      const microphoneStream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
         }
       });
-      if (!voiceEnabled || currentSession !== sessionId) {
-        microphoneStream.getTracks().forEach((track) => track.stop());
-        microphoneStream = null;
-        return;
-      }
-      const track = microphoneStream.getAudioTracks()[0];
-      if (microphoneAccessStatus) microphoneAccessStatus.textContent =
-        track?.label ? "Mikrofon çalışıyor · " + track.label : "Mikrofon erişimi başarılı.";
-
-      await loadTranscriber();
-      if (!voiceEnabled || currentSession !== sessionId) return;
-      await startAudioCapture(currentSession);
-      if (!voiceEnabled || currentSession !== sessionId) return;
-      setVoiceStatus("Seni dinliyorum…", "listening");
+      microphoneStream.getTracks().forEach((track) => track.stop());
     } catch (error) {
-      console.error("NOVA Voice: Başlatma başarısız.", error);
+      console.warn("NOVA Voice: Mikrofon erişimi alınamadı.", error);
       voiceEnabled = false;
-      stopAudioResources();
       updateButtons();
-      const message = error?.name === "NotAllowedError" || error?.name === "SecurityError"
-        ? "Mikrofon izni verilmedi. Tarayıcı veya Windows ayarlarından NOVA'ya izin ver."
-        : error?.name === "NotFoundError"
-          ? "Kullanılabilir mikrofon bulunamadı."
-          : "Sesli sohbet başlatılamadı: " + (error?.message || "bilinmeyen hata");
-      setVoiceStatus(message, "error");
+
+      if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
+        setVoiceStatus(
+          "Mikrofon izni verilmedi. İlk kullanımda çıkan tarayıcı/Windows izin penceresinde NOVA'ya izin ver.",
+          "error"
+        );
+      } else if (error?.name === "NotFoundError" || error?.name === "OverconstrainedError") {
+        setVoiceStatus("Bilgisayarda kullanılabilir bir mikrofon bulunamadı.", "error");
+      } else if (error?.name === "NotReadableError" || error?.name === "AbortError") {
+        setVoiceStatus("Mikrofon başka bir uygulama tarafından kullanılıyor veya Windows erişimi engelliyor.", "error");
+      } else {
+        setVoiceStatus("Mikrofon açılamadı. Mikrofon bağlantısını kontrol edip tekrar dene.", "error");
+      }
+      return;
     } finally {
       microphoneRequestInProgress = false;
     }
-  }
 
-  function stopAudioResources() {
-    if (audioProcessor) {
-      audioProcessor.onaudioprocess = null;
-      try { audioProcessor.disconnect(); } catch {}
-      audioProcessor = null;
+    // The user may have stopped voice chat while the permission dialog was open.
+    if (!voiceEnabled) return;
+
+    if (!recognition && !setupRecognition()) {
+      voiceEnabled = false;
+      updateButtons();
+      return;
     }
-    if (audioSource) {
-      try { audioSource.disconnect(); } catch {}
-      audioSource = null;
-    }
-    if (silentGain) {
-      try { silentGain.disconnect(); } catch {}
-      silentGain = null;
-    }
-    if (microphoneStream) {
-      microphoneStream.getTracks().forEach((track) => track.stop());
-      microphoneStream = null;
-    }
-    if (audioContext) {
-      const context = audioContext;
-      audioContext = null;
-      context.close().catch(() => {});
-    }
-    preRoll = [];
-    speechChunks = [];
-    capturingSpeech = false;
-    silenceSamples = 0;
-    speechSamples = 0;
+
+    setVoiceStatus("Konuşma tanıma başlatılıyor…", "listening");
+    startRecognition();
   }
 
   function stopVoiceChat() {
     voiceEnabled = false;
+    recognitionError = false;
     waitingForReply = false;
-    pendingTranscript = "";
-    sessionId += 1;
+
+    clearRestartTimer();
     stopSpeech();
-    stopAudioResources();
+
+    if (recognition && recognitionRunning) {
+      try {
+        recognition.stop();
+      } catch {
+        // Mikrofon zaten durmuş olabilir.
+      }
+    }
+
     updateButtons();
     setVoiceStatus("Sesli sohbet kapalı", "idle");
   }
 
-  window.addEventListener("nova:chat-idle", () => {
-    if (!voiceEnabled || !pendingTranscript) return;
-    const transcript = pendingTranscript;
-    pendingTranscript = "";
-    submitTranscript(transcript);
+  toggleButton.addEventListener("click", () => {
+    if (voiceEnabled) {
+      stopVoiceChat();
+    } else {
+      startVoiceChat();
+    }
   });
 
-  toggleButton.addEventListener("click", () => {
-    if (voiceEnabled) stopVoiceChat();
-    else startVoiceChat();
-  });
   stopButton.addEventListener("click", stopVoiceChat);
 
-  voiceTestButton?.addEventListener("click", () => {
-    if (!synth || !("SpeechSynthesisUtterance" in window)) {
-      if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Bu cihazda seslendirme desteklenmiyor.";
+  /*
+   * Yalnızca /api/chat yanıtlarını yakalar.
+   * Araştırma ve diğer API isteklerine müdahale etmez.
+   */
+  const originalFetch = window.fetch.bind(window);
+
+  window.fetch = async (...args) => {
+    let requestUrl;
+
+    try {
+      requestUrl =
+        args[0] instanceof Request ? args[0].url : String(args[0]);
+    } catch {
+      return originalFetch(...args);
+    }
+
+    let isChatRequest = false;
+
+    try {
+      const url = new URL(requestUrl, window.location.href);
+      isChatRequest = url.pathname.endsWith("/api/chat");
+    } catch {
+      isChatRequest = false;
+    }
+
+    let response;
+
+    try {
+      response = await originalFetch(...args);
+    } catch (error) {
+      if (isChatRequest && voiceEnabled) {
+        waitingForReply = false;
+        setVoiceStatus(
+          "Bağlantı kurulamadı. Tekrar deneyebilirsin.",
+          "error"
+        );
+        scheduleRecognitionRestart(900);
+      }
+
+      throw error;
+    }
+
+    if (!isChatRequest || !voiceEnabled) return response;
+
+    try {
+      const data = await response.clone().json();
+
+      const reply =
+        typeof data?.reply === "string"
+          ? data.reply
+          : typeof data?.text === "string"
+            ? data.text
+            : typeof data?.message === "string"
+              ? data.message
+              : "";
+
+      if (response.ok && reply.trim()) {
+        speakReply(reply);
+      } else {
+        waitingForReply = false;
+        setVoiceStatus(
+          data?.error || "NOVA yanıt veremedi. Tekrar konuşabilirsin.",
+          "error"
+        );
+        scheduleRecognitionRestart(900);
+      }
+    } catch (error) {
+      console.warn("NOVA Voice: Yanıt işlenemedi.", error);
+      waitingForReply = false;
+      speaking = false;
+      setVoiceStatus("Yanıt okunamadı. Tekrar deneyebilirsin.", "error");
+      scheduleRecognitionRestart(900);
+    }
+
+    return response;
+  };
+
+  const microphoneAccessStatus = $("microphoneAccessStatus");
+  const microphoneTestButton = $("microphoneTest");
+  const speechServiceStatus = $("speechServiceStatus");
+  const speechServiceTestButton = $("speechServiceTest");
+
+  async function refreshMicrophonePermissionStatus() {
+    if (!microphoneAccessStatus) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      microphoneAccessStatus.textContent = "Bu tarayıcı mikrofon erişimini desteklemiyor.";
       return;
     }
-    const preview = new SpeechSynthesisUtterance("Merhaba, ben NOVA. Bugün sana nasıl yardımcı olabilirim?");
-    preview.lang = "tr-TR";
-    preview.rate = getSpeechRate();
-    selectedVoice = chooseTurkishVoice();
-    if (selectedVoice) preview.voice = selectedVoice;
-    preview.onend = () => {
-      if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Ses denemesi tamamlandı.";
-    };
-    preview.onerror = () => {
-      if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Ses denemesi başarısız oldu.";
-    };
-    if (voiceSettingsStatus) voiceSettingsStatus.textContent = "NOVA'nın sesi deneniyor…";
-    synth.cancel();
-    synth.speak(preview);
-  });
+    try {
+      const permission = await navigator.permissions?.query?.({ name: "microphone" });
+      if (permission?.state === "granted") microphoneAccessStatus.textContent = "İzin verildi · mikrofon erişilebilir.";
+      else if (permission?.state === "denied") microphoneAccessStatus.textContent = "İzin engellendi · tarayıcı site izinlerini kontrol et.";
+      else microphoneAccessStatus.textContent = "İzin henüz verilmedi veya ilk kullanım bekleniyor.";
+    } catch {
+      microphoneAccessStatus.textContent = "Mikrofon izni, ilk test sırasında kontrol edilecek.";
+    }
+  }
 
   microphoneTestButton?.addEventListener("click", async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      if (microphoneAccessStatus) microphoneAccessStatus.textContent = "Mikrofon erişimi desteklenmiyor.";
+      if (microphoneAccessStatus) microphoneAccessStatus.textContent = "Bu ortam mikrofon erişimini desteklemiyor.";
       return;
     }
     microphoneTestButton.disabled = true;
     if (microphoneAccessStatus) microphoneAccessStatus.textContent = "Mikrofon erişimi deneniyor…";
-    let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const label = stream.getAudioTracks()[0]?.label;
-      if (microphoneAccessStatus) microphoneAccessStatus.textContent = label
-        ? "Mikrofon çalışıyor · " + label
-        : "Mikrofon erişimi başarılı.";
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+      const tracks = stream.getAudioTracks();
+      const deviceName = tracks[0]?.label;
+      tracks.forEach((track) => track.stop());
+      if (microphoneAccessStatus) {
+        microphoneAccessStatus.textContent = deviceName
+          ? "Mikrofon çalışıyor · " + deviceName
+          : "Mikrofon izni verildi ve erişim başarılı.";
+      }
     } catch (error) {
-      if (microphoneAccessStatus) microphoneAccessStatus.textContent =
-        error?.name === "NotAllowedError" ? "Mikrofon izni reddedildi."
-          : error?.name === "NotFoundError" ? "Mikrofon bulunamadı."
-            : "Mikrofon testi başarısız: " + (error?.message || "bilinmeyen hata");
+      const message = error?.name === "NotAllowedError" || error?.name === "SecurityError"
+        ? "Mikrofon izni reddedildi. Tarayıcı site izinlerinden NOVA'ya izin ver."
+        : error?.name === "NotFoundError"
+          ? "Kullanılabilir mikrofon bulunamadı."
+          : "Mikrofon açılamadı. Bağlantıyı ve Windows mikrofon gizlilik ayarlarını kontrol et.";
+      if (microphoneAccessStatus) microphoneAccessStatus.textContent = message;
     } finally {
-      stream?.getTracks().forEach((track) => track.stop());
       microphoneTestButton.disabled = false;
     }
   });
 
-  speechServiceTestButton?.addEventListener("click", async () => {
-    speechServiceTestButton.disabled = true;
-    if (speechServiceStatus) speechServiceStatus.textContent = "Yerel Türkçe model kontrol ediliyor…";
-    try {
-      await loadTranscriber();
-      if (speechServiceStatus) speechServiceStatus.textContent = "Yerel Whisper modeli hazır. Mikrofon sesi cihazında çözümlenecek.";
-    } catch (error) {
-      if (speechServiceStatus) speechServiceStatus.textContent = "Model yüklenemedi: " + (error?.message || "bilinmeyen hata");
-    } finally {
-      speechServiceTestButton.disabled = false;
+  speechServiceTestButton?.addEventListener("click", () => {
+    if (!SpeechRecognition) {
+      if (speechServiceStatus) speechServiceStatus.textContent = "Bu tarayıcı konuşma tanımayı desteklemiyor. Chrome veya Edge kullan.";
+      return;
     }
+    const testRecognition = new SpeechRecognition();
+    let finished = false;
+    let started = false;
+    let timer = null;
+    const finish = (message) => {
+      if (finished) return;
+      finished = true;
+      if (timer) window.clearTimeout(timer);
+      try { testRecognition.stop(); } catch {}
+      if (speechServiceStatus) speechServiceStatus.textContent = message;
+      speechServiceTestButton.disabled = false;
+    };
+    speechServiceTestButton.disabled = true;
+    if (speechServiceStatus) speechServiceStatus.textContent = "Konuşma tanıma servisine bağlanılıyor…";
+    testRecognition.lang = "tr-TR";
+    testRecognition.continuous = false;
+    testRecognition.interimResults = false;
+    testRecognition.onstart = () => {
+      started = true;
+      if (speechServiceStatus) speechServiceStatus.textContent = "Servise bağlandı · şimdi kısa bir şey söyleyebilirsin.";
+    };
+    testRecognition.onresult = (event) => {
+      const transcript = event.results?.[0]?.[0]?.transcript;
+      finish(transcript ? "Bağlantı başarılı · algılanan: “" + transcript + "”" : "Servis yanıt verdi; konuşma algılanamadı.");
+    };
+    testRecognition.onerror = (event) => {
+      const message = event.error === "network"
+        ? "Konuşma tanıma servisine ağ üzerinden bağlanılamadı. Mikrofon izni olsa bile bu ayrı bir servis hatasıdır."
+        : event.error === "not-allowed" || event.error === "service-not-allowed"
+          ? "Konuşma tanıma veya mikrofon izni engellendi."
+          : event.error === "audio-capture"
+            ? "Mikrofon yakalanamadı."
+            : "Konuşma tanıma testi başarısız: " + event.error;
+      finish(message);
+    };
+    testRecognition.onend = () => {
+      if (!finished && started) finish("Servis bağlantısı kuruldu. Test sona erdi.");
+      else if (!finished) finish("Konuşma tanıma servisi başlatılamadı.");
+    };
+    timer = window.setTimeout(() => finish(started
+      ? "Servise bağlandı; test süresi doldu."
+      : "Servise zamanında bağlanılamadı."), 8000);
+    try { testRecognition.start(); }
+    catch (error) { finish("Test başlatılamadı: " + (error?.message || "bilinmeyen hata")); }
   });
 
+  refreshMicrophonePermissionStatus();
+
+  updateButtons();
+
+  if (!SpeechRecognition) {
+    setVoiceStatus(
+      "Konuşma tanıma bulunamadı. Chrome veya Edge kullan.",
+      "error"
+    );
+  }
+
   window.addEventListener("beforeunload", () => {
-    stopVoiceChat();
+    clearRestartTimer();
+
+    try {
+      recognition?.abort();
+    } catch {
+      // Sayfa kapanırken mikrofon durmuş olabilir.
+    }
+
+    stopSpeech();
   });
+
+  function handleReplyFailure(message) {
+    if (!voiceEnabled || !waitingForReply) return;
+
+    waitingForReply = false;
+    speaking = false;
+    setVoiceStatus(message || "NOVA yanıt veremedi. Tekrar konuşabilirsin.", "error");
+    scheduleRecognitionRestart(900);
+  }
 
   window.NOVAVoice = Object.freeze({
     start: startVoiceChat,
     stop: stopVoiceChat,
-    speak: speakReply,
-    replyFailed(message) {
-      waitingForReply = false;
-      speaking = false;
-      if (voiceEnabled) setVoiceStatus(message || "NOVA yanıt veremedi. Tekrar konuşabilirsin.", "error");
-    },
+    speak: (text) => speakReply(text),
+    replyFailed: handleReplyFailure,
     get active() {
       return voiceEnabled;
     }
   });
 
-  updateButtons();
-  console.info("NOVA Voice: Yerel Whisper sesli sohbeti yüklendi.");
+  console.info("NOVA Voice: Ücretsiz tarayıcı sesi yüklendi.");
 })();
