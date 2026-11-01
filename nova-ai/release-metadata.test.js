@@ -15,8 +15,9 @@ test("backend package and lockfile versions stay synchronized", () => {
   assert.equal(lock.packages[""].version, backend.version);
 });
 
-test("NOVA Desktop and backend share the same release version", () => {
-  assert.equal(desktop.version, backend.version);
+test("NOVA Desktop has an independent valid prerelease version", () => {
+  assert.match(desktop.version, /^\\d+\\.\\d+\\.\\d+-alpha\\.\\d+$/);
+  assert.equal(desktop.version.split("-")[0], backend.version.split("-")[0]);
 });
 
 test("alpha release uses an explicit prerelease version", () => {
