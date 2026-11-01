@@ -1695,6 +1695,9 @@ function isFootballResultQuestion(query = "") {
 function selectAgentTool(query = "") {
   const value = String(query || "").trim();
   if (!value) return "none";
+  const hasDirectUrl = /https?:\/\/[^\s]+/i.test(value);
+  const asksToReadUrl = /\b(incele|incelemek|oku|okumak|özetle|ozetle|özetini|ozetini|analiz et|kontrol et|aç|ac|bak|read|open|visit|summarize)\b/i.test(value);
+  if (hasDirectUrl && asksToReadUrl) return "web_search";
   if (isWeatherQuestion(value)) return "weather";
   if (isFootballResultQuestion(value)) return "football";
 
