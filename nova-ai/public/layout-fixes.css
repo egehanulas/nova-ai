@@ -1203,3 +1203,22 @@ html[data-theme="aurora"] .auth-brand strong span { color:#83e9dc !important; }
 @media (max-width:560px) {
   .audio-check-row { align-items:flex-start; flex-direction:column; gap:10px; }
 }
+
+
+/* NOVA settings category tabs */
+.settings-tabs {
+  display:flex; gap:8px; max-width:920px; margin:0 auto 24px;
+  padding:5px; border:1px solid var(--border); border-radius:13px;
+  background:var(--panel); width:fit-content;
+}
+.settings-tab {
+  padding:10px 16px; border:0; border-radius:9px; color:var(--muted);
+  background:transparent; font:inherit; font-size:12px; font-weight:650; cursor:pointer;
+}
+.settings-tab:hover { color:var(--text); }
+.settings-tab.active { color:var(--text); background:var(--surface); box-shadow:0 1px 5px rgba(0,0,0,.16); }
+.settings-tab-panel[hidden] { display:none !important; }
+@media (max-width:480px) {
+  .settings-tabs { width:100%; box-sizing:border-box; }
+  .settings-tab { flex:1; padding:10px 8px; }
+}
