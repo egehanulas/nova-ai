@@ -54,8 +54,19 @@ test("page parser extracts title, description and article body without scripts",
   const page = parsePage(html, "https://example.com/news");
   assert.equal(page.title, "Official Announcement");
   assert.equal(page.publishedAt, "2026-10-21");
+  assert.equal(page.modifiedAt, "");
   assert.match(page.content, /verified article body/);
   assert.doesNotMatch(page.content, /secretDoNotInclude|Navigation/);
+});
+
+
+test("page parser keeps publication date separate from modification date", () => {
+  const html = '<html><head><meta property="article:published_time" content="2026-10-21">' +
+    '<meta property="article:modified_time" content="2026-10-24T12:00:00Z">' +
+    '</head><body><article><p>This article contains enough readable text to pass the minimum content check and validate date metadata extraction.</p></article></body></html>';
+  const page = parsePage(html, "https://example.com/openshell");
+  assert.equal(page.publishedAt, "2026-10-21");
+  assert.equal(page.modifiedAt, "2026-10-24T12:00:00Z");
 });
 
 test("RSS parser extracts article title, link and publication date", () => {

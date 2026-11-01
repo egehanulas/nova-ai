@@ -111,7 +111,8 @@ function parsePage(html, finalUrl) {
   const title = readMeta(html, ["og:title", "twitter:title"]) ||
     stripTags((html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "");
   const description = readMeta(html, ["description", "og:description", "twitter:description"]);
-  const publishedAt = readMeta(html, ["article:published_time", "datepublished", "date", "pubdate", "og:updated_time"]);
+  const publishedAt = readMeta(html, ["article:published_time", "datepublished", "date", "pubdate"]);
+  const modifiedAt = readMeta(html, ["article:modified_time", "datemodified", "og:updated_time", "last-modified"]);
   const canonicalMatch = html.match(/<link\b(?=[^>]*rel=["'][^"']*canonical[^"']*["'])[^>]*href=["']([^"']+)["']/i);
   let canonical = finalUrl;
   if (canonicalMatch) {
@@ -130,6 +131,7 @@ function parsePage(html, finalUrl) {
     snippet: description.slice(0, 700),
     content,
     publishedAt,
+    modifiedAt,
     domain: new URL(finalUrl).hostname,
   };
 }
@@ -363,7 +365,7 @@ async function researchWeb(query, signal) {
     return pages.filter(Boolean);
   }
   const results = await searchPublicWeb(query, signal);
-  const pages = await Promise.all(results.slice(0, 4).map(async (item) => {
+  const pages = await Promise.all(results.slice(0, 6).map(async (item) => {
     try {
       const page = await fetchPublicPage(item.url, signal);
       return { ...item, ...page, searchTitle: item.title, searchSnippet: item.snippet };
