@@ -1881,9 +1881,12 @@
       { keys: ["paint"], app: "paint", label: "Paint" },
       { keys: ["discord"], app: "discord", label: "Discord" }
     ];
-    const appMatch = appAliases.find((item) =>
-      new RegExp("^(?:aç\\s+)?(?:" + item.keys.map((key) => key.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")).join("|") + ")(?:'i|'ı|'u|'ü)?$", "i").test(raw)
-    );
+    const normalizedAppCommand = command
+      .replace(/^(?:aç|ac)\\s+/, "")
+      .replace(/\\s+(?:aç|ac)$/, "")
+      .replace(/['’](?:i|ı|u|ü)$/, "")
+      .trim();
+    const appMatch = appAliases.find((item) => item.keys.includes(normalizedAppCommand));
     if (appMatch) {
       const result = await api.openApp(appMatch.app);
       return result?.message || appMatch.label + " açılıyor.";
