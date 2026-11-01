@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - "desktop-v*"
-    branches:
-      - "desktop-v*"
 
 permissions:
   contents: write
@@ -27,6 +25,14 @@ jobs:
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+
+      - name: Run desktop security regression tests
+        run: npm test
+
+      - name: Clean previous build output
+        shell: pwsh
+        run: |
+          if (Test-Path out) { Remove-Item out -Recurse -Force }
 
       - name: Build Squirrel.Windows update packages
         run: npm run make -- --platform=win32 --arch=x64
