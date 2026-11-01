@@ -97,11 +97,12 @@ function extractUrls(text = "") {
 }
 
 function readMeta(html, keys) {
-  for (const key of keys) {
-    const pattern = new RegExp("<meta\\b(?=[^>]*(?:name|property)=[\\"']" + key + "[\\"'])[^>]*content=[\\"']([^\\"']*)[\\"'][^>]*>", "i");
-    const reverse = new RegExp("<meta\\b(?=[^>]*content=[\\"']([^\\"']*)[\\"'])(?=[^>]*(?:name|property)=[\\"']" + key + "[\\"'])[^>]*>", "i");
-    const match = html.match(pattern) || html.match(reverse);
-    if (match) return stripTags(match[1] || "");
+  const wanted = new Set(keys.map((key) => key.toLowerCase()));
+  const tags = String(html).match(/<meta\b[^>]*>/gi) || [];
+  for (const tag of tags) {
+    const name = tag.match(/\b(?:name|property)\s*=\s*["']([^"']+)["']/i)?.[1]?.toLowerCase();
+    const content = tag.match(/\bcontent\s*=\s*["']([^"']*)["']/i)?.[1];
+    if (name && wanted.has(name) && content) return stripTags(content);
   }
   return "";
 }
