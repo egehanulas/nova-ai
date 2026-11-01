@@ -2,9 +2,9 @@
 "use strict";
 
 /*
- * NOVA AI — Ücretsiz tarayıcı sesli sohbeti
- * Türkçe konuşma tanıma ve tarayıcı seslendirmesi.
- * ElevenLabs veya /api/tts kullanılmaz.
+ * NOVA AI — Windows sesli yazma ve yerel seslendirme.
+ * Konuşmayı yazıya çevirmek için Windows + H kullanılır.
+ * Chromium SpeechRecognition, ElevenLabs veya /api/tts kullanılmaz.
  */
 
 (() => {
@@ -27,7 +27,6 @@
   const synth = window.speechSynthesis;
 
   let voiceEnabled = false;
-  let waitingForReply = false;
   let speaking = false;
   let speechRequest = 0;
   let selectedVoice = null;
@@ -185,13 +184,11 @@
     const answer = String(text || "").trim();
 
     if (!answer || !voiceEnabled) {
-      waitingForReply = false;
       scheduleRecognitionRestart();
       return;
     }
 
     if (!synth || !("SpeechSynthesisUtterance" in window)) {
-      waitingForReply = false;
       setVoiceStatus("Tarayıcı seslendirmeyi desteklemiyor.", "error");
       scheduleRecognitionRestart();
       return;
@@ -200,7 +197,6 @@
     stopSpeech();
     const currentRequest = speechRequest;
 
-    waitingForReply = false;
     speaking = true;
     stopRecognition();
 
@@ -306,7 +302,6 @@
     if (voiceEnabled) return;
 
     voiceEnabled = true;
-    waitingForReply = false;
     updateButtons();
     input.focus({ preventScroll: true });
     setVoiceStatus(
@@ -317,7 +312,6 @@
 
   function stopVoiceChat() {
     voiceEnabled = false;
-    waitingForReply = false;
     stopSpeech();
     updateButtons();
     setVoiceStatus("Sesli sohbet kapalı", "idle");
@@ -364,8 +358,7 @@
       response = await originalFetch(...args);
     } catch (error) {
       if (isChatRequest && voiceEnabled) {
-        waitingForReply = false;
-        setVoiceStatus(
+          setVoiceStatus(
           "Bağlantı kurulamadı. Tekrar deneyebilirsin.",
           "error"
         );
@@ -392,8 +385,7 @@
       if (response.ok && reply.trim()) {
         speakReply(reply);
       } else {
-        waitingForReply = false;
-        setVoiceStatus(
+          setVoiceStatus(
           data?.error || "NOVA yanıt veremedi. Tekrar konuşabilirsin.",
           "error"
         );
@@ -401,7 +393,6 @@
       }
     } catch (error) {
       console.warn("NOVA Voice: Yanıt işlenemedi.", error);
-      waitingForReply = false;
       speaking = false;
       setVoiceStatus("Yanıt okunamadı. Tekrar deneyebilirsin.", "error");
       scheduleRecognitionRestart(900);
@@ -480,21 +471,12 @@
   );
 
   window.addEventListener("beforeunload", () => {
-    clearRestartTimer();
-
-    try {
-      recognition?.abort();
-    } catch {
-      // Sayfa kapanırken mikrofon durmuş olabilir.
-    }
-
     stopSpeech();
   });
 
   function handleReplyFailure(message) {
     if (!voiceEnabled) return;
 
-    waitingForReply = false;
     speaking = false;
     setVoiceStatus(message || "NOVA yanıt veremedi. Tekrar konuşabilirsin.", "error");
     scheduleRecognitionRestart(900);
