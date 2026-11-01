@@ -589,6 +589,28 @@
             <span class="voice-settings-note" id="voiceSettingsStatus" role="status" aria-live="polite">Türkçe sesler yükleniyor…</span>
           </div>
         </section>
+        <section class="settings-section audio-diagnostics-section" aria-labelledby="audioDiagnosticsTitle">
+          <div class="settings-section-heading">
+            <h2 id="audioDiagnosticsTitle">Ses ve Mikrofon</h2>
+            <span>Bağlantı kontrolleri</span>
+          </div>
+          <p class="voice-settings-description">Mikrofon erişimini ve konuşma tanıma servisini ayrı ayrı kontrol et. İzinler tarayıcı tarafından hatırlanır.</p>
+          <div class="audio-check-row">
+            <div class="audio-check-copy">
+              <strong>Mikrofon erişimi</strong>
+              <span id="microphoneAccessStatus" role="status" aria-live="polite">Henüz kontrol edilmedi.</span>
+            </div>
+            <button class="voice-test-button" id="microphoneTest" type="button">🎙 Mikrofonu test et</button>
+          </div>
+          <div class="audio-check-row">
+            <div class="audio-check-copy">
+              <strong>Konuşma tanıma servisi</strong>
+              <span id="speechServiceStatus" role="status" aria-live="polite">Henüz test edilmedi.</span>
+            </div>
+            <button class="voice-test-button" id="speechServiceTest" type="button">Bağlantıyı test et</button>
+          </div>
+          <p class="settings-hint">Not: Mikrofon izni ile konuşma tanıma bağlantısı farklı şeylerdir. Mikrofon çalışsa bile tarayıcının konuşma tanıma servisi ağ hatası verebilir.</p>
+        </section>
       </section>
       <section class="messages" id="messages" aria-label="Mesajlar" aria-live="polite" aria-relevant="additions text"></section>
 
