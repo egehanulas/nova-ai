@@ -27,8 +27,10 @@
   const SILENCE_END_MS = 780;
   const MIN_SPEECH_MS = 350;
   const MAX_SPEECH_MS = 18000;
-  const SPEECH_THRESHOLD = 0.009;
-  const PRE_ROLL_CHUNKS = 2;
+  const SPEECH_THRESHOLD = 0.012;
+  const INTERRUPT_THRESHOLD = 0.028;
+  const MIN_ACTIVE_SPEECH_MS = 500;
+  const PRE_ROLL_CHUNKS = 3;
 
   const synth = window.speechSynthesis;
   const voiceChoice = $("voiceChoice");
@@ -64,6 +66,8 @@
   let preRoll = [];
   let silenceSamples = 0;
   let speechSamples = 0;
+  let activeSpeechSamples = 0;
+  let peakSpeechRms = 0;
   let noiseFloor = 0.002;
   let pendingTranscript = "";
 
@@ -404,7 +408,15 @@
     const durationMs = speechSamples * 1000 / (audioContext?.sampleRate || TARGET_SAMPLE_RATE);
     speechSamples = 0;
     silenceSamples = 0;
-    if (durationMs >= MIN_SPEECH_MS) transcribeSegment(chunks, currentSession);
+    const activeSpeechMs = activeSpeechSamples * 1000 / (audioContext?.sampleRate || TARGET_SAMPLE_RATE);
+    const validVoiceActivity = activeSpeechMs >= MIN_ACTIVE_SPEECH_MS && peakSpeechRms >= SPEECH_THRESHOLD * 1.5;
+    activeSpeechSamples = 0;
+    peakSpeechRms = 0;
+    if (durationMs >= MIN_SPEECH_MS && validVoiceActivity) {
+      transcribeSegment(chunks, currentSession);
+    } else if (voiceEnabled) {
+      setVoiceStatus("Seni dinliyorum…", "listening");
+    }
   }
 
   function handleAudioFrame(frame, currentSession) {
@@ -414,18 +426,28 @@
     for (let i = 0; i < copy.length; i += 1) energy += copy[i] * copy[i];
     const rms = Math.sqrt(energy / Math.max(1, copy.length));
     const sampleRate = audioContext?.sampleRate || TARGET_SAMPLE_RATE;
-    const threshold = Math.max(SPEECH_THRESHOLD, noiseFloor * 3.0);
+    // NOVA'nın kendi yanıtı sırasında yankı/TV sesi yanlışlıkla yeni komut
+    // başlatmasın. Kullanıcı araya girebilir; ancak daha güçlü ve uzun ses gerekir.
+    const interrupting = speaking || waitingForReply;
+    const threshold = Math.max(
+      interrupting ? INTERRUPT_THRESHOLD : SPEECH_THRESHOLD,
+      noiseFloor * (interrupting ? 4.5 : 3.5)
+    );
 
     if (rms >= threshold) {
       if (!capturingSpeech) {
         capturingSpeech = true;
         speechChunks = preRoll.slice();
         speechSamples = speechChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+        activeSpeechSamples = 0;
+        peakSpeechRms = 0;
         silenceSamples = 0;
         onSpeechStart();
       }
       speechChunks.push(copy);
       speechSamples += copy.length;
+      activeSpeechSamples += copy.length;
+      peakSpeechRms = Math.max(peakSpeechRms, rms);
       silenceSamples = 0;
     } else if (capturingSpeech) {
       speechChunks.push(copy);
@@ -544,6 +566,8 @@
     capturingSpeech = false;
     silenceSamples = 0;
     speechSamples = 0;
+    activeSpeechSamples = 0;
+    peakSpeechRms = 0;
   }
 
   function stopVoiceChat() {
