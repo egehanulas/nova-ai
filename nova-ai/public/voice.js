@@ -36,6 +36,7 @@
   let restartTimer = null;
   let speechRequest = 0;
   let selectedVoice = null;
+  let microphoneRequestInProgress = false;
 
   function setVoiceStatus(message, state = "idle") {
     statusLabel.textContent = message;
@@ -462,15 +463,68 @@
     return true;
   }
 
-  function startVoiceChat() {
-    if (!recognition && !setupRecognition()) return;
+  async function startVoiceChat() {
+    if (microphoneRequestInProgress || voiceEnabled) return;
 
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVoiceStatus(
+        "Mikrofon erişimi bu ortamda desteklenmiyor. Uygulamayı güncel Chrome, Edge veya NOVA masaüstü sürümünde aç.",
+        "error"
+      );
+      return;
+    }
+
+    microphoneRequestInProgress = true;
     voiceEnabled = true;
     recognitionError = false;
     waitingForReply = false;
     updateButtons();
+    setVoiceStatus("Mikrofon izni kontrol ediliyor…", "listening");
 
-    setVoiceStatus("Mikrofon başlatılıyor…", "listening");
+    try {
+      // The browser/Windows permission prompt appears on the first request.
+      // Once allowed, the browser remembers the decision for this origin.
+      // Stop this temporary stream; SpeechRecognition will own the live capture.
+      const microphoneStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      microphoneStream.getTracks().forEach((track) => track.stop());
+    } catch (error) {
+      console.warn("NOVA Voice: Mikrofon erişimi alınamadı.", error);
+      voiceEnabled = false;
+      updateButtons();
+
+      if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
+        setVoiceStatus(
+          "Mikrofon izni verilmedi. İlk kullanımda çıkan tarayıcı/Windows izin penceresinde NOVA'ya izin ver.",
+          "error"
+        );
+      } else if (error?.name === "NotFoundError" || error?.name === "OverconstrainedError") {
+        setVoiceStatus("Bilgisayarda kullanılabilir bir mikrofon bulunamadı.", "error");
+      } else if (error?.name === "NotReadableError" || error?.name === "AbortError") {
+        setVoiceStatus("Mikrofon başka bir uygulama tarafından kullanılıyor veya Windows erişimi engelliyor.", "error");
+      } else {
+        setVoiceStatus("Mikrofon açılamadı. Mikrofon bağlantısını kontrol edip tekrar dene.", "error");
+      }
+      return;
+    } finally {
+      microphoneRequestInProgress = false;
+    }
+
+    // The user may have stopped voice chat while the permission dialog was open.
+    if (!voiceEnabled) return;
+
+    if (!recognition && !setupRecognition()) {
+      voiceEnabled = false;
+      updateButtons();
+      return;
+    }
+
+    setVoiceStatus("Konuşma tanıma başlatılıyor…", "listening");
     startRecognition();
   }
 
