@@ -1,7 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const { researchWeb, searchPublicWeb } = require("../web-research");
+const { researchWeb, searchPublicWeb, hasRelevantTopicEvidence } = require("../web-research");
 
 async function main() {
   const signal = AbortSignal.timeout(30_000);
@@ -20,6 +20,22 @@ async function main() {
     "Extracted page text should contain the announcement body"
   );
   console.log("PASS: NVIDIA official page fetched and article text extracted.");
+
+  const seededPages = await researchWeb("NVIDIA OpenShell official product and repository", signal);
+  assert.ok(
+    seededPages.some((page) => /nvidia\.com/i.test(page.url) && page.content.length >= 120),
+    "NVIDIA official product page should be included as readable evidence"
+  );
+  assert.ok(
+    seededPages.some((page) => /github\.com\/NVIDIA\/OpenShell/i.test(page.url) && page.content.length >= 120),
+    "NVIDIA OpenShell GitHub repository should be included as readable evidence"
+  );
+  assert.equal(
+    hasRelevantTopicEvidence("NVIDIA OpenShell", seededPages),
+    true,
+    "Research evidence must directly match NVIDIA OpenShell"
+  );
+  console.log("PASS: NVIDIA OpenShell official product page and repository were read.");
 
   const results = await searchPublicWeb(
     '"NVIDIA OpenShell Reference Architecture" October 21 2026',
