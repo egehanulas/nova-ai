@@ -56,8 +56,11 @@ export async function openAllowedApp(appName) {
   };
   const selected = apps[appName];
   if (!selected) throw new Error("Bu uygulama güvenlik nedeniyle izin verilen uygulamalar listesinde değil.");
-  try { await fs.access(selected.command); } catch { throw new Error(selected.label + " bilgisayarında bulunamadı."); }
+  if (appName === "steam") {
+    try { await fs.access(selected.command); } catch { throw new Error("Steam varsayılan kurulum konumunda bulunamadı."); }
+  }
   const child = spawn(selected.command, selected.args, { detached: true, stdio: "ignore", windowsHide: true });
+  child.on("error", (error) => console.error("NOVA app launch failed:", error));
   child.unref();
   return { message: selected.label + " açılıyor." };
 }
@@ -75,7 +78,8 @@ export async function moveUserFile(sourceInput, destinationFolderInput, newName)
   const source = resolveUserPath(sourceInput);
   const destinationFolder = resolveUserPath(destinationFolderInput);
   const [realSource, realDestination] = await Promise.all([fs.realpath(source), fs.realpath(destinationFolder)]);
-  if (!ROOTS.some((root) => inside(root, realSource)) || !ROOTS.some((root) => inside(root, realDestination))) throw new Error("Bu dosya veya klasör için işlem yapılamıyor.");
+  if (!ROOTS.some((root) => inside(root, realSource) && realSource !== root) || !ROOTS.some((root) => inside(root, realDestination))) throw new Error("Bu dosya veya klasör için işlem yapılamıyor.");
+  if (inside(realSource, realDestination)) throw new Error("Bir klasörü kendi içine veya alt klasörüne taşıyamazsın.");
   const stat = await fs.lstat(realSource);
   if (stat.isSymbolicLink()) throw new Error("Kısayol ve sembolik bağlantılar taşınamaz.");
   const targetName = newName ? String(newName).trim() : path.basename(realSource);
