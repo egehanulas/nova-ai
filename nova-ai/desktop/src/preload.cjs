@@ -2,6 +2,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("novaDesktop", Object.freeze({
   isDesktop: true,
+  getAppInfo: () => ipcRenderer.invoke("nova-desktop:app-info"),
   assistant: Object.freeze({
     computerInfo: () => ipcRenderer.invoke("nova-desktop:computer-info"),
     listFolders: () => ipcRenderer.invoke("nova-desktop:list-folders"),
