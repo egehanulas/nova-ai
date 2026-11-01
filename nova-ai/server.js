@@ -983,7 +983,7 @@ async function callOpenRouter(messages, extraInstruction = "") {
   );
 
   const { controller, clear } = createAbortController();
-  const generation = getGenerationSettings(conversation);
+  const generation = getGenerationSettings(conversation, extraInstruction);
 
   try {
     const response = await fetch(
@@ -1052,7 +1052,7 @@ async function callGroq(messages, extraInstruction = "") {
   );
 
   const { controller, clear } = createAbortController();
-  const generation = getGenerationSettings(conversation);
+  const generation = getGenerationSettings(conversation, extraInstruction);
 
   try {
     const response = await fetch(
@@ -1236,7 +1236,7 @@ async function streamOpenAIProvider({
     messages,
     extraInstruction
   );
-  const generation = getGenerationSettings(conversation);
+  const generation = getGenerationSettings(conversation, extraInstruction);
 
   const response = await fetch(url, {
     method: "POST",
@@ -1387,7 +1387,7 @@ async function streamGemini({
     role: message.role === "assistant" ? "model" : "user",
     parts: [{ text: message.content }],
   }));
-  const generation = getGenerationSettings(conversation);
+  const generation = getGenerationSettings(conversation, extraInstruction);
 
   const url =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
@@ -2405,7 +2405,7 @@ function buildWebResearchInstruction(results) {
   if (!results.length) return "";
 
   // Çok adımlı aramalarda tüm ham snippet'leri modele yığma.
-  // En fazla 6 kaynağın kısa özeti ve bağlantısı yeterli kanıt bağlamı sağlar.
+  // En fazla 4 kaynağın kısa özeti ve bağlantısı yeterli kanıt bağlamı sağlar.
   const sourceText = results.slice(0, 4).map((item, index) => [
     "[WEB KAYNAĞI " + (index + 1) + "]",
     "Başlık: " + String(item.title || "").slice(0, 160),
