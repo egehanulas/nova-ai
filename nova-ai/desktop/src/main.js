@@ -285,7 +285,7 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
     return;
   }
 
-  const versionMatch = String(releaseName || "").match(/\\d+\\.\\d+\\.\\d+(?:-[a-zA-Z0-9.-]+)?/);
+  const versionMatch = String(releaseName || "").match(/\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?/);
   const nextVersion = versionMatch?.[0] || "Yeni sürüm";
   const releaseHighlights = {
     "0.2.0-alpha.7": [
