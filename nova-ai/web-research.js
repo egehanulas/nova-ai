@@ -413,7 +413,7 @@ async function researchWeb(query, signal) {
   for (const item of merged) {
     try {
       const url = new URL(item.url);
-      const key = url.hostname.toLowerCase() + url.pathname.replace(/\\/+$/, "");
+      const key = url.hostname.toLowerCase() + url.pathname;
       if (!unique.has(key)) unique.set(key, item);
     } catch {}
   }
