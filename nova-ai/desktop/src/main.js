@@ -16,11 +16,14 @@ import { URL } from "node:url";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile } from "./desktop-assistant.js";
+import { createUpdateRetryScheduler } from "./update-retry.js";
 
 const NOVA_URL = "https://nova-ai-xxid.onrender.com/";
 const NOVA_ORIGIN = new URL(NOVA_URL).origin;
 const UPDATE_FEED_URL = "https://github.com/egehanulas/nova-ai/releases/latest/download";
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const UPDATE_CHECK_TIMEOUT_MS = 45_000;
+const UPDATE_DOWNLOAD_TIMEOUT_MS = 30 * 60 * 1000;
 let mainWindow;
 let tray;
 let isQuitting = false;
@@ -28,6 +31,13 @@ let retryDialogOpen = false;
 let updatePromptOpen = false;
 let updateWindow;
 let assistantWindow;
+let updateCheckInProgress = false;
+let updateDownloadInProgress = false;
+let updateReadyToInstall = false;
+let updateCheckTimeout;
+let updateDownloadTimeout;
+let updateRetryScheduler;
+let lastUpdateStatus = "idle";
 
 function openExternal(value) {
   try {
@@ -342,9 +352,37 @@ function registerDesktopAssistantIpc() {
   });
 }
 function sendUpdateStatus(status) {
+  lastUpdateStatus = status;
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("nova-update:status", status);
   }
+}
+
+function clearUpdateTimeouts() {
+  if (updateCheckTimeout) {
+    clearTimeout(updateCheckTimeout);
+    updateCheckTimeout = undefined;
+  }
+  if (updateDownloadTimeout) {
+    clearTimeout(updateDownloadTimeout);
+    updateDownloadTimeout = undefined;
+  }
+}
+
+function scheduleUpdateRetry() {
+  const delay = updateRetryScheduler?.schedule();
+  if (!delay) return;
+  sendUpdateStatus("retrying");
+  console.warn(`NOVA update retry scheduled in ${Math.round(delay / 1000)} seconds.`);
+}
+
+function handleUpdateError(error) {
+  clearUpdateTimeouts();
+  updateCheckInProgress = false;
+  updateDownloadInProgress = false;
+  console.error("NOVA auto-update error:", error);
+  sendUpdateStatus("error");
+  scheduleUpdateRetry();
 }
 
 function checkForUpdates() {
@@ -361,12 +399,24 @@ function checkForUpdates() {
     return;
   }
 
+  if (updateCheckInProgress || updateDownloadInProgress || updateReadyToInstall) return;
+
+  updateRetryScheduler?.cancel();
+  updateCheckInProgress = true;
   sendUpdateStatus("checking");
+  updateCheckTimeout = setTimeout(() => {
+    updateCheckTimeout = undefined;
+    updateCheckInProgress = false;
+    console.warn("NOVA update check timed out.");
+    sendUpdateStatus("error");
+    scheduleUpdateRetry();
+  }, UPDATE_CHECK_TIMEOUT_MS);
+  updateCheckTimeout.unref?.();
+
   try {
     autoUpdater.checkForUpdates();
   } catch (error) {
-    console.error("NOVA update check failed:", error);
-    sendUpdateStatus("error");
+    handleUpdateError(error);
   }
 }
 
@@ -449,12 +499,35 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
 function configureAutoUpdates() {
   if (!app.isPackaged || process.platform !== "win32") return;
 
-  autoUpdater.setFeedURL({ url: UPDATE_FEED_URL });
-  autoUpdater.on("error", (error) => {
-    console.error("NOVA auto-update error:", error);
-    sendUpdateStatus("error");
+  updateRetryScheduler = createUpdateRetryScheduler({
+    onRetry: () => {
+      sendUpdateStatus("checking");
+      checkForUpdates();
+    }
   });
+
+  autoUpdater.on("checking-for-update", () => {
+    sendUpdateStatus("checking");
+  });
+  autoUpdater.on("error", handleUpdateError);
   autoUpdater.on("update-available", () => {
+    if (updateCheckTimeout) {
+      clearTimeout(updateCheckTimeout);
+      updateCheckTimeout = undefined;
+    }
+    updateCheckInProgress = false;
+    updateDownloadInProgress = true;
+    updateRetryScheduler.cancel();
+
+    updateDownloadTimeout = setTimeout(() => {
+      updateDownloadTimeout = undefined;
+      updateDownloadInProgress = false;
+      console.warn("NOVA update download timed out.");
+      sendUpdateStatus("error");
+      scheduleUpdateRetry();
+    }, UPDATE_DOWNLOAD_TIMEOUT_MS);
+    updateDownloadTimeout.unref?.();
+
     sendUpdateStatus("available");
     if (Notification.isSupported()) {
       new Notification({
@@ -464,18 +537,35 @@ function configureAutoUpdates() {
     }
   });
   autoUpdater.on("update-not-available", () => {
+    clearUpdateTimeouts();
+    updateCheckInProgress = false;
+    updateDownloadInProgress = false;
+    updateRetryScheduler.reset();
     console.info("NOVA is up to date.");
     sendUpdateStatus("not-available");
   });
   autoUpdater.on("update-downloaded", (_event, releaseNotes, releaseName) => {
+    clearUpdateTimeouts();
+    updateCheckInProgress = false;
+    updateDownloadInProgress = false;
+    updateReadyToInstall = true;
+    updateRetryScheduler.reset();
     sendUpdateStatus("downloaded");
     if (updatePromptOpen) return;
     updatePromptOpen = true;
     showUpdateWindow(releaseName, releaseNotes);
   });
 
-  setTimeout(checkForUpdates, 12_000);
-  setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL_MS);
+  try {
+    autoUpdater.setFeedURL({ url: UPDATE_FEED_URL });
+  } catch (error) {
+    handleUpdateError(error);
+  }
+
+  const startupCheck = setTimeout(checkForUpdates, 12_000);
+  startupCheck.unref?.();
+  const periodicCheck = setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL_MS);
+  periodicCheck.unref?.();
 }
 
 function handleSquirrelEvent() {
@@ -533,6 +623,7 @@ if (!handleSquirrelEvent()) {
     platform: process.platform,
     packaged: app.isPackaged
   }));
+  ipcMain.handle("nova-update:get-status", () => lastUpdateStatus);
   ipcMain.on("nova-update:check", checkForUpdates);
   ipcMain.on("nova-update:later", () => {
     if (updateWindow && !updateWindow.isDestroyed()) updateWindow.close();
@@ -561,6 +652,8 @@ if (!handleSquirrelEvent()) {
 
   app.on("before-quit", () => {
     isQuitting = true;
+    updateRetryScheduler?.reset();
+    clearUpdateTimeouts();
   });
 
   app.on("will-quit", () => {
