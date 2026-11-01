@@ -28,7 +28,7 @@ NOVA AI web uygulamasını Windows masaüstü penceresinde çalıştıran Electr
 - Yardım > Güncellemeleri denetle bölümünden güncellemeyi elle kontrol et.
 - Yardım > NOVA AI Hakkında bölümünden kurulu sürümü gör.
 
-## Geliştirme
+## Bilgisayar Asistanı (Windows masaüstü)\n\n- Dosya > Bilgisayar Asistanı menüsünden açılır.\n- Not Defteri, Hesap Makinesi, Dosya Gezgini ve Steam için sabit izin listesi kullanır.\n- Bilgisayar bilgilerini gösterir; Masaüstü, Belgeler ve İndirilenler içinde sınırlı dosya araması yapar.\n- Yalnızca bu üç kullanıcı klasörü içinde yeni klasör oluşturabilir ve dosya/klasör taşıyıp yeniden adlandırabilir.\n- Klasör oluşturma ve taşıma öncesinde Windows onay penceresi gösterilir.\n- Dosya silme, program kaldırma, komut satırı çalıştırma veya genel sistem ayarı değiştirme yeteneği yoktur.\n- Web sitesi bu IPC köprüsüne sahip değildir; özellik yerel Electron penceresi ve doğrulanmış IPC göndericisiyle sınırlıdır.\n\n## Geliştirme
 
 Bu klasörde:
 
