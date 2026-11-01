@@ -418,7 +418,17 @@ if (!handleSquirrelEvent()) {
   app.setName("NOVA AI");
   if (process.platform === "win32") app.setAppUserModelId("com.squirrel.nova_ai.nova_ai");
 
-  ipcMain.on("nova-update:later", () => {\n    if (updateWindow && !updateWindow.isDestroyed()) updateWindow.close();\n  });\n  ipcMain.on("nova-update:install", () => {\n    if (!updateWindow || updateWindow.isDestroyed()) return;\n    updateWindow.close();\n    isQuitting = true;\n    autoUpdater.quitAndInstall();\n  });\n\n  app.whenReady().then(() => {
+  ipcMain.on("nova-update:later", () => {
+    if (updateWindow && !updateWindow.isDestroyed()) updateWindow.close();
+  });
+  ipcMain.on("nova-update:install", () => {
+    if (!updateWindow || updateWindow.isDestroyed()) return;
+    updateWindow.close();
+    isQuitting = true;
+    autoUpdater.quitAndInstall();
+  });
+
+  app.whenReady().then(() => {
     configureMicrophonePermissions();
     createApplicationMenu();
     createTray();
