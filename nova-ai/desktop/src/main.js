@@ -297,7 +297,20 @@ function registerDesktopAssistantIpc() {
     return searchUserFiles(query);
   });
   ipcMain.handle("nova-desktop:open-app", (event, name) => {
-    if (!allowedSender(event)) throw new Error("Yetkisiz istek.");
+    const fromAssistantWindow = allowedSender(event);
+    const fromTrustedChatWindow =
+      mainWindow && !mainWindow.isDestroyed() &&
+      event.sender === mainWindow.webContents &&
+      (() => {
+        try {
+          return new URL(event.senderFrame?.url || event.sender.getURL()).origin === NOVA_ORIGIN;
+        } catch {
+          return false;
+        }
+      })();
+    if (!fromAssistantWindow && !fromTrustedChatWindow) {
+      throw new Error("Yetkisiz istek.");
+    }
     if (process.platform !== "win32") throw new Error("Bu özellik yalnızca Windows masaüstünde kullanılabilir.");
     return openAllowedApp(name);
   });
