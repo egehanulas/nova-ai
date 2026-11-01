@@ -176,7 +176,7 @@ function configureMicrophonePermissions() {
     callback(isNovaOrigin && isMicrophoneRequest);
   });
 
-  defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, _securityOrigin, details) => {
+  defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
     if (permission !== "media") return false;
     try {
       return new URL(requestingOrigin).origin === NOVA_ORIGIN &&
