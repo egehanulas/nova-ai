@@ -432,6 +432,7 @@ function configureAutoUpdates() {
   });
   autoUpdater.on("update-not-available", () => {
     console.info("NOVA is up to date.");
+    sendUpdateStatus("not-available");
   });
   autoUpdater.on("update-downloaded", (_event, releaseNotes, releaseName) => {
     if (updatePromptOpen) return;
