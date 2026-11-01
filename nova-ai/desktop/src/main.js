@@ -1,10 +1,26 @@
-import { app, BrowserWindow, Menu, dialog, shell } from "electron";
+import {
+  app,
+  autoUpdater,
+  BrowserWindow,
+  Menu,
+  Tray,
+  Notification,
+  globalShortcut,
+  nativeImage,
+  dialog,
+  shell
+} from "electron";
 import { URL } from "node:url";
 
 const NOVA_URL = "https://nova-ai-xxid.onrender.com/";
 const NOVA_ORIGIN = new URL(NOVA_URL).origin;
+const UPDATE_FEED_URL = "https://github.com/egehanulas/nova-ai/releases/latest/download";
+const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 let mainWindow;
+let tray;
+let isQuitting = false;
 let retryDialogOpen = false;
+let updatePromptOpen = false;
 
 function openExternal(value) {
   try {
@@ -17,18 +33,66 @@ function openExternal(value) {
   }
 }
 
+function showWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) createWindow();
+  mainWindow?.show();
+  mainWindow?.focus();
+}
+
+function toggleWindow() {
+  if (!mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible()) {
+    showWindow();
+  } else {
+    mainWindow.hide();
+  }
+}
+
+function quitApplication() {
+  isQuitting = true;
+  app.quit();
+}
+
+function createTray() {
+  // Embedded PNG keeps the Windows notification-area icon self-contained.
+  const trayImage = nativeImage.createFromDataURL(
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAnUlEQVR4nO3VwQ2AIAwFUGbw4AIu5LDuV8LBxBApv6W1mNCkN/C/AEJKq2au8yKyaHHwth/k0aHhMCIUUPbLG8CeiTfAfZC0YfVcNUCKaM0TAzQIbrwKIEH0xqkB6Md7yCFAb2/RFTIDtHoBXAEcBJ03DKhDJYh//wWh90DoTRj6FkzxGlo2CyjlDWDDpwB4IqDwZyH3PtLi4FVfVgbpz2l1rjeY+wAAAABJRU5ErkJggg=="
+  );
+  tray = new Tray(trayImage);
+  tray.setToolTip("NOVA AI");
+
+  const contextMenu = Menu.buildFromTemplate([
+    { label: "NOVA AI'ı Aç", click: showWindow },
+    { label: "Göster / Gizle  (Ctrl+Shift+Space)", click: toggleWindow },
+    { type: "separator" },
+    {
+      label: "Windows ile başlat",
+      type: "checkbox",
+      checked: process.platform === "win32" && app.getLoginItemSettings().openAtLogin,
+      enabled: process.platform === "win32",
+      click: (item) => {
+        app.setLoginItemSettings({ openAtLogin: item.checked });
+      }
+    },
+    { type: "separator" },
+    { label: "Çıkış", click: quitApplication }
+  ]);
+  tray.setContextMenu(contextMenu);
+  tray.on("double-click", showWindow);
+}
+
 function createApplicationMenu() {
   const template = [
     {
       label: "Dosya",
       submenu: [
+        { label: "NOVA'yı Göster", click: showWindow },
         {
           label: "NOVA'yı Yenile",
           accelerator: "CommandOrControl+R",
           click: () => mainWindow?.webContents.reload()
         },
         { type: "separator" },
-        { role: "quit", label: "Çıkış" }
+        { role: "quit", label: "Çıkış", click: quitApplication }
       ]
     },
     {
@@ -60,6 +124,10 @@ function createApplicationMenu() {
     {
       label: "Yardım",
       submenu: [
+        {
+          label: "Güncellemeleri denetle",
+          click: checkForUpdates
+        },
         {
           label: "NOVA AI Hakkında",
           click: () => {
@@ -137,6 +205,13 @@ function createWindow() {
     }
   });
 
+  mainWindow.on("close", (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow?.hide();
+    }
+  });
+
   mainWindow.on("closed", () => {
     mainWindow = undefined;
   });
@@ -144,17 +219,92 @@ function createWindow() {
   void mainWindow.loadURL(NOVA_URL);
 }
 
+function checkForUpdates() {
+  if (!app.isPackaged || process.platform !== "win32") {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      void dialog.showMessageBox(mainWindow, {
+        type: "info",
+        title: "NOVA AI Güncelleme",
+        message: "Güncelleme denetimi yalnızca kurulu Windows sürümünde kullanılabilir.",
+        buttons: ["Tamam"]
+      });
+    }
+    return;
+  }
+
+  try {
+    autoUpdater.checkForUpdates();
+  } catch (error) {
+    console.error("NOVA update check failed:", error);
+  }
+}
+
+function configureAutoUpdates() {
+  if (!app.isPackaged || process.platform !== "win32") return;
+
+  autoUpdater.setFeedURL({ url: UPDATE_FEED_URL });
+  autoUpdater.on("error", (error) => {
+    console.error("NOVA auto-update error:", error);
+  });
+  autoUpdater.on("update-available", () => {
+    if (Notification.isSupported()) {
+      new Notification({
+        title: "NOVA AI güncellemesi",
+        body: "Yeni sürüm indiriliyor. İndirme tamamlandığında haber vereceğiz."
+      }).show();
+    }
+  });
+  autoUpdater.on("update-not-available", () => {
+    console.info("NOVA is up to date.");
+  });
+  autoUpdater.on("update-downloaded", async () => {
+    if (updatePromptOpen || !mainWindow || mainWindow.isDestroyed()) return;
+    updatePromptOpen = true;
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: "info",
+      title: "NOVA AI güncellemesi hazır",
+      message: "Yeni NOVA AI sürümü indirildi.",
+      detail: "Güncellemeyi şimdi yüklemek için NOVA yeniden başlatılacak.",
+      buttons: ["Şimdi yeniden başlat", "Daha sonra"],
+      defaultId: 0,
+      cancelId: 1
+    });
+    updatePromptOpen = false;
+    if (result.response === 0) {
+      isQuitting = true;
+      autoUpdater.quitAndInstall();
+    }
+  });
+
+  setTimeout(checkForUpdates, 12_000);
+  setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL_MS);
+}
+
 app.setName("NOVA AI");
 if (process.platform === "win32") app.setAppUserModelId("com.egehanulas.novaai");
 
 app.whenReady().then(() => {
   createApplicationMenu();
+  createTray();
   createWindow();
+  if (process.platform === "win32") {
+    globalShortcut.register("CommandOrControl+Shift+Space", toggleWindow);
+  }
+  configureAutoUpdates();
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) showWindow();
   });
 });
 
+app.on("before-quit", () => {
+  isQuitting = true;
+});
+
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+});
+
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  // NOVA stays in the Windows notification area until the user chooses Exit.
+  if (process.platform !== "win32") quitApplication();
 });
