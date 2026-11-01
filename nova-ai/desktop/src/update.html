@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>NOVA AI — Güncelleme hazır</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,"Segoe UI",sans-serif;background:#0b0b14;color:#f6f3ff}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -15%,rgba(126,91,255,.25),transparent 48%),radial-gradient(ellipse at 100% 100%,rgba(65,104,220,.12),transparent 45%),#0b0b14;overflow:hidden}
+button{font:inherit;cursor:pointer}
+.shell{position:relative;min-height:690px;padding:28px 38px 30px;overflow:hidden}
+.close{position:absolute;top:19px;right:21px;width:34px;height:34px;border:1px solid rgba(255,255,255,.09);border-radius:10px;color:#9c9ab0;background:rgba(255,255,255,.035);font-size:19px;transition:.2s}
+.close:hover{background:rgba(255,255,255,.1);color:white}
+.brand{display:flex;align-items:center;gap:12px;animation:rise .55s both}
+.mark{display:grid;place-items:center;width:43px;height:43px;border:1px solid rgba(205,188,255,.45);border-radius:14px;background:linear-gradient(145deg,#a58aff,#5c62dc);box-shadow:0 0 30px rgba(137,111,255,.28)}
+.mark svg{width:26px;height:26px}
+.brand-name{font-weight:800;font-size:17px;letter-spacing:-.4px}
+.brand-sub{margin-top:1px;color:#88869f;font-size:11px}
+.hero{text-align:center;margin:35px auto 25px;max-width:610px;animation:rise .65s .06s both}
+.spark{display:grid;place-items:center;width:68px;height:68px;margin:0 auto 17px;border:1px solid rgba(188,166,255,.34);border-radius:22px;background:linear-gradient(145deg,rgba(152,120,255,.25),rgba(79,94,202,.12));box-shadow:0 0 0 8px rgba(148,119,255,.035),0 0 45px rgba(133,103,255,.18);animation:float 4s ease-in-out infinite}
+.spark svg{width:32px;height:32px;filter:drop-shadow(0 0 9px rgba(188,165,255,.55))}
+.eyebrow{color:#b7a5ff;font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
+h1{margin:9px 0 8px;font-size:30px;letter-spacing:-1.1px}
+.lead{margin:0;color:#a4a1b8;font-size:13px;line-height:1.65}
+.versions{display:flex;align-items:center;justify-content:center;gap:11px;margin:23px 0 0}
+.version{padding:7px 12px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(255,255,255,.035);color:#b2aec6;font-size:11px}
+.version.new{border-color:rgba(159,135,255,.4);background:rgba(139,112,255,.13);color:#e4dbff}
+.arrow{color:#8e86a9}
+.section{max-width:610px;margin:0 auto;animation:rise .7s .14s both}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.section-title{font-size:13px;font-weight:750;color:#eae6fb}
+.section-count{color:#817c99;font-size:10px}
+.list{display:grid;gap:9px}
+.item{display:flex;align-items:flex-start;gap:12px;padding:13px 14px;border:1px solid rgba(181,164,255,.12);border-radius:13px;background:linear-gradient(110deg,rgba(28,25,48,.84),rgba(17,19,32,.78));animation:rise .5s both}
+.item:nth-child(2){animation-delay:.08s}.item:nth-child(3){animation-delay:.16s}
+.check{display:grid;place-items:center;flex:0 0 22px;width:22px;height:22px;border:1px solid rgba(126,218,177,.27);border-radius:8px;background:rgba(75,194,139,.1);color:#8de2b4;font-size:12px}
+.item-text{padding-top:1px;color:#d7d3e8;font-size:12px;line-height:1.55}
+.footer{position:absolute;right:38px;bottom:28px;left:38px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding-top:19px;border-top:1px solid rgba(255,255,255,.075);animation:rise .75s .2s both}
+.footer-note{max-width:235px;color:#77758e;font-size:10px;line-height:1.5}
+.actions{display:flex;align-items:center;gap:10px}
+.later,.install{min-height:43px;padding:0 17px;border-radius:11px;font-size:12px;font-weight:700;transition:transform .18s,filter .18s,border-color .18s}
+.later{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#c5c0d6}
+.later:hover{border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.08)}
+.install{display:flex;align-items:center;gap:9px;border:1px solid rgba(198,183,255,.38);background:linear-gradient(110deg,#8f73f4,#655fe0);box-shadow:0 7px 22px rgba(109,87,223,.25);color:white}
+.install:hover{transform:translateY(-2px);filter:brightness(1.1)}
+.install svg{width:15px;height:15px}
+@keyframes rise{from{opacity:0;transform:translateY(13px)}to{opacity:1;transform:translateY(0)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main class="shell">
+<button class="close" id="close" aria-label="Pencereyi kapat">×</button>
+<header class="brand">
+  <div class="mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M5 22.5 16 5l11 17.5H5Z" stroke="white" stroke-width="2.1" stroke-linejoin="round"/><path d="M9 26.5 16 15l7 11.5H9Z" stroke="white" stroke-width="1.7" stroke-linejoin="round" opacity=".75"/></svg></div>
+  <div><div class="brand-name">NOVA AI</div><div class="brand-sub">Yapay zekân, yeni bir bakış açısı.</div></div>
+</header>
+<section class="hero">
+  <div class="spark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M16 2.8 19.2 12.8 29.2 16 19.2 19.2 16 29.2 12.8 19.2 2.8 16 12.8 12.8 16 2.8Z" stroke="#d8ccff" stroke-width="1.6" stroke-linejoin="round"/><path d="m25 3 .9 3.1L29 7l-3.1.9L25 11l-.9-3.1L21 7l3.1-.9L25 3Z" fill="#fff"/></svg></div>
+  <div class="eyebrow">Yeni bir NOVA deneyimi</div>
+  <h1>Güncelleme hazır</h1>
+  <p class="lead">Yeni sürüm indirildi. Neler değiştiğine göz at, hazır olduğunda NOVA'yı yeniden başlat.</p>
+  <div class="versions"><span class="version" id="current">Mevcut sürüm</span><span class="arrow">→</span><span class="version new" id="next">Yeni sürüm</span></div>
+</section>
+<section class="section">
+  <div class="section-head"><div class="section-title">Bu güncellemede neler var?</div><div class="section-count" id="count">Yenilikler</div></div>
+  <div class="list" id="items"><div class="item"><span class="check">✓</span><div class="item-text">Yeni özellikler ve iyileştirmeler hazırlanıyor…</div></div></div>
+</section>
+<footer class="footer">
+  <div class="footer-note">Güncelleme, sen onay vermeden yüklenmez. Daha sonra seçersen NOVA mevcut sürümle çalışmaya devam eder.</div>
+  <div class="actions"><button class="later" id="later">Daha sonra</button><button class="install" id="install"><svg viewBox="0 0 20 20" fill="none"><path d="M3 10h13m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Şimdi yeniden başlat</button></div>
+</footer>
+</main>
+<script>
+const later=()=>window.novaUpdate?.dismiss();
+document.getElementById("later").addEventListener("click",later);
+document.getElementById("close").addEventListener("click",later);
+document.getElementById("install").addEventListener("click",()=>window.novaUpdate?.install());
+window.novaUpdate?.onInfo((info)=>{
+  document.getElementById("current").textContent="Mevcut · "+(info.currentVersion||"—");
+  document.getElementById("next").textContent="Yeni · "+(info.nextVersion||"—");
+  const items=Array.isArray(info.items)?info.items:[];
+  document.getElementById("count").textContent=items.length+" yenilik";
+  const list=document.getElementById("items");list.replaceChildren();
+  for(const label of items){
+    const row=document.createElement("div");row.className="item";
+    const icon=document.createElement("span");icon.className="check";icon.textContent="✓";
+    const text=document.createElement("div");text.className="item-text";text.textContent=String(label);
+    row.append(icon,text);list.append(row);
+  }
+});
+</script>
+</body>
+</html>
