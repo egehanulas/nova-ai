@@ -2,8 +2,6 @@ name: NOVA Desktop Release
 
 on:
   push:
-    branches:
-      - "release/desktop-alpha9"
     tags:
       - "desktop-v*"
 
@@ -34,8 +32,8 @@ jobs:
       - name: Publish Windows installer and update feed
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: desktop-v0.2.0-alpha.9
-          name: NOVA AI Desktop 0.2.0-alpha.9
+          tag_name: ${{ github.ref_name }}
+          name: NOVA AI Desktop ${{ github.ref_name }}
           generate_release_notes: true
           files: |
             nova-ai/desktop/out/make/squirrel.windows/x64/*.exe
