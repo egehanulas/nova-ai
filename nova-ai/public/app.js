@@ -181,19 +181,34 @@
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(await file.arrayBuffer());
       const rows = [];
+      let extractedLength = 0;
+      let truncated = false;
       workbook.eachSheet(sheet => {
-        rows.push("SAYFA: " + sheet.name);
+        if (truncated) return;
+        const sheetHeader = "SAYFA: " + sheet.name;
+        rows.push(sheetHeader);
+        extractedLength += sheetHeader.length;
         sheet.eachRow({ includeEmpty: false }, row => {
+          if (truncated) return;
           const cells = [];
           row.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
             const value = excelCellText(cell);
             if (value) cells.push(columnName(columnNumber) + ": " + value);
           });
-          if (cells.length) rows.push(cells.join(" | "));
-          if (rows.join("\n").length >= MAX_EXTRACTED_TEXT) return false;
+          if (!cells.length) return;
+          const rowText = cells.join(" | ");
+          const remaining = MAX_EXTRACTED_TEXT - extractedLength;
+          if (rowText.length > remaining) {
+            if (remaining > 0) rows.push(rowText.slice(0, remaining));
+            truncated = true;
+            return;
+          }
+          rows.push(rowText);
+          extractedLength += rowText.length;
         });
       });
       content = rows.join("\n");
+      if (truncated) content += "\n[Tablonun kalan kısmı uzunluk sınırı nedeniyle aktarılmadı.]";
     } else {
       throw new Error("Bu dosya türü desteklenmiyor. TXT, PDF, DOCX veya XLSX seç.");
     }
@@ -204,7 +219,8 @@
       throw new Error("Dosyada okunabilir metin bulunamadı.");
     }
     if (content.length > MAX_EXTRACTED_TEXT) {
-      content = content.slice(0, MAX_EXTRACTED_TEXT) + "\n\n[Dosyanın kalan kısmı uzunluk sınırı nedeniyle aktarılmadı.]";
+      const marker = "\n\n[Dosyanın kalan kısmı uzunluk sınırı nedeniyle aktarılmadı.]";
+      content = content.slice(0, MAX_EXTRACTED_TEXT - marker.length) + marker;
     }
     return content;
   }
