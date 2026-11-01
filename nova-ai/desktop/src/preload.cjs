@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("novaDesktop", Object.freeze({
 contextBridge.exposeInMainWorld("novaUpdate", Object.freeze({
   onInfo(callback) { if (typeof callback === "function") ipcRenderer.on("nova-update:info", (_event, info) => callback(info)); },
   onStatus(callback) { if (typeof callback === "function") ipcRenderer.on("nova-update:status", (_event, status) => callback(status)); },
+  getStatus: () => ipcRenderer.invoke("nova-update:get-status"),
   check() { ipcRenderer.send("nova-update:check"); },
   install() { ipcRenderer.send("nova-update:install"); },
   dismiss() { ipcRenderer.send("nova-update:later"); }
