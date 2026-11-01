@@ -1556,7 +1556,7 @@ async function searchPublicWeb(query, signal) {
       if (results.length >= 5) break;
       const readTag = (tag) => {
         const match = item.match(new RegExp("<" + tag + "\\b[^>]*>([\\s\\S]*?)<\\/" + tag + ">", "i"));
-        return String(match?.[1] || "").replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, "$1").trim();
+        return String(match?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
       };
       const title = stripTags(readTag("title")).slice(0, 220);
       const href = decodeEntities(readTag("link")).trim();
