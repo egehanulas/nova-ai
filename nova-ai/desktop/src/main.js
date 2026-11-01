@@ -198,6 +198,7 @@ function createWindow() {
     backgroundColor: "#090b12",
     title: "NOVA AI",
     webPreferences: {
+      preload: path.join(app.getAppPath(), "src", "preload.cjs"),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,

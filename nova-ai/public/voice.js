@@ -22,6 +22,12 @@
     return;
   }
 
+  // Electron uses its own on-device Whisper engine; keep browser STT unchanged.
+  if (window.novaDesktop?.isDesktop) {
+    console.info("NOVA Voice: Desktop Whisper engine is active.");
+    return;
+  }
+
   const SpeechRecognition =
     window.SpeechRecognition || window.webkitSpeechRecognition;
 

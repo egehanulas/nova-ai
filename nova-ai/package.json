@@ -1,12 +1,12 @@
 {
   "name": "nova-ai",
-  "version": "0.2.0-alpha.3",
+  "version": "0.2.0-alpha.4",
   "description": "NOVA AI Türkçe sohbet sitesi",
   "main": "server.js",
   "scripts": {
     "start": "npm run check && node server.js",
     "ingest:knowledge": "node scripts/ingest-knowledge.js",
-    "check": "node --check server.js && node --check public/app.js && node --check public/voice.js && node --check scripts/ingest-knowledge.js && node --check scripts/test-embeddings.js && npm run test:web-research && npm run test:release-metadata",
+    "check": "node --check server.js && node --check public/app.js && node --check public/voice.js && node --check public/desktop-voice.js && node --check scripts/ingest-knowledge.js && node --check scripts/test-embeddings.js && npm run test:web-research && npm run test:release-metadata",
     "test:embeddings": "node scripts/test-embeddings.js",
     "test:web-research": "node --test web-research.test.js",
     "test:release-metadata": "node --test release-metadata.test.js"
