@@ -21,10 +21,10 @@
     return;
   }
 
-  const MODEL_ID = "onnx-community/whisper-base";
+  const MODEL_ID = "onnx-community/whisper-small";
   const TRANSFORMERS_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2";
   const TARGET_SAMPLE_RATE = 16000;
-  const SILENCE_END_MS = 780;
+  const SILENCE_END_MS = 950;
   const MIN_SPEECH_MS = 350;
   const MAX_SPEECH_MS = 18000;
   const SPEECH_THRESHOLD = 0.012;
@@ -380,7 +380,7 @@
       const audio16k = resampleTo16k(rawAudio, audioContext?.sampleRate || TARGET_SAMPLE_RATE);
       const model = await loadTranscriber();
       if (!voiceEnabled || currentSession !== sessionId) return;
-      const result = await model(audio16k, { language: "turkish", task: "transcribe" });
+      const result = await model(audio16k, { language: "turkish", task: "transcribe", num_beams: 3, temperature: 0 });
       if (!voiceEnabled || currentSession !== sessionId) return;
       const transcript = String(result?.text || "").trim().replace(/^\s+|\s+$/g, "");
       if (transcript.length >= 2) {
