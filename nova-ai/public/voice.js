@@ -30,6 +30,7 @@
   let recognition = null;
   let voiceEnabled = false;
   let recognitionRunning = false;
+  let recognitionError = false;
   let waitingForReply = false;
   let speaking = false;
   let restartTimer = null;
@@ -188,7 +189,7 @@
   function scheduleRecognitionRestart(delay = 500) {
     clearRestartTimer();
 
-    if (!voiceEnabled || waitingForReply || speaking) return;
+    if (!voiceEnabled || recognitionError || waitingForReply || speaking) return;
 
     restartTimer = window.setTimeout(() => {
       restartTimer = null;
@@ -197,7 +198,7 @@
   }
 
   function startRecognition() {
-    if (!voiceEnabled || !recognition) return;
+    if (!voiceEnabled || !recognition || recognitionError) return;
     if (recognitionRunning || waitingForReply || speaking) return;
 
     if (!navigator.onLine) {
@@ -433,8 +434,13 @@
       }
 
       if (event.error === "network") {
+        // Chromium's speech service can report a network error even while the
+        // page itself is online. Do not restart in a tight loop and overwrite
+        // the useful error with "Seni dinliyorum…".
+        recognitionError = true;
+        clearRestartTimer();
         setVoiceStatus(
-          "Konuşma tanıma bağlantı hatası verdi. İnternet bağlantını kontrol et.",
+          "Mikrofon açık ancak konuşma tanıma servisine bağlanılamadı. Sesli sohbeti kapatıp yeniden açmayı dene.",
           "error"
         );
         return;
@@ -448,8 +454,8 @@
     recognition.onend = () => {
       recognitionRunning = false;
 
-      if (voiceEnabled && !waitingForReply && !speaking) {
-        scheduleRecognitionRestart(500);
+      if (voiceEnabled && !recognitionError && !waitingForReply && !speaking) {
+        scheduleRecognitionRestart(1000);
       }
     };
 
@@ -460,6 +466,7 @@
     if (!recognition && !setupRecognition()) return;
 
     voiceEnabled = true;
+    recognitionError = false;
     waitingForReply = false;
     updateButtons();
 
@@ -469,6 +476,7 @@
 
   function stopVoiceChat() {
     voiceEnabled = false;
+    recognitionError = false;
     waitingForReply = false;
 
     clearRestartTimer();
