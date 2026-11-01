@@ -8,6 +8,16 @@ NOVA AI web uygulamasını Windows masaüstü penceresinde çalıştıran Electr
 - Node.js 22.17.0 veya üzeri
 - npm
 
+## Kullanım
+
+- `Ctrl + R`: NOVA'yı yenile
+- `Ctrl + +`: Yakınlaştır
+- `Ctrl + -`: Uzaklaştır
+- `Ctrl + 0`: Yakınlaştırmayı sıfırla
+- `Alt`: Gizli menüyü göster (Dosya, Görünüm, Yardım)
+- Görünüm menüsünden tam ekranı aç/kapat.
+- Yardım > NOVA AI Hakkında bölümünden kurulu sürümü gör.
+
 ## Geliştirme
 
 Bu klasörde:
@@ -34,4 +44,4 @@ Kurulum paketi `out/make/squirrel.windows/x64/` altında `Setup.exe` olarak üre
 - API anahtarları EXE içine gömülmez; mevcut sunucu tarafında kalır.
 - Uygulama web sürümünün oturum, sohbet, hafıza, araştırma ve ses özelliklerini mevcut web uygulaması desteklediği ölçüde kullanır.
 
-Bu ilk aşama çevrimiçi istemcidir. Çevrimdışı çalışma, otomatik güncelleme, imzalı kurulum ve özel masaüstü özellikleri sonraki aşamalarda ayrıca ele alınacaktır.
+Bu sürüm çevrimiçi istemcidir. Çevrimdışı çalışma, otomatik güncelleme, imzalı kurulum ve gelişmiş işletim sistemi entegrasyonları henüz yoktur.
