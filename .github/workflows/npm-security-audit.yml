@@ -9,6 +9,7 @@ on:
       - "nova-ai/server.js"
       - "nova-ai/public/**/*.js"
       - "nova-ai/scripts/**/*.js"
+      - "nova-ai/supabase/migrations/**/*.sql"
       - ".github/workflows/npm-security-audit.yml"
   pull_request:
     paths:
@@ -17,6 +18,7 @@ on:
       - "nova-ai/server.js"
       - "nova-ai/public/**/*.js"
       - "nova-ai/scripts/**/*.js"
+      - "nova-ai/supabase/migrations/**/*.sql"
       - ".github/workflows/npm-security-audit.yml"
   workflow_dispatch:
 
