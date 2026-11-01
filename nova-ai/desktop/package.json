@@ -1,6 +1,6 @@
 {
   "name": "nova-desktop",
-  "version": "0.2.0-alpha.1",
+  "version": "0.2.0-alpha.2",
   "private": true,
   "description": "NOVA AI Windows desktop application",
   "type": "module",
