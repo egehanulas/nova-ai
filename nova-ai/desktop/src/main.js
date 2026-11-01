@@ -9,7 +9,8 @@ import {
   nativeImage,
   dialog,
   shell,
-  session
+  session,
+  ipcMain
 } from "electron";
 import { URL } from "node:url";
 import { spawn } from "node:child_process";
@@ -24,6 +25,7 @@ let tray;
 let isQuitting = false;
 let retryDialogOpen = false;
 let updatePromptOpen = false;
+let updateWindow;
 
 function openExternal(value) {
   try {
@@ -276,6 +278,68 @@ function checkForUpdates() {
   }
 }
 
+
+function showUpdateWindow(releaseName = "", releaseNotes = "") {
+  if (updateWindow && !updateWindow.isDestroyed()) {
+    updateWindow.focus();
+    return;
+  }
+
+  const versionMatch = String(releaseName || "").match(/\\d+\\.\\d+\\.\\d+(?:-[a-zA-Z0-9.-]+)?/);
+  const nextVersion = versionMatch?.[0] || "Yeni sürüm";
+  const releaseHighlights = {
+    "0.2.0-alpha.7": [
+      "NOVA'ya özel, animasyonlu güncelleme penceresi",
+      "Her sürümde yenilikleri ve iyileştirmeleri gösteren sürüm notları",
+      "Daha anlaşılır sürüm karşılaştırması ve yeniden başlatma akışı"
+    ]
+  };
+  const items = releaseHighlights[nextVersion] || [
+    "NOVA AI için yeni iyileştirmeler ve hata düzeltmeleri",
+    "Daha iyi ve kararlı bir kullanım deneyimi"
+  ];
+
+  updateWindow = new BrowserWindow({
+    width: 760,
+    height: 690,
+    minWidth: 680,
+    minHeight: 620,
+    maxWidth: 760,
+    maxHeight: 690,
+    show: false,
+    frame: false,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    modal: Boolean(mainWindow && !mainWindow.isDestroyed()),
+    parent: mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined,
+    backgroundColor: "#0b0b14",
+    title: "NOVA AI — Güncelleme hazır",
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(app.getAppPath(), "src", "preload.cjs"),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true
+    }
+  });
+
+  updateWindow.once("ready-to-show", () => updateWindow?.show());
+  updateWindow.webContents.once("did-finish-load", () => {
+    updateWindow?.webContents.send("nova-update:info", {
+      currentVersion: app.getVersion(),
+      nextVersion,
+      items
+    });
+  });
+  updateWindow.on("closed", () => {
+    updateWindow = undefined;
+    updatePromptOpen = false;
+  });
+  void updateWindow.loadFile(path.join(app.getAppPath(), "src", "update.html"));
+}
+
 function configureAutoUpdates() {
   if (!app.isPackaged || process.platform !== "win32") return;
 
@@ -294,23 +358,10 @@ function configureAutoUpdates() {
   autoUpdater.on("update-not-available", () => {
     console.info("NOVA is up to date.");
   });
-  autoUpdater.on("update-downloaded", async () => {
-    if (updatePromptOpen || !mainWindow || mainWindow.isDestroyed()) return;
+  autoUpdater.on("update-downloaded", (_event, releaseNotes, releaseName) => {
+    if (updatePromptOpen) return;
     updatePromptOpen = true;
-    const result = await dialog.showMessageBox(mainWindow, {
-      type: "info",
-      title: "NOVA AI güncellemesi hazır",
-      message: "Yeni NOVA AI sürümü indirildi.",
-      detail: "Güncellemeyi şimdi yüklemek için NOVA yeniden başlatılacak.",
-      buttons: ["Şimdi yeniden başlat", "Daha sonra"],
-      defaultId: 0,
-      cancelId: 1
-    });
-    updatePromptOpen = false;
-    if (result.response === 0) {
-      isQuitting = true;
-      autoUpdater.quitAndInstall();
-    }
+    showUpdateWindow(releaseName, releaseNotes);
   });
 
   setTimeout(checkForUpdates, 12_000);
@@ -367,7 +418,7 @@ if (!handleSquirrelEvent()) {
   app.setName("NOVA AI");
   if (process.platform === "win32") app.setAppUserModelId("com.squirrel.nova_ai.nova_ai");
 
-  app.whenReady().then(() => {
+  ipcMain.on("nova-update:later", () => {\n    if (updateWindow && !updateWindow.isDestroyed()) updateWindow.close();\n  });\n  ipcMain.on("nova-update:install", () => {\n    if (!updateWindow || updateWindow.isDestroyed()) return;\n    updateWindow.close();\n    isQuitting = true;\n    autoUpdater.quitAndInstall();\n  });\n\n  app.whenReady().then(() => {
     configureMicrophonePermissions();
     createApplicationMenu();
     createTray();
