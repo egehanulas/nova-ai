@@ -1549,7 +1549,39 @@ async function searchPublicWeb(query, signal) {
     String(value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
   );
 
+  const parseRssFeed = (xml) => {
+    const results = [];
+    const items = String(xml || "").match(/<item\b[^>]*>[\s\S]*?<\/item>/gi) || [];
+    for (const item of items) {
+      if (results.length >= 5) break;
+      const readTag = (tag) => {
+        const match = item.match(new RegExp("<" + tag + "\\b[^>]*>([\\s\\S]*?)<\\/" + tag + ">", "i"));
+        return String(match?.[1] || "").replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, "$1").trim();
+      };
+      const title = stripTags(readTag("title")).slice(0, 220);
+      const href = decodeEntities(readTag("link")).trim();
+      const snippet = stripTags(readTag("description")).slice(0, 700);
+      const publishedAt = stripTags(readTag("pubDate")).slice(0, 100);
+      let target;
+      try { target = new URL(href); } catch { continue; }
+      if (!["http:", "https:"].includes(target.protocol) || target.username || target.password) continue;
+      if (!title || results.some((entry) => entry.url === target.href)) continue;
+      results.push({ title, url: target.href, snippet, publishedAt, domain: target.hostname });
+    }
+    return results;
+  };
+
   const providers = [
+    {
+      name: "Bing RSS",
+      url: () => {
+        const url = new URL("https://www.bing.com/search");
+        url.searchParams.set("format", "rss");
+        url.searchParams.set("q", cleanQuery);
+        return url;
+      },
+      parse: parseRssFeed,
+    },
     {
       name: "Google News RSS",
       url: () => {
@@ -1560,41 +1592,7 @@ async function searchPublicWeb(query, signal) {
         url.searchParams.set("ceid", "TR:tr");
         return url;
       },
-      parse: (xml) => {
-        const results = [];
-        const items = xml.match(/<item\b[^>]*>[\s\S]*?<\/item>/gi) || [];
-
-        for (const item of items) {
-          if (results.length >= 5) break;
-          const titleMatch = item.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
-          const linkMatch = item.match(/<link\b[^>]*>([\s\S]*?)<\/link>/i);
-          const descriptionMatch = item.match(/<description\b[^>]*>([\s\S]*?)<\/description>/i);
-          const pubDateMatch = item.match(/<pubDate\b[^>]*>([\s\S]*?)<\/pubDate>/i);
-          const publishedAt = stripTags(pubDateMatch?.[1] || "").slice(0, 100);
-          const title = stripTags(titleMatch?.[1] || "").slice(0, 220);
-          const href = decodeEntities(linkMatch?.[1] || "").trim();
-          let target;
-
-          try {
-            target = new URL(href);
-          } catch {
-            continue;
-          }
-
-          if (target.protocol !== "https:" || target.hostname !== "news.google.com") continue;
-          const snippet = stripTags(descriptionMatch?.[1] || "").slice(0, 700);
-          if (!title || results.some((entry) => entry.url === target.href)) continue;
-
-          results.push({
-            title,
-            url: target.href,
-            snippet,
-            publishedAt,
-            domain: "news.google.com",
-          });
-        }
-        return results;
-      },
+      parse: parseRssFeed,
     },
     {
       name: "Bing",
@@ -1670,8 +1668,8 @@ async function searchPublicWeb(query, signal) {
   const newsIntent = ["haber", "son dakika", "haberleri", "news", "breaking"]
     .some((term) => normalizedSearchQuery.includes(term));
   const orderedProviders = newsIntent
-    ? [providers[0], providers[1], providers[2]]
-    : [providers[1], providers[2], providers[0]];
+    ? [providers[1], providers[0], providers[2], providers[3]]
+    : [providers[0], providers[2], providers[3], providers[1]];
 
   const failures = [];
   for (const provider of orderedProviders) {
@@ -1858,7 +1856,7 @@ function selectAgentTool(query = "") {
   const footballFixtureResearch = /(?:sıradaki|siradaki|bir sonraki|gelecek|sonraki)\s+(?:rakip|maç|mac|karşılaşma|karsilasma)|(?:rakip|takım|takim).{0,35}(?:son\s*5|son\s*beş|son\s*bes)\s+maç|(?:son\s*5|son\s*beş|son\s*bes)\s+maç/i.test(value);
   const explicitResearch = /\b(araştır|arastir|internette ara|webde ara|web'de ara|kaynak bul|kaynakları bul|kaynaklari bul|güncel bilgi|guncel bilgi|en son haber|son dakika|haberleri araştır|haberleri arastir)\b/i.test(value);
   const currentFact = /\b(güncel|guncel|şu an|su an|şimdi|simdi|bugün|bugun|bu hafta|son durum|en son|latest|current|sıradaki|siradaki|gelecek)\b/i.test(value);
-  const lookupSubject = /\b(fiyat|ücret|ucret|kaç para|kac para|kampanya|sürüm|surum|versiyon|yayınlandı mı|yayinlandi mi|çıktı mı|cikti mi|açıklandı mı|aciklandi mi|kim kazandı|kim kazandi|ne zaman|takvim|fikstür|fikstur|sonuçları|sonuclari|duyuru|haber|seçim sonucu|secim sonucu|rakip|son\s*5|son\s*beş|son\s*bes)\b/i.test(value);
+  const lookupSubject = /\b(fiyat|ücret|ucret|kaç para|kac para|kampanya|sürüm|surum|versiyon|yayınlandı mı|yayinlandi mi|çıktı mı|cikti mi|açıklandı mı|aciklandi mi|kim kazandı|kim kazandi|ne zaman|takvim|fikstür|fikstur|sonuçları|sonuclari|duyuru|haber|seçim sonucu|secim sonucu|rakip|son\s*5|son\s*beş|son\s*bes|teknoloji|mimari|gpu|ekran kartı|işlemci|çip|ürün|model)\b/i.test(value);
 
   if (footballFixtureResearch || explicitResearch || (currentFact && lookupSubject)) return "web_search";
   return "none";
@@ -2770,7 +2768,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
             agentPlan.length > 1
               ? "Bu çok adımlı görevde adımları birbirine bağla, ortak noktaları ve çelişkileri kontrol et, ardından tek ve kısa bir analiz üret. Dinamik ek adım çalıştıysa bunun nedenini abartmadan açıkla. Yanıtın sonunda 'NOVA'nın izlediği adımlar' başlığıyla gerçekten yürütülen adımları birer kısa madde halinde belirt."
               : "",
-            "Kaynaklardan gelmeyen ayrıntıları tamamlama veya uydurma.",
+            "Kaynaklardan gelmeyen ayrıntıları tamamlama veya uydurma. Web araması 0 sonuç verdiyse genel bilginden güncel cevap verme; kaynak bulunamadığını açıkça bildir.",
           ].filter(Boolean).join("\n");
           webSearchInstruction = [planSummary, webSearchInstruction].filter(Boolean).join("\n\n");
           console.log("[NOVA AI] Agent planı:", planLog.length, "adım işlendi.");
