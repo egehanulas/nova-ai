@@ -489,14 +489,15 @@ function isBlueprintQuestion(messages = []) {
     .test(previousAssistant.slice(0, 5000));
 }
 
-function getGenerationSettings(messages = []) {
+function getGenerationSettings(messages = [], extraInstruction = "") {
   const blueprintMode = isBlueprintQuestion(messages);
   const latestQuestion = getLatestUserMessage(normalizeMessages(messages));
   const briefRequest = /\b(kısaca|kısa anlat|kısa cevap|özetle|tek cümle|bir cümle|kısaca tanıt)\b/i.test(latestQuestion);
+  const researchMode = /ARAŞTIRMA MODU|CANLI WEB ARAMASI SONUÇLARI/i.test(extraInstruction);
 
   return {
     temperature: blueprintMode ? 0.2 : 0.4,
-    maxOutputTokens: briefRequest ? 300 : (blueprintMode ? 1400 : (isComplexQuestion(latestQuestion) ? 1200 : 650)),
+    maxOutputTokens: briefRequest ? 300 : (blueprintMode ? 1400 : (researchMode ? 850 : (isComplexQuestion(latestQuestion) ? 1200 : 650))),
   };
 }
 
@@ -637,17 +638,23 @@ function makeConversation(messages, extraInstruction = "") {
   const safeMessages = normalizeMessages(messages);
   const latestUserMessage = getLatestUserMessage(safeMessages);
 
-  const systemText = [
-    BASE_INSTRUCTION,
-    NOVA_PERSONALITY,
-    UNIVERSAL_RESPONSE_GUIDANCE,
-    ANALYSIS_INSTRUCTION,
-    isBlueprintQuestion(safeMessages) ? BLUEPRINT_INSTRUCTION : "",
-    getAnalysisMode(latestUserMessage),
-    extraInstruction,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  const researchMode = /ARAŞTIRMA MODU/i.test(extraInstruction);
+  const systemText = researchMode
+    ? [
+        "Sen NOVA AI'sın. Türkçe, kısa ve kanıta dayalı yanıt ver.",
+        "Yalnızca kullanıcıya yönelik nihai yanıtı üret. Araç çağrısı, XML/JSON fonksiyon sözdizimi, iç plan veya işlem günlüğü yazma.",
+        "Aşağıdaki web arama sonuçlarını kullan. Her önemli iddiayı [1], [2] biçiminde kaynakla; sonunda başlık ve tam bağlantıları listele. Kaynakta olmayan bilgi uydurma. Güncelliği doğrulanmayan bilgiyi güncel diye sunma.",
+        extraInstruction,
+      ].filter(Boolean).join("\n\n")
+    : [
+        BASE_INSTRUCTION,
+        NOVA_PERSONALITY,
+        UNIVERSAL_RESPONSE_GUIDANCE,
+        ANALYSIS_INSTRUCTION,
+        isBlueprintQuestion(safeMessages) ? BLUEPRINT_INSTRUCTION : "",
+        getAnalysisMode(latestUserMessage),
+        extraInstruction,
+      ].filter(Boolean).join("\n\n");
 
   return {
     systemText,
@@ -911,7 +918,7 @@ async function callGemini(messages, extraInstruction = "") {
     role: message.role === "assistant" ? "model" : "user",
     parts: [{ text: message.content }],
   }));
-  const generation = getGenerationSettings(conversation);
+  const generation = getGenerationSettings(conversation, extraInstruction);
 
   const url =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
@@ -982,7 +989,7 @@ async function callOpenRouter(messages, extraInstruction = "") {
   );
 
   const { controller, clear } = createAbortController();
-  const generation = getGenerationSettings(conversation);
+  const generation = getGenerationSettings(conversation, extraInstruction);
 
   try {
     const response = await fetch(
@@ -1051,7 +1058,7 @@ async function callGroq(messages, extraInstruction = "") {
   );
 
   const { controller, clear } = createAbortController();
-  const generation = getGenerationSettings(conversation);
+  const generation = getGenerationSettings(conversation, extraInstruction);
 
   try {
     const response = await fetch(
@@ -1171,6 +1178,17 @@ function createStreamingTextCleaner(onText) {
     if (decided) return;
 
     const trimmed = pending.trimStart();
+    const functionCallPrefix = /^\\?<?dots_function_call\b/i.test(trimmed);
+
+    // Never stream internal tool-call markup to the chat. If the model emits
+    // this protocol as plain text, replace it with a readable failure notice.
+    if (functionCallPrefix) {
+      if (!force) return;
+      decided = true;
+      pending = "";
+      onText("Araştırma aracı çağrısı düzgün bir yanıt üretmedi. Lütfen isteği tekrar dene.");
+      return;
+    }
 
     const labelPrefix =
       /^\s*(?:(?:User\s+Safety|Response\s+Safety)\s*:\s*(?:safe|unsafe|unknown)?\s*)*$/i;
@@ -1235,7 +1253,7 @@ async function streamOpenAIProvider({
     messages,
     extraInstruction
   );
-  const generation = getGenerationSettings(conversation);
+  const generation = getGenerationSettings(conversation, extraInstruction);
 
   const response = await fetch(url, {
     method: "POST",
@@ -1386,7 +1404,7 @@ async function streamGemini({
     role: message.role === "assistant" ? "model" : "user",
     parts: [{ text: message.content }],
   }));
-  const generation = getGenerationSettings(conversation);
+  const generation = getGenerationSettings(conversation, extraInstruction);
 
   const url =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
@@ -2404,15 +2422,15 @@ function buildWebResearchInstruction(results) {
   if (!results.length) return "";
 
   // Çok adımlı aramalarda tüm ham snippet'leri modele yığma.
-  // En fazla 6 kaynağın kısa özeti ve bağlantısı yeterli kanıt bağlamı sağlar.
-  const sourceText = results.slice(0, 6).map((item, index) => [
+  // En fazla 4 kaynağın kısa özeti ve bağlantısı yeterli kanıt bağlamı sağlar.
+  const sourceText = results.slice(0, 3).map((item, index) => [
     "[WEB KAYNAĞI " + (index + 1) + "]",
-    "Başlık: " + String(item.title || "").slice(0, 180),
+    "Başlık: " + String(item.title || "").slice(0, 160),
     "Alan adı: " + String(item.domain || "").slice(0, 100),
-    "Bağlantı: " + String(item.url || "").slice(0, 400),
+    "Bağlantı: " + String(item.url || "").slice(0, 300),
     item.publishedAt ? "Yayın/gözlem tarihi: " + String(item.publishedAt).slice(0, 80) : "",
-    "Arama özeti/verisi: " + String(item.snippet || "Arama motoru açıklama sunmadı.").slice(0, 550),
-  ].join("\n")).join("\n\n");
+    "Arama özeti/verisi: " + String(item.snippet || "Arama motoru açıklama sunmadı.").slice(0, 220),
+  ].join("\n")).join("\n\n").slice(0, 2600);
 
   return [
     "CANLI WEB ARAMASI SONUÇLARI:",
@@ -2426,7 +2444,7 @@ function buildWebResearchInstruction(results) {
     "Yanıtta kullandığın güncel iddiaları [1], [2] biçiminde kaynak numaralarıyla işaretle ve en sonda Kaynaklar başlığı altında tam bağlantıları ver.",
     "Kaynaklar soruyu yanıtlamıyorsa bunu açıkça söyle. Arama sonuçları çelişiyorsa çelişkiyi belirt. Güncel tarih ve yayın tarihlerini ayırt et.",
     sourceText,
-  ].join("\n\n").slice(0, 6500);
+  ].join("\n\n").slice(0, 4000);
 }
 
 function isUpcomingFootballQuestion(query = "") {
@@ -2565,7 +2583,7 @@ function buildDynamicFollowUpStep(originalQuery = "", completedStep = {}, stepRe
   const normalizedQuery = normalizeSportsText(query);
   const deepResearchTerms = [
     "karsilastir", "kiyasla", "detayli", "derinlemesine", "analiz",
-    "arastir", "incele", "guncel durum", "artilari", "eksileri",
+    "guncel durum", "artilari", "eksileri",
     "avantaj", "dezavantaj"
   ];
   const asksForDeepResearch = deepResearchTerms.some((term) => normalizedQuery.includes(term));
@@ -2769,6 +2787,12 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
         memoryInstruction,
       ].filter(Boolean).join("\n\n");
 
+      // Research prompts are standalone tasks. Avoid sending the entire chat history
+      // (which can exhaust free-tier TPM before the model writes its answer).
+      const providerMessages = isResearchRoute
+        ? [{ role: "user", content: latestQuestion }]
+        : messages;
+
       let hasSentHeaders = false;
       let answer = "";
       let firstChunkSent = false;
@@ -2821,7 +2845,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               url: "https://api.groq.com/openai/v1/chat/completions",
               apiKey: GROQ_API_KEY,
               model: GROQ_MODEL,
-              messages,
+              messages: providerMessages,
               extraInstruction: effectiveInstruction,
               providerName: "groq",
               signal: providerSignal,
@@ -2839,7 +2863,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
             };
 
             return streamGemini({
-              messages,
+              messages: providerMessages,
               extraInstruction: effectiveInstruction,
               signal: providerSignal,
               onText: emitText,
@@ -2859,7 +2883,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
               url: "https://openrouter.ai/api/v1/chat/completions",
               apiKey: OPENROUTER_API_KEY,
               model: OPENROUTER_MODEL,
-              messages,
+              messages: providerMessages,
               extraInstruction: effectiveInstruction,
               providerName: "openrouter",
               headers: {
