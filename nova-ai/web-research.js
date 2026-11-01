@@ -304,11 +304,13 @@ function hasRelevantTopicEvidence(query = "", results = []) {
   const value = String(query || "").toLowerCase();
   if (/openshell/.test(value)) {
     return (Array.isArray(results) ? results : []).some((item) => {
+      const content = String(item?.content || "");
       const evidence = [
-        item?.title, item?.url, item?.snippet, item?.content,
+        item?.title, item?.url, item?.snippet, content,
         item?.searchTitle, item?.searchSnippet,
       ].join(" ").toLowerCase();
-      return evidence.includes("openshell") &&
+      return content.length >= 120 &&
+        evidence.includes("openshell") &&
         (/nvidia/.test(evidence) || /github\.com\/nvidia\//.test(evidence));
     });
   }
