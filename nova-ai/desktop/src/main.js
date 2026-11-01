@@ -322,8 +322,15 @@ function registerDesktopAssistantIpc() {
   });
 }
 
+function sendUpdateStatus(status) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("nova-update:status", status);
+  }
+}
+
 function checkForUpdates() {
   if (!app.isPackaged || process.platform !== "win32") {
+    sendUpdateStatus("error");
     if (mainWindow && !mainWindow.isDestroyed()) {
       void dialog.showMessageBox(mainWindow, {
         type: "info",
@@ -335,10 +342,12 @@ function checkForUpdates() {
     return;
   }
 
+  sendUpdateStatus("checking");
   try {
     autoUpdater.checkForUpdates();
   } catch (error) {
     console.error("NOVA update check failed:", error);
+    sendUpdateStatus("error");
   }
 }
 
