@@ -374,17 +374,17 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
     ]
   };
   const suppliedNotes = Array.isArray(releaseNotes)
-    ? releaseNotes.map((entry) => typeof entry === "string" ? entry : entry?.note || "").join("\\n")
+    ? releaseNotes.map((entry) => typeof entry === "string" ? entry : entry?.note || "").join("\n")
     : String(releaseNotes || "");
   const parsedNotes = suppliedNotes
-    .split(/\\r?\\n/)
-    .map((line) => line.replace(/^\\s*[-*+]\\s*/, "").replace(/^#+\\s*/, "").replace(/\\[([^\\]]+)\\]\\([^)]*\\)/g, "$1").trim())
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*[-*+]\s*/, "").replace(/^#+\s*/, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").trim())
     .filter((line) => line && !/^what's changed/i.test(line) && !/^full changelog/i.test(line) && !/^compare view/i.test(line))
     .slice(0, 7);
-  const items = releaseHighlights[nextVersion] || parsedNotes.length ? (releaseHighlights[nextVersion] || parsedNotes) : [
+  const items = releaseHighlights[nextVersion] || (parsedNotes.length ? parsedNotes : [
     "NOVA AI için yeni iyileştirmeler ve hata düzeltmeleri",
     "Daha iyi ve kararlı bir kullanım deneyimi"
-  ];
+  ]);
 
   updateWindow = new BrowserWindow({
     width: 760,
