@@ -10,6 +10,7 @@ const {
   parseDuckDuckGoHtml,
   isPrivateAddress,
   validatePublicUrl,
+  readLimitedBody,
   getSeedSources,
   hasRelevantTopicEvidence,
 } = require("./web-research");
@@ -114,4 +115,13 @@ test("DuckDuckGo parser extracts result links", () => {
   const results = parseDuckDuckGoHtml(html);
   assert.equal(results.length, 1);
   assert.equal(results[0].url, "https://example.com/b");
+});
+
+
+test("response reader enforces the byte limit while streaming", async () => {
+  assert.equal(await readLimitedBody(new Response("NOVA"), 4), "NOVA");
+  await assert.rejects(
+    readLimitedBody(new Response("🌍"), 3),
+    /Sayfa boyutu güvenli okuma sınırını aşıyor/
+  );
 });
