@@ -941,7 +941,9 @@
 
   function setBusy(value) {
     busy = value;
-    prompt.disabled = value;
+    // Keep the composer editable while NOVA is responding. Sending remains
+    // disabled until the current stream settles, so users can draft the next turn.
+    prompt.disabled = false;
 
     if (sendButton) {
       sendButton.disabled = value;
@@ -1202,7 +1204,7 @@
       }
 
       const savedAnswer = result.truncated
-        ? result.answer + "\n\nNot: Yanıt modelin çıktı sınırına ulaştığı için burada kesildi. Devamını isteyebilirsin."
+        ? result.answer + "\n\nNot: Yanıt modelin çıktı sınırına ulaştı. Yeni mesajını yazabilirsin; gönderme alanı yanıt tamamlanınca yeniden etkinleşir."
         : result.answer;
       await addMessage("assistant", savedAnswer);
 
