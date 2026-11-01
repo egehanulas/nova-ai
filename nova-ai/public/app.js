@@ -387,9 +387,15 @@
       else if (status === "retrying") setUpdateStatus("Bağlantı kurulamadı. NOVA otomatik olarak yeniden deneyecek.", false);
       else if (status === "error") setUpdateStatus("Denetim başarısız oldu. NOVA yeniden deneyecek; istersen elle tekrar deneyebilirsin.", false);
     };
-    window.novaUpdate?.onStatus(applyUpdateStatus);
+    let receivedLiveUpdateStatus = false;
+    window.novaUpdate?.onStatus((status) => {
+      receivedLiveUpdateStatus = true;
+      applyUpdateStatus(status);
+    });
     window.novaUpdate?.getStatus?.()
-      .then((status) => { if (status && status !== "idle") applyUpdateStatus(status); })
+      .then((status) => {
+        if (!receivedLiveUpdateStatus && status && status !== "idle") applyUpdateStatus(status);
+      })
       .catch(() => {});
   } else {
     if (installedVersionEl) installedVersionEl.textContent = "Web sürümü";
