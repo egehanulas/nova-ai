@@ -98,8 +98,8 @@ function extractUrls(text = "") {
 
 function readMeta(html, keys) {
   for (const key of keys) {
-    const pattern = new RegExp("<meta\\\\b(?=[^>]*(?:name|property)=[\\"']" + key + "[\\"'])[^>]*content=[\\"']([^\\"']*)[\\"'][^>]*>", "i");
-    const reverse = new RegExp("<meta\\\\b(?=[^>]*content=[\\"']([^\\"']*)[\\"'])(?=[^>]*(?:name|property)=[\\"']" + key + "[\\"'])[^>]*>", "i");
+    const pattern = new RegExp("<meta\\b(?=[^>]*(?:name|property)=[\\"']" + key + "[\\"'])[^>]*content=[\\"']([^\\"']*)[\\"'][^>]*>", "i");
+    const reverse = new RegExp("<meta\\b(?=[^>]*content=[\\"']([^\\"']*)[\\"'])(?=[^>]*(?:name|property)=[\\"']" + key + "[\\"'])[^>]*>", "i");
     const match = html.match(pattern) || html.match(reverse);
     if (match) return stripTags(match[1] || "");
   }
@@ -193,7 +193,7 @@ function parseRssFeed(xml) {
   for (const item of items) {
     if (results.length >= 8) break;
     const readTag = (tag) => {
-      const match = item.match(new RegExp("<" + tag + "\\\\b[^>]*>([\\\\s\\\\S]*?)<\\\\/" + tag + ">", "i"));
+      const match = item.match(new RegExp("<" + tag + "\\b[^>]*>([\\s\\\\S]*?)<\\/" + tag + ">", "i"));
       return stripTags(String(match?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, ""));
     };
     const title = readTag("title").slice(0, 220);
