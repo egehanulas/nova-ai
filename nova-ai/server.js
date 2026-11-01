@@ -3203,17 +3203,26 @@ app.post(
       res,
       "Lütfen araştırmak istediğin konuyu yaz."
     );
-
     if (!conversation) return;
 
     try {
+      const latestQuestion = getLatestUserMessage(conversation);
+      const results = await researchWeb(latestQuestion);
+      const webInstruction = results.length
+        ? buildWebResearchInstruction(results)
+        : "CANLI WEB ARAŞTIRMASI: Doğrulanmış web kaynağı bulunamadı veya sayfa okunamadı. Güncel iddiaları genel bilginden tamamlama; araştırmanın başarısız olduğunu açıkça belirt.";
       const ragInstruction = await buildKnowledgeInstruction(
         conversation,
         req.headers.authorization || ""
       );
       const result = await generateAnswer(
-        conversation,
-        [RESEARCH_INSTRUCTION, ragInstruction, await loadUserMemoryInstruction(req)].filter(Boolean).join("\n\n")
+        [{ role: "user", content: latestQuestion }],
+        [
+          RESEARCH_INSTRUCTION,
+          webInstruction,
+          ragInstruction,
+          await loadUserMemoryInstruction(req),
+        ].filter(Boolean).join("\n\n")
       );
 
       return res.json({
@@ -3221,16 +3230,16 @@ app.post(
         answer: cleanModelAnswer(result.answer),
         provider: result.provider,
         model: result.model,
-        searched: false,
-        note: "Bu yanıt canlı internet araması yapıldığı anlamına gelmez.",
+        searched: results.length > 0,
+        sources: results.map(({ title, url, domain, publishedAt }) => ({
+          title, url, domain, publishedAt,
+        })),
       });
     } catch (error) {
       console.error("[NOVA AI] Araştırma hatası:", error.message);
-
       return res.status(503).json({
         success: false,
-        error:
-          "Araştırma yanıtı oluşturulamadı. API ayarlarını kontrol et.",
+        error: "Araştırma yanıtı oluşturulamadı. API ayarlarını kontrol et.",
       });
     }
   })
