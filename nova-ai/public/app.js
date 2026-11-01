@@ -86,17 +86,143 @@
   let currentUser = null;
   let authMode = "login";
   let selectedTextFile = null;
+  let fileReading = false;
+
+  const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+  const MAX_EXTRACTED_TEXT = 40000;
+  const externalLibraryPromises = new Map();
 
   function updateTextFileStatus() {
     if (textFileStatus) {
-      textFileStatus.textContent = selectedTextFile
-        ? "📎 " + selectedTextFile.name
-        : "";
+      textFileStatus.textContent = fileReading
+        ? "Dosya okunuyor..."
+        : selectedTextFile ? "📎 " + selectedTextFile.name : "";
       textFileStatus.title = selectedTextFile ? selectedTextFile.name : "";
     }
     if (attachTextFileButton) {
+      attachTextFileButton.disabled = fileReading;
       attachTextFileButton.setAttribute("aria-pressed", selectedTextFile ? "true" : "false");
     }
+  }
+
+  function loadExternalScript(src, globalName) {
+    if (window[globalName]) return Promise.resolve(window[globalName]);
+    if (!externalLibraryPromises.has(src)) {
+      externalLibraryPromises.set(src, new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.async = true;
+        script.onload = () => window[globalName]
+          ? resolve(window[globalName])
+          : reject(new Error("Dosya okuma kütüphanesi yüklenemedi."));
+        script.onerror = () => reject(new Error("Dosya okuma kütüphanesi indirilemedi. İnternet bağlantını kontrol et."));
+        document.head.appendChild(script);
+      }));
+    }
+    return externalLibraryPromises.get(src);
+  }
+
+  function columnName(index) {
+    let name = "";
+    while (index > 0) {
+      const remainder = (index - 1) % 26;
+      name = String.fromCharCode(65 + remainder) + name;
+      index = Math.floor((index - 1) / 26);
+    }
+    return name;
+  }
+
+  function excelCellText(cell) {
+    if (cell.text && cell.text !== "[object Object]") return cell.text;
+    const value = cell.value;
+    if (value == null) return "";
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === "object") {
+      if (Array.isArray(value.richText)) return value.richText.map(part => part.text || "").join("");
+      if (value.result !== undefined) return String(value.result);
+      if (value.formula) return "=" + value.formula;
+      if (value.text) return String(value.text);
+      return JSON.stringify(value);
+    }
+    return String(value);
+  }
+
+  async function extractUploadedFile(file) {
+    const extension = file.name.split(".").pop().toLowerCase();
+    let content = "";
+
+    if (extension === "txt") {
+      content = await file.text();
+    } else if (extension === "pdf") {
+      const pdfjs = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs");
+      pdfjs.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+      const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+      const pages = [];
+      for (let pageNumber = 1; pageNumber <= Math.min(pdf.numPages, 60); pageNumber++) {
+        const page = await pdf.getPage(pageNumber);
+        const textContent = await page.getTextContent();
+        pages.push(textContent.items.map(item => item.str || "").join(" "));
+        if (pages.join("\n").length >= MAX_EXTRACTED_TEXT) break;
+      }
+      content = pages.join("\n\n");
+      if (pdf.numPages > 60) content += "\n[Belgenin ilk 60 sayfası işlendi.]";
+    } else if (extension === "docx") {
+      const mammoth = await loadExternalScript(
+        "https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.js",
+        "mammoth"
+      );
+      const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+      content = result.value || "";
+    } else if (extension === "xlsx") {
+      const ExcelJS = await loadExternalScript(
+        "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js",
+        "ExcelJS"
+      );
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(await file.arrayBuffer());
+      const rows = [];
+      let extractedLength = 0;
+      let truncated = false;
+      workbook.eachSheet(sheet => {
+        if (truncated) return;
+        const sheetHeader = "SAYFA: " + sheet.name;
+        rows.push(sheetHeader);
+        extractedLength += sheetHeader.length;
+        sheet.eachRow({ includeEmpty: false }, row => {
+          if (truncated) return;
+          const cells = [];
+          row.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
+            const value = excelCellText(cell);
+            if (value) cells.push(columnName(columnNumber) + ": " + value);
+          });
+          if (!cells.length) return;
+          const rowText = cells.join(" | ");
+          const remaining = MAX_EXTRACTED_TEXT - extractedLength;
+          if (rowText.length > remaining) {
+            if (remaining > 0) rows.push(rowText.slice(0, remaining));
+            truncated = true;
+            return;
+          }
+          rows.push(rowText);
+          extractedLength += rowText.length;
+        });
+      });
+      content = rows.join("\n");
+      if (truncated) content += "\n[Tablonun kalan kısmı uzunluk sınırı nedeniyle aktarılmadı.]";
+    } else {
+      throw new Error("Bu dosya türü desteklenmiyor. TXT, PDF, DOCX veya XLSX seç.");
+    }
+
+    content = String(content || "").replace(/\u0000/g, "").trim();
+    if (!content) {
+      if (extension === "pdf") throw new Error("PDF'den metin çıkarılamadı. Belge taranmış/görüntü tabanlı olabilir; OCR henüz desteklenmiyor.");
+      throw new Error("Dosyada okunabilir metin bulunamadı.");
+    }
+    if (content.length > MAX_EXTRACTED_TEXT) {
+      const marker = "\n\n[Dosyanın kalan kısmı uzunluk sınırı nedeniyle aktarılmadı.]";
+      content = content.slice(0, MAX_EXTRACTED_TEXT - marker.length) + marker;
+    }
+    return content;
   }
 
   function createId() {
@@ -1306,24 +1432,29 @@
   textFileInput?.addEventListener("change", async () => {
     const file = textFileInput.files?.[0];
     if (!file) return;
-    if (!/\.txt$/i.test(file.name)) {
-      alert("Şimdilik yalnızca .txt dosyaları destekleniyor.");
+    if (!/\.(txt|pdf|docx|xlsx)$/i.test(file.name)) {
+      alert("Yalnızca TXT, PDF, DOCX ve XLSX dosyaları destekleniyor.");
       textFileInput.value = "";
       return;
     }
-    if (file.size > 20 * 1024) {
-      alert("TXT dosyası en fazla 20 KB olabilir.");
+    if (file.size > MAX_UPLOAD_BYTES) {
+      alert("Dosya en fazla 5 MB olabilir.");
       textFileInput.value = "";
       return;
     }
+    fileReading = true;
+    updateTextFileStatus();
     try {
-      const content = await file.text();
+      const content = await extractUploadedFile(file);
       selectedTextFile = { name: file.name, content };
       updateTextFileStatus();
     } catch (error) {
       console.error("NOVA AI dosya okuma hatası:", error);
-      alert("Dosya okunamadı. Lütfen tekrar dene.");
+      alert(error.message || "Dosya okunamadı. Lütfen tekrar dene.");
       textFileInput.value = "";
+    } finally {
+      fileReading = false;
+      updateTextFileStatus();
     }
   });
 
