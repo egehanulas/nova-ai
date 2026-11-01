@@ -8,7 +8,8 @@ import {
   globalShortcut,
   nativeImage,
   dialog,
-  shell
+  shell,
+  session
 } from "electron";
 import { URL } from "node:url";
 import { spawn } from "node:child_process";
@@ -151,6 +152,39 @@ function createApplicationMenu() {
   ];
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+function configureMicrophonePermissions() {
+  const defaultSession = session.defaultSession;
+
+  // The desktop app loads only the NOVA origin. Allow its explicit microphone
+  // request so Chromium can surface the Windows privacy permission prompt.
+  defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    let requestingOrigin = "";
+    try {
+      requestingOrigin = new URL(details?.requestingUrl || webContents.getURL()).origin;
+    } catch {
+      callback(false);
+      return;
+    }
+
+    const isNovaOrigin = requestingOrigin === NOVA_ORIGIN;
+    const isMicrophoneRequest =
+      permission === "media" &&
+      (!details?.mediaTypes || details.mediaTypes.includes("audio"));
+
+    callback(isNovaOrigin && isMicrophoneRequest);
+  });
+
+  defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, _securityOrigin, details) => {
+    if (permission !== "media") return false;
+    try {
+      return new URL(requestingOrigin).origin === NOVA_ORIGIN &&
+        (!details?.mediaTypes || details.mediaTypes.includes("audio"));
+    } catch {
+      return false;
+    }
+  });
 }
 
 function createWindow() {
@@ -333,6 +367,7 @@ if (!handleSquirrelEvent()) {
   if (process.platform === "win32") app.setAppUserModelId("com.squirrel.nova_ai.nova_ai");
 
   app.whenReady().then(() => {
+    configureMicrophonePermissions();
     createApplicationMenu();
     createTray();
     createWindow();
