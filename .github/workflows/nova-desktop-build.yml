@@ -3,6 +3,7 @@ name: NOVA Desktop Windows Build
 on:
   push:
     branches:
+      - main
       - "feature/nova-desktop-electron"
     paths:
       - "nova-ai/desktop/**"
