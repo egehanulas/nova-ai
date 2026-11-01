@@ -47,7 +47,7 @@ Kurulum paketi `out/make/squirrel.windows/x64/` altında üretilir.
 
 ## Otomatik güncelleme yayınlama
 
-Windows Squirrel güncelleme dosyaları GitHub Releases üzerinden dağıtılır. Yeni bir masaüstü sürümü yayınlamak için `desktop-v<package-version>` biçiminde bir Git etiketi oluştur. Örneğin `desktop-v0.2.0-alpha.2`. GitHub Actions Windows kurulumunu ve Squirrel paketlerini üretip ilgili GitHub Release'e yükler. Kurulu uygulama bu yayın kanalını denetler; güncelleme indirildiğinde kurulum için yeniden başlatma onayı ister.
+Windows Squirrel güncelleme dosyaları GitHub Releases üzerinden dağıtılır. Yeni bir masaüstü sürümü yayınlamak için `desktop-v<package-version>` biçiminde bir Git etiketi oluştur. Örneğin `desktop-v0.2.0-alpha.6`. GitHub Actions Windows kurulumunu ve Squirrel paketlerini üretip ilgili GitHub Release'e yükler. Kurulu uygulama bu yayın kanalını denetler; güncelleme indirildiğinde kurulum için yeniden başlatma onayı ister.
 
 Otomatik güncellemeler yalnızca paketlenmiş Windows uygulamasında çalışır. İlk kurulum yine Setup.exe ile yapılır. Yayınlanmış bir GitHub Release yoksa uygulama güncelleme bulamaz.
 
