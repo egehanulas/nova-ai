@@ -684,7 +684,6 @@
       if (microphoneAccessStatus) microphoneAccessStatus.textContent = message;
     } finally {
       microphoneTestButton.disabled = false;
-      refreshMicrophonePermissionStatus();
     }
   });
 
