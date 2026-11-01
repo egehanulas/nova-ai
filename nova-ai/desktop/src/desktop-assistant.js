@@ -85,7 +85,9 @@ export async function openAllowedApp(appName) {
   };
   const selected = apps[appName];
   if (!selected) throw new Error("Bu uygulama güvenlik nedeniyle izin verilen uygulamalar listesinde değil.");
-  try { await fs.access(selected.command); } catch { throw new Error(selected.label + " bu bilgisayarda bulunamadı veya varsayılan konumunda kurulu değil."); }
+  if (appName === "steam" || appName === "discord") {
+    try { await fs.access(selected.command); } catch { throw new Error(selected.label + " bu bilgisayarda bulunamadı veya varsayılan konumunda kurulu değil."); }
+  }
   const child = spawn(selected.command, selected.args, { detached: true, stdio: "ignore", windowsHide: true });
   child.on("error", (error) => console.error("NOVA app launch failed:", error));
   child.unref();
