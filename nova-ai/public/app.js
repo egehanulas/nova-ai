@@ -1135,6 +1135,10 @@
     const attachment = selectedTextFile;
 
     if ((!text && !attachment) || busy || imageBusy || !currentUser) return;
+    if (attachment && researchMode) {
+      alert("Dosya analizi için Araştır modunu kapatıp normal sohbette gönder.");
+      return;
+    }
 
     setBusy(true);
 
@@ -1199,9 +1203,9 @@
           body: JSON.stringify({
             // Sunucu da sınır uyguluyor; burada gereksiz eski geçmişi göndermiyoruz.
             messages: conversation.messages.slice(-14),
-            attachments: attachment
-              ? [{ name: attachment.name, content: attachment.content }]
-              : []
+            ...(attachment
+              ? { attachments: [{ name: attachment.name, content: attachment.content }] }
+              : {})
           })
         });
 
