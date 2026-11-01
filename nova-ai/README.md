@@ -39,11 +39,11 @@ Kod sözdizimi kontrolü için `npm run check` çalıştır; `npm start` öncesi
 ## Supabase
 
 - `supabase-schema.sql`: sohbet geçmişi tablosu ve RLS politikaları.
-- `supabase/migrations/003_nova_memories.sql` ve `004_nova_memory_sources.sql`: kalıcı hafıza tabloları/alanları.
+- `supabase/migrations/003_nova_memories.sql`, `004_nova_memory_sources.sql` ve `006_nova_memory_grants.sql`: kalıcı hafıza tablosu, kaynak alanı ve açık API rol izinleri.
 - `supabase/migrations/005_nova_image_storage.sql`: özel görsel bucket'ı ve kullanıcı klasörü bazlı Storage RLS politikaları.
 - `supabase/migrations/001_unreal_knowledge_base.sql` ve `002_local_embeddings_384.sql`: Unreal Engine bilgi tabanı ve vektör araması.
 
-Görsel üretimi için `005_nova_image_storage.sql` dosyasını da Supabase SQL Editor'de çalıştır; bu işlem `nova-ai-images` özel bucket'ını ve kullanıcıya ait klasör politikalarını kurar. Unreal dokümanlarını içe aktarmak için `SUPABASE_URL` ve `SUPABASE_SERVICE_ROLE_KEY` tanımlı güvenilir ortamda `npm run ingest:knowledge` çalıştır. GitHub Actions iş akışı da manuel olarak başlatılabilir.
+Supabase SQL Editor'de sırasıyla `003`, `004` ve `006` migration dosyalarını çalıştır; kalıcı hafıza tablosu, kaynak alanı ve API izinleri kurulur. Görsel üretimi için `005_nova_image_storage.sql` dosyasını da çalıştır; bu işlem `nova-ai-images` özel bucket'ını ve kullanıcıya ait klasör politikalarını kurar. Unreal dokümanlarını içe aktarmak için `SUPABASE_URL` ve `SUPABASE_SERVICE_ROLE_KEY` tanımlı güvenilir ortamda `npm run ingest:knowledge` çalıştır. GitHub Actions iş akışı da manuel olarak başlatılabilir.
 
 ## Güvenilirlik notları
 
