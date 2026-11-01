@@ -35,6 +35,7 @@ Bu klasörde:
 ```bash
 npm install
 npm start
+npm test
 ```
 
 ## Windows kurulum dosyası
