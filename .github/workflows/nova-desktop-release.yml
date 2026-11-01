@@ -1,0 +1,42 @@
+name: NOVA Desktop Release
+
+on:
+  push:
+    tags:
+      - "desktop-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: nova-ai/desktop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.17.0"
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build Squirrel.Windows update packages
+        run: npm run make -- --platform=win32 --arch=x64
+
+      - name: Publish Windows installer and update feed
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: NOVA AI Desktop ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            nova-ai/desktop/out/make/squirrel.windows/x64/*.exe
+            nova-ai/desktop/out/make/squirrel.windows/x64/*.nupkg
+            nova-ai/desktop/out/make/squirrel.windows/x64/RELEASES
