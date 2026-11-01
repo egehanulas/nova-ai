@@ -1403,6 +1403,23 @@
     const attachment = selectedTextFile;
 
     if ((!text && !attachment) || busy || imageBusy || !currentUser) return;
+    if (desktopCommandMode) {
+      setBusy(true);
+      try {
+        await addMessage("user", text);
+        prompt.value = "";
+        prompt.style.height = "";
+        const count = $("#characterCount");
+        if (count) count.textContent = "0/4000";
+        const result = await runDesktopCommand(text);
+        await addMessage("assistant", result);
+      } catch (error) {
+        await addMessage("assistant", error?.message || "Komut çalıştırılamadı.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     if (attachment && researchMode) {
       alert("Dosya analizi için Araştır modunu kapatıp normal sohbette gönder.");
       return;
@@ -1827,6 +1844,42 @@
   function previewSigned(src,alt){const content=document.createElement("div"),img=document.createElement("img");img.src=src;img.alt=alt;img.style.cssText="display:block;max-width:100%;max-height:65vh;object-fit:contain;margin:auto";content.append(img);studio({title:"Görsel önizleme",subtitle:alt,content});}
   imageGenerateButton?.addEventListener("click",openImagePrompt);
   galleryButton?.addEventListener("click",openImageGallery);
+
+  // Desktop command mode keeps input in the regular chat composer.
+  const desktopCommandButton = $("#desktopCommand");
+  let desktopCommandMode = false;
+  if (window.novaDesktop?.isDesktop && window.novaDesktop.assistant?.openApp) {
+    desktopCommandButton.hidden = false;
+    desktopCommandButton.setAttribute("aria-pressed", "false");
+    desktopCommandButton.addEventListener("click", () => {
+      desktopCommandMode = !desktopCommandMode;
+      desktopCommandButton.classList.toggle("active", desktopCommandMode);
+      desktopCommandButton.setAttribute("aria-pressed", String(desktopCommandMode));
+      prompt.placeholder = desktopCommandMode
+        ? "Bilgisayarına ne yaptırmak istersin? Örn. Steam'i aç"
+        : "NOVA AI'ye ne sormak istersin?";
+      if (imageStatus) imageStatus.textContent = desktopCommandMode
+        ? "Bilgisayar komut modu açık · Mesajını normal sohbet alanına yaz."
+        : "";
+      prompt.focus();
+    });
+  } else if (desktopCommandButton) {
+    desktopCommandButton.hidden = true;
+  }
+
+  async function runDesktopCommand(rawCommand) {
+    const command = String(rawCommand || "").trim().toLocaleLowerCase("tr-TR");
+    const aliases = [
+      { keys: ["steam", "steam'i", "steami"], app: "steam", label: "Steam" },
+      { keys: ["not defteri", "notepad"], app: "notepad", label: "Not Defteri" },
+      { keys: ["hesap makinesi", "calculator", "calc"], app: "calculator", label: "Hesap Makinesi" },
+      { keys: ["dosya gezgini", "explorer", "dosya yöneticisi"], app: "explorer", label: "Dosya Gezgini" }
+    ];
+    const match = aliases.find((item) => item.keys.some((key) => command.includes(key)));
+    if (!match) throw new Error("Bu komutu henüz tanıyamadım. Şimdilik Steam, Not Defteri, Hesap Makinesi ve Dosya Gezgini komutlarını destekliyorum.");
+    const result = await window.novaDesktop.assistant.openApp(match.app);
+    return result?.message || match.label + " açma isteği gönderildi.";
+  }
 
   async function memoryRequest(path, options = {}) {
     const { data, error } = await supabase.auth.getSession();
