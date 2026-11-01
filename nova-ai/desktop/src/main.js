@@ -15,7 +15,7 @@ import {
 import { URL } from "node:url";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, createUserFolder, moveUserFile } from "./desktop-assistant.js";
+import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile } from "./desktop-assistant.js";
 
 const NOVA_URL = "https://nova-ai-xxid.onrender.com/";
 const NOVA_ORIGIN = new URL(NOVA_URL).origin;
@@ -283,40 +283,35 @@ function showDesktopAssistant() {
 }
 
 function registerDesktopAssistantIpc() {
-  const allowedSender = (event) => assistantWindow && !assistantWindow.isDestroyed() && event.sender === assistantWindow.webContents;
-  ipcMain.handle("nova-desktop:computer-info", (event) => {
-    if (!allowedSender(event)) throw new Error("Yetkisiz istek.");
-    return getComputerInfo();
-  });
-  ipcMain.handle("nova-desktop:list-folders", (event) => {
-    if (!allowedSender(event)) throw new Error("Yetkisiz istek.");
-    return listUserFolders();
-  });
-  ipcMain.handle("nova-desktop:search-files", (event, query) => {
-    if (!allowedSender(event)) throw new Error("Yetkisiz istek.");
-    return searchUserFiles(query);
-  });
-  ipcMain.handle("nova-desktop:open-app", (event, name) => {
-    const fromAssistantWindow = allowedSender(event);
-    const fromTrustedChatWindow =
-      mainWindow && !mainWindow.isDestroyed() &&
-      event.sender === mainWindow.webContents &&
-      (() => {
-        try {
-          return new URL(event.senderFrame?.url || event.sender.getURL()).origin === NOVA_ORIGIN;
-        } catch {
-          return false;
-        }
-      })();
-    if (!fromAssistantWindow && !fromTrustedChatWindow) {
-      throw new Error("Yetkisiz istek.");
-    }
+  const isTrustedSender = (event) => {
+    if (assistantWindow && !assistantWindow.isDestroyed() && event.sender === assistantWindow.webContents) return true;
+    if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) return false;
+    try {
+      const frame = event.senderFrame;
+      return Boolean(frame && !frame.parent && new URL(frame.url).origin === NOVA_ORIGIN);
+    } catch { return false; }
+  };
+  const requireTrustedWindows = (event) => {
+    if (!isTrustedSender(event)) throw new Error("Yetkisiz istek.");
     if (process.platform !== "win32") throw new Error("Bu özellik yalnızca Windows masaüstünde kullanılabilir.");
-    return openAllowedApp(name);
+  };
+  const getDialogParent = (event) => assistantWindow && !assistantWindow.isDestroyed() &&
+    event.sender === assistantWindow.webContents ? assistantWindow : mainWindow;
+
+  ipcMain.handle("nova-desktop:computer-info", (event) => { requireTrustedWindows(event); return getComputerInfo(); });
+  ipcMain.handle("nova-desktop:list-folders", (event) => { requireTrustedWindows(event); return listUserFolders(); });
+  ipcMain.handle("nova-desktop:search-files", (event, query) => { requireTrustedWindows(event); return searchUserFiles(query); });
+  ipcMain.handle("nova-desktop:open-app", (event, name) => { requireTrustedWindows(event); return openAllowedApp(name); });
+  ipcMain.handle("nova-desktop:open-path", async (event, input) => {
+    requireTrustedWindows(event);
+    const result = await openUserPath(input);
+    const error = await shell.openPath(result.path);
+    if (error) throw new Error("Öğe açılamadı: " + error);
+    return { message: "“" + path.basename(result.path) + "” açıldı.", path: result.path };
   });
   ipcMain.handle("nova-desktop:create-folder", async (event, payload = {}) => {
-    if (!allowedSender(event)) throw new Error("Yetkisiz istek.");
-    const answer = await dialog.showMessageBox(assistantWindow, {
+    requireTrustedWindows(event);
+    const answer = await dialog.showMessageBox(getDialogParent(event), {
       type: "question", title: "Klasör oluşturma onayı", message: "Yeni klasör oluşturulsun mu?",
       detail: String(payload.name || ""), buttons: ["Oluştur", "Vazgeç"], defaultId: 1, cancelId: 1
     });
@@ -324,17 +319,28 @@ function registerDesktopAssistantIpc() {
     return createUserFolder(payload.parent, payload.name);
   });
   ipcMain.handle("nova-desktop:move-file", async (event, payload = {}) => {
-    if (!allowedSender(event)) throw new Error("Yetkisiz istek.");
-    const answer = await dialog.showMessageBox(assistantWindow, {
+    requireTrustedWindows(event);
+    const answer = await dialog.showMessageBox(getDialogParent(event), {
       type: "warning", title: "Dosya taşıma onayı", message: "Dosya veya klasör taşınsın mı?",
-      detail: String(payload.source || "") + "\n→ " + String(payload.destination || ""),
+      detail: String(payload.source || "") + "\n→ " + String(payload.destination || "") +
+        (payload.newName ? "\nYeni ad: " + String(payload.newName) : ""),
       buttons: ["Taşı", "Vazgeç"], defaultId: 1, cancelId: 1
     });
     if (answer.response !== 0) return { message: "İşlem iptal edildi." };
     return moveUserFile(payload.source, payload.destination, payload.newName);
   });
+  ipcMain.handle("nova-desktop:trash-file", async (event, input) => {
+    requireTrustedWindows(event);
+    const safePath = await resolveUserFileForTrash(input);
+    const answer = await dialog.showMessageBox(getDialogParent(event), {
+      type: "warning", title: "Geri Dönüşüm Kutusu", message: "Bu öğe Geri Dönüşüm Kutusu'na taşınsın mı?",
+      detail: safePath, buttons: ["Geri dönüşüm kutusuna taşı", "Vazgeç"], defaultId: 1, cancelId: 1
+    });
+    if (answer.response !== 0) return { message: "Silme işlemi iptal edildi." };
+    await shell.trashItem(safePath);
+    return { message: "Öğe Geri Dönüşüm Kutusu'na taşındı." };
+  });
 }
-
 function sendUpdateStatus(status) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("nova-update:status", status);
