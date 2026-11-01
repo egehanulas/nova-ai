@@ -301,7 +301,7 @@
         utterance.onerror = (event) => {
           if (currentRequest !== speechRequest) return;
           console.warn("NOVA Voice: Ses parçası okunamadı.", event.error);
-          completedChunks = speechChunks.length;
+          completedChunks += 1;
           finishSpeech();
         };
         synth.speak(utterance);
@@ -319,7 +319,10 @@
       if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Bu uygulamada seslendirme desteklenmiyor.";
       return;
     }
-    synth.cancel();
+    const resumeListening = voiceEnabled;
+    if (resumeListening) stopRecognition();
+    stopSpeech();
+    speaking = true;
     const preview = new SpeechSynthesisUtterance("Merhaba, ben NOVA. Bugün sana nasıl yardımcı olabilirim?");
     preview.lang = "tr-TR";
     preview.rate = getSpeechRate();
@@ -327,10 +330,14 @@
     selectedVoice = chooseTurkishVoice();
     if (selectedVoice) preview.voice = selectedVoice;
     preview.onend = () => {
+      speaking = false;
       if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Ses denemesi tamamlandı.";
+      if (resumeListening) scheduleRecognitionRestart(450);
     };
     preview.onerror = () => {
+      speaking = false;
       if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Ses denemesi başarısız oldu.";
+      if (resumeListening) scheduleRecognitionRestart(700);
     };
     if (voiceSettingsStatus) voiceSettingsStatus.textContent = "NOVA'nın sesi deneniyor…";
     synth.speak(preview);
