@@ -49,7 +49,7 @@ function isPrivateAddress(address) {
     const value = address.toLowerCase();
     if (value.startsWith("::ffff:")) {
       const mapped = value.slice(7);
-      if (net.isIP(mapped) === 4) return isPrivateAddress(mapped);
+      return net.isIP(mapped) === 4 ? isPrivateAddress(mapped) : true;
     }
     return value === "::" || value === "::1" ||
       value.startsWith("fc") || value.startsWith("fd") ||
@@ -277,8 +277,20 @@ async function fetchSearchProvider(provider, query, signal) {
 }
 
 async function searchPublicWeb(query, signal) {
-  const cleanQuery = String(query || "").replace(/\s+/g, " ").trim().slice(0, 500);
+  const rawQuery = String(query || "")
+    .replace(/https?:\/\/[^\s]+/gi, " ")
+    .replace(/\s+/g, " ").trim();
+  const cleanQuery = rawQuery.slice(0, 220);
   if (!cleanQuery) return [];
+
+  const searchQueries = [cleanQuery];
+  if (/\bnvidia\b/i.test(cleanQuery)) {
+    searchQueries.push("NVIDIA AI latest official announcements " + new Date().getUTCFullYear() + " models developer technologies");
+  }
+  if (/openshell/i.test(cleanQuery)) {
+    searchQueries.push('"OpenShell" NVIDIA official announcement');
+  }
+
   const providers = [
     {
       name: "Bing RSS",
@@ -301,16 +313,22 @@ async function searchPublicWeb(query, signal) {
       parse: parseRssFeed,
     },
   ];
-  const batches = await Promise.all(providers.map(async (provider) => {
-    try {
-      const results = await fetchSearchProvider(provider, cleanQuery, signal);
-      if (results.length) console.log("[NOVA AI] Web araması sağlayıcısı:", provider.name, "-", results.length, "kaynak.");
-      return results;
-    } catch (error) {
-      console.warn("[NOVA AI] " + provider.name + " araması başarısız:", error.message);
-      return [];
-    }
-  }));
+
+  // Query every available provider concurrently and merge their results.
+  // A weak first response must not hide stronger results from another engine.
+  const batches = await Promise.all(searchQueries.flatMap((searchTerm) =>
+    providers.map(async (provider) => {
+      try {
+        const results = await fetchSearchProvider(provider, searchTerm, signal);
+        if (results.length) console.log("[NOVA AI] Web araması sağlayıcısı:", provider.name, "-", results.length, "kaynak.");
+        return results;
+      } catch (error) {
+        console.warn("[NOVA AI] " + provider.name + " araması başarısız:", error.message);
+        return [];
+      }
+    })
+  ));
+
   const unique = new Map();
   for (const item of batches.flat()) {
     try {
@@ -323,6 +341,7 @@ async function searchPublicWeb(query, signal) {
       }
     } catch {}
   }
+
   return [...unique.values()]
     .map((item) => ({ ...item, _score: relevanceScore(item, cleanQuery) }))
     .sort((a, b) => b._score - a._score)
