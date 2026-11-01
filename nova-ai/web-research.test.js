@@ -83,8 +83,11 @@ test("OpenShell research requires evidence that actually mentions the requested 
     { title: "NVIDIA news", url: "https://nvidia.com/news", content: "NVIDIA announced a new GPU." },
   ]), false);
   assert.equal(hasRelevantTopicEvidence("NVIDIA OpenShell nedir?", [
-    { title: "NVIDIA OpenShell", url: "https://github.com/NVIDIA/OpenShell", content: "OpenShell runtime." },
+    { title: "NVIDIA OpenShell", url: "https://github.com/NVIDIA/OpenShell", content: "OpenShell runtime. ".repeat(12) },
   ]), true);
+  assert.equal(hasRelevantTopicEvidence("NVIDIA OpenShell nedir?", [
+    { title: "NVIDIA OpenShell", url: "https://github.com/NVIDIA/OpenShell", content: "" },
+  ]), false);
 });
 
 test("RSS parser extracts article title, link and publication date", () => {
