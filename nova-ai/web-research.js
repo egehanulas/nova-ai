@@ -41,7 +41,7 @@ function isPrivateAddress(address) {
       (a === 100 && b >= 64 && b <= 127) ||
       (a === 169 && b === 254) ||
       (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && (b === 0 || b === 168)) ||
+      (a === 192 && ((b === 0 && (c === 0 || c === 2)) || b === 168)) ||
       (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) ||
       (a === 203 && b === 0 && c === 113) || a >= 224;
   }
@@ -51,7 +51,7 @@ function isPrivateAddress(address) {
       const mapped = value.slice(7);
       return net.isIP(mapped) === 4 ? isPrivateAddress(mapped) : true;
     }
-    return value === "::" || value === "::1" ||
+    return value.startsWith("::") ||
       value.startsWith("fc") || value.startsWith("fd") ||
       /^fe[89ab]/.test(value) || value.startsWith("ff") ||
       value.startsWith("2001:db8:");
