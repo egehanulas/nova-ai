@@ -379,13 +379,18 @@
       setUpdateStatus("Yeni sürüm aranıyor…", true);
       window.novaUpdate?.check();
     });
-    window.novaUpdate?.onStatus((status) => {
+    const applyUpdateStatus = (status) => {
       if (status === "checking") setUpdateStatus("Güncellemeler denetleniyor…", true);
       else if (status === "available") setUpdateStatus("Yeni sürüm bulundu. Arka planda indiriliyor…", true);
       else if (status === "not-available") setUpdateStatus("Harika! NOVA zaten güncel.", false);
       else if (status === "downloaded") setUpdateStatus("Güncelleme hazır. Yenilikler penceresi açıldı.", false);
-      else if (status === "error") setUpdateStatus("Denetim başarısız oldu. İnternet bağlantını kontrol edip tekrar dene.", false);
-    });
+      else if (status === "retrying") setUpdateStatus("Bağlantı kurulamadı. NOVA otomatik olarak yeniden deneyecek.", false);
+      else if (status === "error") setUpdateStatus("Denetim başarısız oldu. NOVA yeniden deneyecek; istersen elle tekrar deneyebilirsin.", false);
+    };
+    window.novaUpdate?.onStatus(applyUpdateStatus);
+    window.novaUpdate?.getStatus?.()
+      .then((status) => { if (status && status !== "idle") applyUpdateStatus(status); })
+      .catch(() => {});
   } else {
     if (installedVersionEl) installedVersionEl.textContent = "Web sürümü";
     if (versionChannelEl) versionChannelEl.textContent = "Web";
