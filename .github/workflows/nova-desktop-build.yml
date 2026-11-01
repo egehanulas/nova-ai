@@ -1,0 +1,46 @@
+name: NOVA Desktop Windows Build
+
+on:
+  push:
+    branches:
+      - "feature/nova-desktop-electron"
+    paths:
+      - "nova-ai/desktop/**"
+      - ".github/workflows/nova-desktop-build.yml"
+  pull_request:
+    paths:
+      - "nova-ai/desktop/**"
+      - ".github/workflows/nova-desktop-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: nova-ai/desktop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.17.0"
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build Windows installer
+        run: npm run make -- --platform=win32 --arch=x64
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-AI-Windows-Setup
+          path: nova-ai/desktop/out/make/squirrel.windows/x64/*.exe
+          if-no-files-found: error
+          retention-days: 14
