@@ -365,9 +365,23 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
       "NOVA'ya özel, animasyonlu güncelleme penceresi",
       "Her sürümde yenilikleri ve iyileştirmeleri gösteren sürüm notları",
       "Daha anlaşılır sürüm karşılaştırması ve yeniden başlatma akışı"
+    ],
+    "0.2.0-alpha.10": [
+      "Windows için NOVA Bilgisayar Asistanı eklendi",
+      "Bilgisayar bilgilerini görüntüleme ve kişisel klasörlerde dosya arama",
+      "Not Defteri, Hesap Makinesi, Dosya Gezgini ve Steam'i açma",
+      "Klasör oluşturma, dosya taşıma ve yeniden adlandırma işlemleri için güvenlik onayları"
     ]
   };
-  const items = releaseHighlights[nextVersion] || [
+  const suppliedNotes = Array.isArray(releaseNotes)
+    ? releaseNotes.map((entry) => typeof entry === "string" ? entry : entry?.note || "").join("\\n")
+    : String(releaseNotes || "");
+  const parsedNotes = suppliedNotes
+    .split(/\\r?\\n/)
+    .map((line) => line.replace(/^\\s*[-*+]\\s*/, "").replace(/^#+\\s*/, "").replace(/\\[([^\\]]+)\\]\\([^)]*\\)/g, "$1").trim())
+    .filter((line) => line && !/^what's changed/i.test(line) && !/^full changelog/i.test(line) && !/^compare view/i.test(line))
+    .slice(0, 7);
+  const items = releaseHighlights[nextVersion] || parsedNotes.length ? (releaseHighlights[nextVersion] || parsedNotes) : [
     "NOVA AI için yeni iyileştirmeler ve hata düzeltmeleri",
     "Daha iyi ve kararlı bir kullanım deneyimi"
   ];
