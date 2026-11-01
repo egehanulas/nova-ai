@@ -648,12 +648,16 @@ function makeConversation(messages, extraInstruction = "") {
   const safeMessages = normalizeMessages(messages);
   const latestUserMessage = getLatestUserMessage(safeMessages);
 
-  const researchMode = /ARAŞTIRMA MODU/i.test(extraInstruction);
+  // Auto-selected web research uses the same compact prompt as explicit research mode.
+  const researchMode = /ARAŞTIRMA MODU|CANLI WEB ARAMASI SONUÇLARI/i.test(extraInstruction);
   const systemText = researchMode
     ? [
         "Sen NOVA AI'sın. Türkçe, kısa ve kanıta dayalı yanıt ver.",
         "Yalnızca kullanıcıya yönelik nihai yanıtı üret. Araç çağrısı, XML/JSON fonksiyon sözdizimi, iç plan veya işlem günlüğü yazma.",
         "Aşağıdaki web arama sonuçlarını kullan. Her önemli iddiayı [1], [2] biçiminde kaynakla; sonunda başlık ve tam bağlantıları listele. Kaynakta olmayan bilgi uydurma. Güncelliği doğrulanmayan bilgiyi güncel diye sunma.",
+        isBlueprintQuestion(safeMessages)
+          ? "Unreal Engine Blueprint sorularında node ve pin adlarını İngilizce, açıklamaları Türkçe yaz; kaynakta doğrulanmayan teknik ayrıntı uydurma."
+          : "",
         extraInstruction,
       ].filter(Boolean).join("\n\n")
     : [
