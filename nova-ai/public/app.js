@@ -1019,6 +1019,7 @@
     let streamError = null;
     let provider = null;
     let model = null;
+    let truncated = false;
 
     function handleEvent(eventText) {
       const event = parseStreamEvent(eventText);
@@ -1040,6 +1041,7 @@
         finished = true;
         provider = event.provider || provider;
         model = event.model || model;
+        truncated = Boolean(event.truncated);
       } else if (event.type === "error") {
         streamError = new Error(
           event.error || "Yanıt akışı sırasında hata oluştu."
@@ -1095,7 +1097,8 @@
     return {
       answer: fullAnswer.trim(),
       provider,
-      model
+      model,
+      truncated
     };
   }
 
@@ -1199,7 +1202,10 @@
         clearTimeout(requestTimeout);
       }
 
-      await addMessage("assistant", result.answer);
+      const savedAnswer = result.truncated
+        ? result.answer + "\n\nNot: Yanıt modelin çıktı sınırına ulaştığı için burada kesildi. Devamını isteyebilirsin."
+        : result.answer;
+      await addMessage("assistant", savedAnswer);
 
       // Mesaj tamamlandığında hafıza kaydını da bitir; yeni sohbete geçişte yarış durumu oluşmasın.
       try {
@@ -1554,54 +1560,56 @@
 
     async speak(text) {
       const { data, error } = await supabase.auth.getSession();
-
       if (error) throw error;
 
       const token = data.session?.access_token;
+      if (!token) throw new Error("Seslendirmek için giriş yapmalısın.");
 
-      if (!token) {
-        throw new Error(
-          "Seslendirmek için giriş yapmalısın."
-        );
+      const speakWithBrowser = () => {
+        if (!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") {
+          throw new Error("Ses sağlayıcısı kullanılamıyor ve tarayıcı seslendirmeyi desteklemiyor.");
+        }
+
+        return new Promise((resolve, reject) => {
+          const utterance = new SpeechSynthesisUtterance(String(text || "").slice(0, 4000));
+          utterance.lang = "tr-TR";
+          utterance.rate = 1;
+          utterance.pitch = 1;
+          const turkishVoice = window.speechSynthesis.getVoices()
+            .find((voice) => String(voice.lang || "").toLowerCase().startsWith("tr"));
+          if (turkishVoice) utterance.voice = turkishVoice;
+          utterance.onend = () => resolve(utterance);
+          utterance.onerror = () => reject(new Error("Tarayıcı seslendirmesi başarısız oldu."));
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(utterance);
+        });
+      };
+
+      let response;
+      try {
+        response = await fetch("/api/tts", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ text })
+        });
+      } catch {
+        return speakWithBrowser();
       }
-
-      const response = await fetch("/api/tts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ text })
-      });
 
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
-
-        throw new Error(
-          result.error || "Ses oluşturulamadı."
-        );
+        if (response.status >= 500) return speakWithBrowser();
+        throw new Error(result.error || "Ses oluşturulamadı.");
       }
 
-      const url = URL.createObjectURL(
-        await response.blob()
-      );
-
+      const url = URL.createObjectURL(await response.blob());
       const audio = new Audio(url);
-
-      audio.addEventListener(
-        "ended",
-        () => URL.revokeObjectURL(url),
-        { once: true }
-      );
-
-      audio.addEventListener(
-        "error",
-        () => URL.revokeObjectURL(url),
-        { once: true }
-      );
-
+      audio.addEventListener("ended", () => URL.revokeObjectURL(url), { once: true });
+      audio.addEventListener("error", () => URL.revokeObjectURL(url), { once: true });
       await audio.play();
-
       return audio;
     }
   };
