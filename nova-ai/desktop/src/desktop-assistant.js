@@ -20,8 +20,20 @@ export function resolveUserPath(input) {
 
 async function resolveExistingUserPath(input, { allowRoot = true } = {}) {
   const resolved = resolveUserPath(input);
+  const lexicalRoot = ROOTS.find((root) => inside(root, resolved));
+  if (!lexicalRoot) throw new Error("Bu konum için işlem yapılamıyor.");
+
+  const relativePath = path.relative(lexicalRoot, resolved);
+  let currentPath = lexicalRoot;
+  for (const segment of relativePath.split(path.sep).filter(Boolean)) {
+    currentPath = path.join(currentPath, segment);
+    const segmentStat = await fs.lstat(currentPath);
+    if (segmentStat.isSymbolicLink()) {
+      throw new Error("Kısayol ve sembolik bağlantılar güvenlik nedeniyle açılamaz veya değiştirilemez.");
+    }
+  }
+
   const stat = await fs.lstat(resolved);
-  if (stat.isSymbolicLink()) throw new Error("Kısayol ve sembolik bağlantılar güvenlik nedeniyle açılamaz veya değiştirilemez.");
   const realPath = await fs.realpath(resolved);
   const canonicalRoots = await Promise.all(ROOTS.map(async (root) => {
     try { return await fs.realpath(root); } catch { return null; }
