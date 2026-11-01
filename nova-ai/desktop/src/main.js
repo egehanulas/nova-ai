@@ -53,10 +53,9 @@ function quitApplication() {
 }
 
 function createTray() {
-  // Keep the tray asset self-contained so the installer does not depend on an external file.
-  const traySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect x="2" y="2" width="28" height="28" rx="7" fill="#121623" stroke="#50b4ff" stroke-width="2"/><path d="M8 23 16 7l8 16h-5l-3-6-3 6z" fill="#50b4ff"/></svg>`;
+  // Embedded PNG keeps the Windows notification-area icon self-contained.
   const trayImage = nativeImage.createFromDataURL(
-    `data:image/svg+xml;base64,${Buffer.from(traySvg).toString("base64")}`
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAnUlEQVR4nO3VwQ2AIAwFUGbw4AIu5LDuV8LBxBApv6W1mNCkN/C/AEJKq2au8yKyaHHwth/k0aHhMCIUUPbLG8CeiTfAfZC0YfVcNUCKaM0TAzQIbrwKIEH0xqkB6Md7yCFAb2/RFTIDtHoBXAEcBJ03DKhDJYh//wWh90DoTRj6FkzxGlo2CyjlDWDDpwB4IqDwZyH3PtLi4FVfVgbpz2l1rjeY+wAAAABJRU5ErkJggg=="
   );
   tray = new Tray(trayImage);
   tray.setToolTip("NOVA AI");
