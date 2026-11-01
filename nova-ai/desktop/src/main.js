@@ -435,6 +435,7 @@ function configureAutoUpdates() {
     sendUpdateStatus("not-available");
   });
   autoUpdater.on("update-downloaded", (_event, releaseNotes, releaseName) => {
+    sendUpdateStatus("downloaded");
     if (updatePromptOpen) return;
     updatePromptOpen = true;
     showUpdateWindow(releaseName, releaseNotes);
