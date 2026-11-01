@@ -1187,3 +1187,19 @@ html[data-theme="aurora"] .auth-brand strong span { color:#83e9dc !important; }
 }
 .voice-test-button:hover { border-color:var(--accent); }
 .voice-settings-note { color:var(--muted); font-size:11px; line-height:1.5; }
+
+
+/* NOVA audio diagnostics */
+.audio-diagnostics-section { margin-top: 30px; padding-bottom: 30px; }
+.audio-check-row {
+  display:flex; align-items:center; justify-content:space-between; gap:18px;
+  padding:15px 0; border-top:1px solid var(--border);
+}
+.audio-check-copy { display:flex; min-width:0; flex-direction:column; gap:5px; }
+.audio-check-copy strong { color:var(--text); font-size:13px; }
+.audio-check-copy span { color:var(--muted); font-size:11px; line-height:1.5; }
+.audio-check-row button { flex:0 0 auto; }
+.audio-check-row button:disabled { opacity:.55; cursor:wait; }
+@media (max-width:560px) {
+  .audio-check-row { align-items:flex-start; flex-direction:column; gap:10px; }
+}
