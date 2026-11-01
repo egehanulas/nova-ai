@@ -638,17 +638,23 @@ function makeConversation(messages, extraInstruction = "") {
   const safeMessages = normalizeMessages(messages);
   const latestUserMessage = getLatestUserMessage(safeMessages);
 
-  const systemText = [
-    BASE_INSTRUCTION,
-    NOVA_PERSONALITY,
-    UNIVERSAL_RESPONSE_GUIDANCE,
-    ANALYSIS_INSTRUCTION,
-    isBlueprintQuestion(safeMessages) ? BLUEPRINT_INSTRUCTION : "",
-    getAnalysisMode(latestUserMessage),
-    extraInstruction,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  const researchMode = /ARAŞTIRMA MODU/i.test(extraInstruction);
+  const systemText = researchMode
+    ? [
+        "Sen NOVA AI'sın. Türkçe, kısa ve kanıta dayalı yanıt ver.",
+        "Yalnızca kullanıcıya yönelik nihai yanıtı üret. Araç çağrısı, XML/JSON fonksiyon sözdizimi, iç plan veya işlem günlüğü yazma.",
+        "Aşağıdaki web arama sonuçlarını kullan. Her önemli iddiayı [1], [2] biçiminde kaynakla; sonunda başlık ve tam bağlantıları listele. Kaynakta olmayan bilgi uydurma. Güncelliği doğrulanmayan bilgiyi güncel diye sunma.",
+        extraInstruction,
+      ].filter(Boolean).join("\n\n")
+    : [
+        BASE_INSTRUCTION,
+        NOVA_PERSONALITY,
+        UNIVERSAL_RESPONSE_GUIDANCE,
+        ANALYSIS_INSTRUCTION,
+        isBlueprintQuestion(safeMessages) ? BLUEPRINT_INSTRUCTION : "",
+        getAnalysisMode(latestUserMessage),
+        extraInstruction,
+      ].filter(Boolean).join("\n\n");
 
   return {
     systemText,
@@ -1172,6 +1178,17 @@ function createStreamingTextCleaner(onText) {
     if (decided) return;
 
     const trimmed = pending.trimStart();
+    const functionCallPrefix = /^\\?<?dots_function_call\b/i.test(trimmed);
+
+    // Never stream internal tool-call markup to the chat. If the model emits
+    // this protocol as plain text, replace it with a readable failure notice.
+    if (functionCallPrefix) {
+      if (!force) return;
+      decided = true;
+      pending = "";
+      onText("Araştırma aracı çağrısı düzgün bir yanıt üretmedi. Lütfen isteği tekrar dene.");
+      return;
+    }
 
     const labelPrefix =
       /^\s*(?:(?:User\s+Safety|Response\s+Safety)\s*:\s*(?:safe|unsafe|unknown)?\s*)*$/i;
@@ -2406,14 +2423,14 @@ function buildWebResearchInstruction(results) {
 
   // Çok adımlı aramalarda tüm ham snippet'leri modele yığma.
   // En fazla 4 kaynağın kısa özeti ve bağlantısı yeterli kanıt bağlamı sağlar.
-  const sourceText = results.slice(0, 4).map((item, index) => [
+  const sourceText = results.slice(0, 3).map((item, index) => [
     "[WEB KAYNAĞI " + (index + 1) + "]",
     "Başlık: " + String(item.title || "").slice(0, 160),
     "Alan adı: " + String(item.domain || "").slice(0, 100),
     "Bağlantı: " + String(item.url || "").slice(0, 300),
     item.publishedAt ? "Yayın/gözlem tarihi: " + String(item.publishedAt).slice(0, 80) : "",
-    "Arama özeti/verisi: " + String(item.snippet || "Arama motoru açıklama sunmadı.").slice(0, 320),
-  ].join("\n")).join("\n\n").slice(0, 4200);
+    "Arama özeti/verisi: " + String(item.snippet || "Arama motoru açıklama sunmadı.").slice(0, 220),
+  ].join("\n")).join("\n\n").slice(0, 2600);
 
   return [
     "CANLI WEB ARAMASI SONUÇLARI:",
@@ -2427,7 +2444,7 @@ function buildWebResearchInstruction(results) {
     "Yanıtta kullandığın güncel iddiaları [1], [2] biçiminde kaynak numaralarıyla işaretle ve en sonda Kaynaklar başlığı altında tam bağlantıları ver.",
     "Kaynaklar soruyu yanıtlamıyorsa bunu açıkça söyle. Arama sonuçları çelişiyorsa çelişkiyi belirt. Güncel tarih ve yayın tarihlerini ayırt et.",
     sourceText,
-  ].join("\n\n").slice(0, 6500);
+  ].join("\n\n").slice(0, 4000);
 }
 
 function isUpcomingFootballQuestion(query = "") {
