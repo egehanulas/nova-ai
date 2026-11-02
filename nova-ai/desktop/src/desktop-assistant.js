@@ -309,22 +309,10 @@ export async function resolveUserItem(input, preferredLocation = "", { allowRoot
   if (exact.truncated) {
     throw new Error("Dosya araması tamamlanamadı. Yanlış dosyayı açmamak için tam dosya yolunu belirt veya konumunu daralt.");
   }
-
-  let selected = exact;
-  if (!selected.length) {
-    selected = await searchUserFiles(candidate, preferredLocation);
-    if (selected.truncated && selected.length < 2) {
-      throw new Error("Dosya araması tamamlanamadı. Yanlış dosyayı seçmemek için tam dosya yolunu belirt veya konumunu daralt.");
-    }
+  if (!exact.length) {
+    throw new Error("“" + candidate + "” adlı öğenin tam eşleşmesini bulamadım. Önce dosya araması yap veya tam dosya yolunu belirt.");
   }
-  if (!selected.length) {
-    throw new Error("“" + candidate + "” adlı öğeyi bilgisayarındaki erişilebilir sürücülerde bulamadım. Dosya adını kontrol et veya tam yolunu belirt.");
-  }
-  if (selected.length > 1) {
-    throw new Error("Aynı isimde birden fazla öğe buldum. Lütfen tam konumunu belirt:\n" +
-      selected.slice(0, 8).map((item) => item.path).join("\n"));
-  }
-  return resolveExistingUserPath(selected[0].path, { allowRoot });
+  return resolveExistingUserPath(exact[0].path, { allowRoot });
 }
 
 export async function openUserPath(input, preferredLocation = "") {
