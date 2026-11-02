@@ -24,6 +24,13 @@ function enforceNoSend(intent, command) {
   }
   const index = intent.actions.findIndex((action) => action?.type === "type-text");
   if (index >= 0) {
+    const focused = intent.actions.slice(0, index)
+      .some((action) => action?.type === "focus-control" || action?.type === "click");
+    if (!focused) throw new Error("The message field must be focused before text entry.");
+    const quotedText = String(command || "").match(/["“]([^"”]+)["”]/u);
+    if (quotedText && intent.actions[index].text !== quotedText[1]) {
+      throw new Error("The planned text does not match the quoted user text.");
+    }
     intent.actions = intent.actions.slice(0, index + 1);
     intent.done = true;
     intent.message = "Metin mesaj kutusuna yazıldı; gönderilmedi.";
