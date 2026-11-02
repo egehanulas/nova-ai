@@ -61,9 +61,9 @@ Kurulum paketi `out/make/squirrel.windows/x64/` altında üretilir.
 
 ## Otomatik güncelleme yayınlama
 
-Windows Squirrel güncelleme dosyaları GitHub Releases üzerinden dağıtılır. Yeni bir masaüstü sürümü yayınlamak için `desktop-v<package-version>` biçiminde bir Git etiketi oluştur. Örneğin `desktop-v0.2.0-alpha.2`. GitHub Actions Windows kurulumunu ve Squirrel paketlerini üretip ilgili GitHub Release'e yükler. Kurulu uygulama bu yayın kanalını denetler; güncelleme indirildiğinde NOVA'nın animasyonlu güncelleme penceresi yeni özellikleri, iyileştirmeleri ve sürüm karşılaştırmasını gösterir; kurulum yalnızca kullanıcı onayıyla başlar.
+Windows Squirrel güncelleme dosyaları GitHub Releases üzerinden dağıtılır. Masaüstü `package.json` sürümünü artıran her değişiklik `main` dalına alındığında GitHub Actions aynı sürüm için `desktop-v<package-version>` etiketini ve GitHub Release'ini otomatik oluşturur; Windows Setup.exe, `.nupkg` ve `RELEASES` güncelleme manifestini yayımlar. İhtiyaç halinde `desktop-v<package-version>` etiketiyle manuel yayın da yapılabilir. Kurulu uygulama bu yayın kanalını denetler; güncelleme indirildiğinde NOVA'nın animasyonlu güncelleme penceresi yeni özellikleri, iyileştirmeleri ve sürüm karşılaştırmasını gösterir; kurulum yalnızca kullanıcı onayıyla başlar.
 
-Otomatik güncellemeler yalnızca paketlenmiş Windows uygulamasında çalışır. İlk kurulum yine Setup.exe ile yapılır. Yayınlanmış bir GitHub Release yoksa uygulama güncelleme bulamaz.
+Otomatik güncellemeler yalnızca paketlenmiş Windows uygulamasında çalışır. İlk kurulum yine Setup.exe ile yapılır. Actions derleme artefaktı tek başına otomatik güncelleme kaynağı değildir; güncellemenin çalışması için aynı sürümün GitHub Release'inde Setup.exe, `.nupkg` ve `RELEASES` dosyaları bulunmalıdır.
 
 ## Güvenlik ve mimari
 
