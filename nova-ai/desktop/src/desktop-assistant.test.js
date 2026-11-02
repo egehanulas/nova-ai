@@ -11,6 +11,7 @@ import {
   resolveUserPath,
   searchUserFiles,
   openAllowedApp,
+  normalizeInstalledAppQuery,
   openUserPath,
   resolveUserItem,
   moveUserFile,
@@ -60,6 +61,38 @@ test("application launcher rejects anything outside the fixed allowlist", async 
   await assert.rejects(openAllowedApp("cmd.exe"), /izin verilen uygulamalar listesinde değil/);
 });
 
+
+test("installed application query validation rejects empty, oversized and multiline input", () => {
+  assert.equal(normalizeInstalledAppQuery("  WhatsApp  "), "WhatsApp");
+  assert.equal(normalizeInstalledAppQuery("Visual   Studio   Code"), "Visual Studio Code");
+  assert.throws(() => normalizeInstalledAppQuery(""), /uygulamanın adını/);
+  assert.throws(() => normalizeInstalledAppQuery("x".repeat(101)), /uygulamanın adını/);
+  assert.throws(() => normalizeInstalledAppQuery("Telegram" + String.fromCharCode(10) + "Start-Process powershell"), /uygulamanın adını/);
+});
+
+test("desktop command parser routes common and arbitrary installed apps safely", () => {
+  assert.deepEqual(parseDesktopCommand("WhatsApp'ı aç"), {
+    intent: "open-installed-app", app: "WhatsApp", label: "WhatsApp"
+  });
+  assert.deepEqual(parseDesktopCommand("Telegram aç"), {
+    intent: "open-installed-app", app: "Telegram", label: "Telegram"
+  });
+  assert.deepEqual(parseDesktopCommand("Windows Ayarları aç"), {
+    intent: "open-installed-app", app: "Settings", label: "Windows Ayarları"
+  });
+  assert.deepEqual(parseDesktopCommand("Visual Studio Code'u aç"), {
+    intent: "open-installed-app", app: "Visual Studio Code"
+  });
+  assert.deepEqual(parseDesktopCommand("Görev Yöneticisi'ni aç"), {
+    intent: "open-installed-app", app: "Görev Yöneticisi"
+  });
+});
+
+test("desktop browser shortcut allowlist includes tab restore and navigation keys", () => {
+  for (const key of ["CTRL+SHIFT+T", "CTRL+SHIFT+TAB", "CTRL+PAGEUP", "CTRL+PAGEDOWN", "F5", "F11"]) {
+    assert.doesNotThrow(() => validateComputerAction({ type: "press-key", key }));
+  }
+});
 
 test("desktop updater retries transient failures with increasing delays and only one pending retry", () => {
   const timers = [];

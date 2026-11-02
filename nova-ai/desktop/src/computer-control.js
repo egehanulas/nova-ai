@@ -11,7 +11,9 @@ const ALLOWED_TYPES = new Set([
 const ALLOWED_KEYS = new Set([
   "ENTER", "TAB", "ESC", "SPACE", "BACKSPACE", "DELETE", "UP", "DOWN",
   "LEFT", "RIGHT", "HOME", "END", "CTRL+A", "CTRL+L", "CTRL+T", "CTRL+W",
-  "CTRL+V", "CTRL+C", "CTRL+X", "CTRL+F", "ALT+F4", "SHIFT+TAB"
+  "CTRL+V", "CTRL+C", "CTRL+X", "CTRL+F", "ALT+F4", "SHIFT+TAB",
+  "CTRL+SHIFT+T", "CTRL+SHIFT+TAB", "CTRL+PAGEUP", "CTRL+PAGEDOWN", "CTRL+S",
+  "CTRL+P", "CTRL+R", "CTRL+Z", "CTRL+Y", "ALT+LEFT", "ALT+RIGHT", "F5", "F11"
 ]);
 
 export function validateComputerAction(action) {
@@ -127,12 +129,21 @@ export async function runComputerAction(action) {
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", chunk => { stdout = (stdout + chunk).slice(-250000); });
     child.stderr.on("data", chunk => { stderr = (stderr + chunk).slice(-8000); });
-    child.once("error", error => reject(new Error("Windows masaüstü kontrolü başlatılamadı: " + error.message)));
+    let settled = false;
+    let timeout;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      callback(value);
+    };
+    child.once("error", error => finish(reject, new Error("Windows masaüstü kontrolü başlatılamadı: " + error.message)));
     child.once("close", code => {
+      if (settled) return;
       let result;
       try { result = parseComputerControlOutput(stdout); }
       catch (error) {
-        reject(new Error(error.message + (stderr.trim() ? " " + stderr.slice(-1000) : "")));
+        finish(reject, new Error(error.message + (stderr.trim() ? " " + stderr.slice(-1000) : "")));
         return;
       }
       if (!result.success) {
@@ -142,8 +153,13 @@ export async function runComputerAction(action) {
           stderr.trim() ? "PowerShell stderr: " + stderr.trim().slice(-1200) : "",
           !result.error && stdout.trim() ? "PowerShell çıktısı: " + stdout.trim().slice(-500) : ""
         ].filter(Boolean).join(" | ");
-        reject(new Error(details || "Masaüstü kontrolü başarısız."));
-      } else resolve(result);
+        finish(reject, new Error(details || "Masaüstü kontrolü başarısız."));
+      } else finish(resolve, result);
     });
+    timeout = setTimeout(() => {
+      try { child.kill(); } catch {}
+      finish(reject, new Error("Windows masaüstü işlemi 45 saniyede tamamlanamadı; takılan işlem sonlandırıldı."));
+    }, 45_000);
+    timeout.unref?.();
   });
 }

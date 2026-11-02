@@ -1,6 +1,6 @@
 # NOVA AI
 
-**Web/API sürümü:** 0.2.0-alpha.10 · **Windows masaüstü:** 0.2.0-alpha.22 · **Kanal:** Alfa
+**Web/API sürümü:** 0.2.0-alpha.10 · **Windows masaüstü:** 0.2.0-alpha.33 · **Kanal:** Alfa
 
 NOVA AI; Türkçe sohbet, kalıcı kullanıcı hafızası, canlı web araştırması, yapılandırılmış hava durumu/futbol sorguları ve Unreal Engine 5.8 bilgi tabanı için geliştirilmiş kişisel asistandır.
 
@@ -70,8 +70,8 @@ Supabase SQL Editor'de sırasıyla `003`, `004` ve `006` migration dosyalarını
 
 - Bu sürüm erken test içindir; üretim kararlılığı veya kesintisiz erişim garantisi vermez.
 - Sohbet, web araştırması, hafıza, ses ve görsel üretimi harici servislerin erişimine, kota ve API anahtarlarına bağlıdır.
-- NOVA Desktop, barındırılan web uygulamasını açan çevrimiçi Electron istemcisidir; yerel dosya arama/açma/taşıma ve izinli uygulama başlatma özellikleri Windows masaüstü IPC katmanında çalışır. Çevrimdışı sohbet henüz yoktur.
+- NOVA Desktop, barındırılan web uygulamasını açan çevrimiçi Electron istemcisidir; yerel dosya arama/açma/taşıma, Windows Başlat menüsüne kayıtlı uygulamaları açma ve erişilebilir pencerelerde UI Automation ile çok adımlı kontrol Windows masaüstü IPC katmanında çalışır. Uygulama ve site otomasyonu, erişilebilir arayüz denetimlerine bağlıdır; her özel uygulama/oyun ekranı aynı düzeyde otomatikleştirilemeyebilir. Çevrimdışı sohbet henüz yoktur.
 - Masaüstü otomatik güncellemesi GitHub Releases/Squirrel.Windows üzerinden dağıtılır; güncelleme indirildiğinde kurulum kullanıcı onayıyla yapılır.
-- Discord mesajı gönderme, genel fare/klavye kontrolü ve geniş kapsamlı uygulama otomasyonu henüz desteklenmez. Dosya işlemleri ve izinli uygulama başlatma mevcut masaüstü kapsamıdır.
+- NOVA Desktop, erişilebilir uygulama pencerelerinde fare/klavye kontrolü ve çok adımlı görev otomasyonu sunar; Discord mesajları kullanıcı komutuyla gönderilebilir. UI Automation kapsamı uygulamaya ve siteye göre değişebilir.
 - /health endpoint'i sürüm ve kanal bilgisini verir; gizli anahtar değerlerini açığa çıkarmaz.
 - Sürüm numaraları nova-ai/package.json, nova-ai/package-lock.json ve nova-ai/desktop/package.json dosyalarında birlikte tutulur. npm run check bu eşleşmeyi test eder.

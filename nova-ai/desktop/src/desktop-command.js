@@ -8,7 +8,11 @@ const APP_ALIASES = [
   { names: ["paint"], app: "paint", label: "Paint" },
   { names: ["not defteri", "notepad"], app: "notepad", label: "Not Defteri" },
   { names: ["hesap makinesi", "calculator", "calc"], app: "calculator", label: "Hesap Makinesi" },
-  { names: ["dosya gezgini", "dosya yöneticisi", "explorer"], app: "explorer", label: "Dosya Gezgini" }
+  { names: ["dosya gezgini", "dosya yöneticisi", "explorer"], app: "explorer", label: "Dosya Gezgini" },
+  { names: ["whatsapp"], app: "WhatsApp", label: "WhatsApp", installed: true },
+  { names: ["telegram"], app: "Telegram", label: "Telegram", installed: true },
+  { names: ["windows ayarları", "ayarlar", "settings"], app: "Settings", label: "Windows Ayarları", installed: true },
+  { names: ["görev yöneticisi", "task manager"], app: "Task Manager", label: "Görev Yöneticisi", installed: true }
 ];
 
 function cleanTarget(value) {
@@ -84,7 +88,7 @@ export function parseDesktopCommand(input) {
     .replace(/['’](?:i|ı|u|ü)$/i, "")
     .trim();
   const app = APP_ALIASES.find((entry) => entry.names.includes(appText));
-  if (app) return { intent: "open-app", app: app.app, label: app.label };
+  if (app) return app.installed ? { intent: "open-installed-app", app: app.app, label: app.label } : { intent: "open-app", app: app.app, label: app.label };
 
   const discordRecentConversationTask =
     /discord/i.test(command) &&
@@ -100,6 +104,11 @@ export function parseDesktopCommand(input) {
       { type: "inspect-screen" }
     ]
   };
+
+  const genericAppMatch = command.match(/^(?:lütfen\s+)?(.+?)(?:\s+uygulamasını)?\s+(?:aç|başlat|çalıştır)$/iu);
+  if (genericAppMatch && !/(?:dosyasını|dosyayı|dosya|klasörünü|klasörü|klasör|öğesini)|\.[a-z0-9]{2,6}(?:['’](?:yi|yı|yu|yü|i|ı|u|ü))?$/iu.test(genericAppMatch[1])) {
+    return { intent: "open-installed-app", app: cleanTarget(genericAppMatch[1]).replace(/['’](?:ni|nı|nu|nü|yi|yı|yu|yü|i|ı|u|ü)$/iu, "") };
+  }
 
   const createText = command.toLocaleLowerCase("tr-TR").replace(/\s+/g, " ").trim();
   const createPatterns = [

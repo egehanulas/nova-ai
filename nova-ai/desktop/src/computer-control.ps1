@@ -142,6 +142,11 @@ public static class NovaDesktopInput {
         "CTRL+A" = "^a"; "CTRL+L" = "^l"; "CTRL+T" = "^t"; "CTRL+W" = "^w"
         "CTRL+V" = "^v"; "CTRL+C" = "^c"; "CTRL+X" = "^x"; "CTRL+F" = "^f"
         "ALT+F4" = "%{F4}"; "SHIFT+TAB" = "+{TAB}"
+        "CTRL+SHIFT+T" = "^+t"; "CTRL+SHIFT+TAB" = "^+{TAB}"
+        "CTRL+PAGEUP" = "^{PGUP}"; "CTRL+PAGEDOWN" = "^{PGDN}"
+        "CTRL+S" = "^s"; "CTRL+P" = "^p"; "CTRL+R" = "^r"
+        "CTRL+Z" = "^z"; "CTRL+Y" = "^y"; "ALT+LEFT" = "%{LEFT}"
+        "ALT+RIGHT" = "%{RIGHT}"; F5 = "{F5}"; F11 = "{F11}"
       }
       $key = ([string]$action.key).ToUpperInvariant()
       if (-not $keys.ContainsKey($key)) { throw "Bu klavye kısayoluna izin verilmiyor." }

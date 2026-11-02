@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("novaDesktop", Object.freeze({
     listFolders: () => ipcRenderer.invoke("nova-desktop:list-folders"),
     searchFiles: (query) => ipcRenderer.invoke("nova-desktop:search-files", query),
     executeCommand: (command, accessToken) => ipcRenderer.invoke("nova-desktop:execute-command", { command, accessToken }),
+    onTaskProgress(callback) { if (typeof callback === "function") ipcRenderer.on("nova-desktop:task-progress", (_event, progress) => callback(progress)); },
     openApp: (name) => ipcRenderer.invoke("nova-desktop:open-app", name),
     openPath: (targetPath) => ipcRenderer.invoke("nova-desktop:open-path", targetPath),
     createFolder: (parent, name) => ipcRenderer.invoke("nova-desktop:create-folder", { parent, name }),

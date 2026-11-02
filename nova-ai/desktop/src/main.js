@@ -15,7 +15,7 @@ import {
 import { URL, pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder, launchSteamGame, searchSpotify, openSpotify } from "./desktop-assistant.js";
+import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder, launchSteamGame, searchSpotify, openSpotify, openInstalledApp, launchDownloadedInstaller } from "./desktop-assistant.js";
 import { parseDesktopCommand } from "./desktop-command.js";
 import { runComputerAction } from "./computer-control.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
@@ -333,8 +333,63 @@ function registerDesktopAssistantIpc() {
     let intent = parseDesktopCommand(rawCommand);
     const accessToken = typeof payload.accessToken === "string" ? payload.accessToken : "";
     const observations = [];
+    const parent = getDialogParent(event);
+    const taskDeadline = Date.now() + 8 * 60 * 1000;
+    const reportProgress = (phase, message, step = 0, total = 0) => {
+      try {
+        if (!event.sender.isDestroyed()) event.sender.send("nova-desktop:task-progress", {
+          phase, message: String(message || "").slice(0, 240), step, total, timestamp: Date.now()
+        });
+      } catch {}
+    };
+    const sensitiveCommand = rawCommand.toLocaleLowerCase("tr-TR");
+    const approvalReason =
+      /(?:hesap.{0,35}ayar|ayar.{0,35}hesap|hesab.{0,35}ayar|ayar.{0,35}hesab|account.{0,35}settings|settings.{0,35}account|güvenlik.{0,25}ayar|gizlilik.{0,25}ayar|şifre(?:mi|yi)?\s+değiştir|e.?posta\s+adresini\s+değiştir)/iu.test(sensitiveCommand) ? "Hesap ayarlarını değiştirme" :
+      "";
+    const sensitiveActionReason = (action) => {
+      const label = [action?.text, action?.name, action?.automationId].filter(Boolean).join(" ");
+      const purchasePattern = /(?:satın\s*al|sipariş\s*ver|öde|checkout|\bbuy\b|place\s+order|complete\s+purchase|confirm\s+purchase|\bpay\b)/iu;
+      const deletePattern = /(?:sil|delete|remove|move\s+to\s+trash|çöp\s+kutusu)/iu;
+      if (action?.type === "launch-installer" || /(?:install|yükle|kur)/iu.test(label)) return "Program kurulumu";
+      if (action?.type === "press-key" && String(action.key || "").toUpperCase() === "DELETE") return "Dosya silme";
+      if (purchasePattern.test(label)) return "Satın alma veya ödeme";
+      if (deletePattern.test(label) || /(?:uninstall|kaldır)/iu.test(label)) return "Dosya veya program kaldırma";
+      const latest = observations[observations.length - 1];
+      const items = Array.isArray(latest?.items) ? latest.items : [];
+      const matches = items.filter(item => {
+        const name = String(item?.name || "");
+        if (!purchasePattern.test(name) && !deletePattern.test(name)) return false;
+        if (action?.type === "click" && action.x != null && action.y != null) {
+          const b = item.bounds;
+          return b && action.x >= b.x && action.x <= b.x + b.width && action.y >= b.y && action.y <= b.y + b.height;
+        }
+        return action?.type === "press-key" && String(action.key || "").toUpperCase() === "ENTER" && Boolean(item.focusable);
+      });
+      if (matches.some(item => purchasePattern.test(String(item.name || "")))) return "Satın alma veya ödeme";
+      if (matches.length) return "Dosya silme veya kaldırma";
+      return "";
+    };
+    if (approvalReason) {
+      const approval = await dialog.showMessageBox(parent, {
+        type: "warning",
+        title: "NOVA işlem onayı",
+        message: approvalReason + " işlemi başlatılmak üzere.",
+        detail: "NOVA yalnızca sen onaylarsan devam edecek. İşlem sırasında ödeme bilgilerini veya parolanı sohbete yazma.",
+        buttons: ["Onayla ve devam et", "Vazgeç"],
+        defaultId: 1,
+        cancelId: 1,
+        noLink: true
+      });
+      if (approval.response !== 0) {
+        reportProgress("cancelled", "İşlem için onay verilmedi.");
+        return { message: "İşlem onay verilmediği için başlatılmadı." };
+      }
+    }
+    reportProgress("started", "Komut analiz ediliyor.");
     const requestInterpretation = async () => {
+      if (Date.now() > taskDeadline) throw new Error("Görev 8 dakikalık güvenli çalışma sınırına ulaştı.");
       if (!accessToken || accessToken.length >= 5000) return null;
+      reportProgress("planning", "NOVA sonraki adımı planlıyor.");
       const response = await fetch(new URL("/api/desktop/interpret", NOVA_URL), {
         method: "POST",
         headers: {
@@ -342,7 +397,7 @@ function registerDesktopAssistantIpc() {
           "Authorization": "Bearer " + accessToken
         },
         body: JSON.stringify({ command: rawCommand, observations: observations.slice(-6) }),
-        signal: AbortSignal.timeout(25000)
+        signal: AbortSignal.timeout(60000)
       });
       if (!response.ok) throw new Error("NOVA komut yorumlama servisi HTTP " + response.status);
       const interpreted = await response.json();
@@ -355,7 +410,6 @@ function registerDesktopAssistantIpc() {
         console.warn("NOVA AI intent interpretation failed; local parser remains available:", error.message);
       }
     }
-    const parent = getDialogParent(event);
     const folders = () => listUserFolders();
     const findFolder = async (name) => {
       const knownFolder = getUserFolderPath(name);
@@ -366,7 +420,7 @@ function registerDesktopAssistantIpc() {
 
     switch (intent.intent) {
       case "help":
-        return { message: "Uygulama açabilir, Chrome ve diğer tarayıcılarda site açabilir, Spotify’da şarkı arayabilir, Steam’de kurulu oyunları başlatabilir; ekrandaki öğelere tıklayıp mouse ve klavyeyi kullanabilirim. Dosya ve klasör arama/açma/taşıma işlemleri de yapabilirim. Örnek: “Discord’u aç”, “Chrome’da YouTube aç”, “Steam’de Dying Light: The Beast aç”, “Spotify’da Blinding Lights çal”, “Oyunlar klasöründe 121.png dosyasını aç”." };
+        return { message: "Windows Başlat menüsüne kayıtlı uygulamaları açabilir, Chrome ve Edge üzerinde web sitelerinde gezinebilir, arama yapabilir, formları doldurabilir, sekmeleri yönetebilir, Spotify’da müzik arayabilir, Steam’de kurulu oyunları başlatabilir; ekrandaki erişilebilir öğelere tıklayıp mouse ve klavyeyi kullanabilirim. Dosya ve klasör arama, açma, taşıma ve düzenleme işlemlerini de desteklerim. Örnek: “Discord’u aç”, “Chrome’da YouTube aç”, “Steam’de Dying Light: The Beast aç”, “Spotify’da Blinding Lights çal”, “Oyunlar klasöründe 121.png dosyasını aç”." };
       case "computer-info":
         return { message: JSON.stringify(getComputerInfo(), null, 2) };
       case "list-folders": {
@@ -374,9 +428,18 @@ function registerDesktopAssistantIpc() {
         return { message: all.map((folder) => folder.name + " (" + folder.items.length + " öğe)\\n" +
           folder.items.slice(0, 20).map((item) => (item.type === "folder" ? "📁 " : "📄 ") + item.name).join("\\n")).join("\\n\\n") };
       }
-      case "open-app":
-        if (intent.app === "spotify") return await openSpotify();
-        return await openAllowedApp(intent.app);
+      case "open-app": {
+        reportProgress("running", intent.app + " uygulaması açılıyor.");
+        const result = intent.app === "spotify" ? await openSpotify() : await openAllowedApp(intent.app);
+        reportProgress("completed", result.message || "Uygulama açıldı.", 1, 1);
+        return result;
+      }
+      case "open-installed-app": {
+        reportProgress("running", intent.app + " uygulaması aranıyor ve açılıyor.");
+        const result = await openInstalledApp(intent.app);
+        reportProgress("completed", result.message, 1, 1);
+        return result;
+      }
       case "open-url": {
         let targetUrl = typeof intent.url === "string" ? intent.url : "";
         if (!targetUrl && typeof intent.query === "string" && intent.query.trim()) {
@@ -392,14 +455,23 @@ function registerDesktopAssistantIpc() {
         openExternal(parsedUrl.href);
         return { message: parsedUrl.hostname + " varsayılan tarayıcıda açılıyor." };
       }
-      case "spotify-search":
-        return await searchSpotify(intent.query);
-      case "launch-steam-game":
-        return await launchSteamGame(intent.game);
+      case "spotify-search": {
+        reportProgress("running", "Spotify'da müzik aranıyor.");
+        const result = await searchSpotify(intent.query);
+        reportProgress("completed", result.message, 1, 1);
+        return result;
+      }
+      case "launch-steam-game": {
+        reportProgress("running", intent.game + " oyunu başlatılıyor.");
+        const result = await launchSteamGame(intent.game);
+        reportProgress("completed", result.message, 1, 1);
+        return result;
+      }
       case "computer-control": {
         let currentIntent = intent;
         let completed = 0;
-        for (let round = 0; round < 6; round += 1) {
+        for (let round = 0; round < 12; round += 1) {
+          if (Date.now() > taskDeadline) throw new Error("Görev 8 dakikalık güvenli çalışma sınırına ulaştı; kalan adımlar durduruldu.");
           if (!Array.isArray(currentIntent.actions) || currentIntent.actions.length > 8) {
             throw new Error("Masaüstü kontrol planı geçersiz veya çok uzun.");
           }
@@ -407,11 +479,49 @@ function registerDesktopAssistantIpc() {
           for (const action of currentIntent.actions) {
             if (!action || typeof action !== "object") throw new Error("Masaüstü kontrol adımı geçersiz.");
             if (action.type === "finish") {
-              return { message: currentIntent.message || (completed ? "İstenen masaüstü işlemleri tamamlandı." : "Komutu güvenli biçimde tamamlayamadım; biraz daha açık anlatır mısın?"), steps: completed };
+              const message = currentIntent.message || (completed ? "İstenen masaüstü işlemleri tamamlandı." : "Komutu güvenli biçimde tamamlayamadım; biraz daha açık anlatır mısın?");
+              reportProgress("completed", message, completed, completed);
+              return { message, steps: completed };
+            }
+            const actionLabel = action.type === "open-installed-app" ? (action.app + " uygulaması açılıyor.") :
+              action.type === "open-app" ? (action.app + " açılıyor.") :
+              action.type === "open-url" ? "Tarayıcıda web adresi açılıyor." :
+              action.type === "launch-steam-game" ? (action.game + " oyunu başlatılıyor.") :
+              action.type === "spotify-search" ? (action.query + " Spotify'da aranıyor.") :
+              action.type === "inspect-screen" ? "Etkin pencere inceleniyor." :
+              action.type === "click-text" ? "Ekrandaki hedef öğeye tıklanıyor." :
+              action.type === "focus-control" ? "İlgili giriş alanına odaklanılıyor." :
+              action.type === "type-text" ? "İstenen metin giriliyor." :
+              action.type === "press-key" ? "Klavye işlemi uygulanıyor." :
+              action.type === "wait" ? "Uygulamanın yanıt vermesi bekleniyor." : "Masaüstü işlemi uygulanıyor.";
+            reportProgress("running", actionLabel, completed + 1, 0);
+            const actionApprovalReason = sensitiveActionReason(action);
+            if (actionApprovalReason) {
+              const approval = await dialog.showMessageBox(parent, {
+                type: "warning",
+                title: "NOVA işlem onayı",
+                message: actionApprovalReason + " işlemi yapılmak üzere.",
+                detail: "Komut: " + rawCommand + "\\nHedef: " + (action.text || action.name || action.type),
+                buttons: ["Onayla", "Vazgeç"],
+                defaultId: 1,
+                cancelId: 1,
+                noLink: true
+              });
+              if (approval.response !== 0) {
+                reportProgress("cancelled", actionApprovalReason + " işlemi onaylanmadı.", completed, 0);
+                return { message: actionApprovalReason + " işlemi onay verilmediği için yapılmadı.", steps: completed };
+              }
             }
             if (action.type === "inspect-screen") {
-              const result = await runComputerAction(action);
+              let result;
+              try {
+                result = await runComputerAction(action);
+              } catch {
+                reportProgress("retrying", "Ekran okuma başarısız oldu; güvenli okuma işlemi bir kez yeniden deneniyor.", completed + 1, 0);
+                result = await runComputerAction(action);
+              }
               observations.push({ activeWindow: result.activeWindow || "", items: result.items || [] });
+              reportProgress("planning", "Ekran okundu; NOVA sonraki adımı belirliyor.", completed, 0);
               currentIntent = await requestInterpretation();
               if (!currentIntent || currentIntent.intent !== "computer-control" || !Array.isArray(currentIntent.actions)) {
                 throw new Error("NOVA ekrandaki durumu yorumlayamadı; güvenli olması için işlem durduruldu.");
@@ -422,6 +532,10 @@ function registerDesktopAssistantIpc() {
             if (action.type === "open-app") {
               if (action.app === "spotify") await openSpotify();
               else await openAllowedApp(action.app);
+            } else if (action.type === "open-installed-app") {
+              await openInstalledApp(action.app);
+            } else if (action.type === "launch-installer") {
+              await launchDownloadedInstaller(action.path);
             } else if (action.type === "open-url") {
               let parsedUrl;
               try { parsedUrl = new URL(String(action.url || "")); } catch { throw new Error("Açılacak internet adresi geçersiz."); }
@@ -438,14 +552,19 @@ function registerDesktopAssistantIpc() {
               await runComputerAction(action);
             }
             completed += 1;
+            reportProgress("running", "Tamamlandı: " + actionLabel, completed, 0);
           }
           if (!needsReplan) {
             if (currentIntent.done === true) {
-              return { message: currentIntent.message || "İstenen masaüstü işlemleri tamamlandı.", steps: completed };
+              const message = currentIntent.message || "İstenen masaüstü işlemleri tamamlandı.";
+              reportProgress("completed", message, completed, completed);
+              return { message, steps: completed };
             }
+            reportProgress("waiting", "Bu bölüm tamamlandı; görev için ek bilgi gerekebilir.", completed, 0);
             return { message: "Masaüstü adımları uygulandı; devam etmek için komutun kalan kısmını belirt.", steps: completed };
           }
         }
+        reportProgress("failed", "Görev güvenli adım sınırına ulaştı; kalan işlemler durduruldu.", completed, 0);
         throw new Error("Masaüstü görevi güvenlik sınırına ulaştı; tamamlanmamış adımlar durduruldu.");
       }
       case "search-files": {
@@ -655,6 +774,14 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
       "Steam kütüphanesindeki kurulu oyunları adlarıyla başlatabiliyor",
       "Ekrandaki erişilebilir öğeleri okuyup adım adım tıklama ve metin yazma",
       "Rastgele terminal komutları yerine izinli ve doğrulanan masaüstü eylemleri"
+    ],
+    "0.2.0-alpha.33": [
+      "Windows Başlat menüsüne kayıtlı uygulamaları adlarıyla bulup açma",
+      "Chrome ve Edge dahil uygulamalarda daha fazla sekme ve gezinme kısayolu",
+      "Uzun masaüstü görevleri için daha geniş çalışma süresi ve takılan işlemleri durdurma",
+      "Ekran okuma başarısız olduğunda güvenli otomatik yeniden deneme",
+      "Görev adımlarını sohbet ekranında ayrıntılı olarak gösterme",
+      "Satın alma, hesap ayarı ve program yönetiminde yerel onay kontrolleri"
     ]
   };
   const suppliedNotes = Array.isArray(releaseNotes)
