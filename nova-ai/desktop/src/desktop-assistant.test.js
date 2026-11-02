@@ -702,7 +702,17 @@ test("Windows PowerShell desktop automation script parses without syntax errors"
   assert.equal(result.status, 0, (result.stdout || "") + (result.stderr || ""));
 });
 
-test("Windows desktop controller can load its automation runtime", { skip: process.platform !== "win32" }, async () => {
+test("Windows desktop controller can load its automation runtime and read system/window data", { skip: process.platform !== "win32" }, async () => {
   const result = await runComputerAction({ type: "wait", ms: 0 });
   assert.equal(result.success, true);
+
+  const system = await runComputerAction({ type: "system-info" });
+  assert.equal(system.success, true);
+  assert.ok(system.localTime);
+  assert.ok(Number.isFinite(system.ramTotalGb) && system.ramTotalGb > 0);
+  assert.ok(system.battery && typeof system.battery.available === "boolean");
+
+  const windows = await runComputerAction({ type: "list-windows" });
+  assert.equal(windows.success, true);
+  assert.ok(Array.isArray(windows.windows));
 });
