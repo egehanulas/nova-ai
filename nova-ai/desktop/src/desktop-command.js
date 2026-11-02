@@ -31,7 +31,7 @@ function normalizeDestination(value) {
   const prefix = cleaned.match(new RegExp("^(" + LOCATION_TOKEN + ")\\s+(.+)$", "iu"));
   if (prefix) {
     const key = locationFrom(prefix[1]);
-    const subfolder = cleanTarget(prefix[2]).replace(/\s+klasör(?:ü|üne)?$/i, "").trim();
+    const subfolder = cleanTarget(prefix[2]).replace(/\s+klasör(?:ü|üne)?$/i, "").replace(/['’](?:a|e|ı|i|u|ü)$/i, "").trim();
     return subfolder ? key + "/" + subfolder : key;
   }
   const rootOnly = cleaned.match(new RegExp("^" + LOCATION_TOKEN + "$", "iu"));
