@@ -186,7 +186,10 @@ public static class NovaDesktopInput {
     }
     default { throw "Desteklenmeyen masaüstü kontrol işlemi." }
   }
-  $result | ConvertTo-Json -Depth 8 -Compress
+  $json = ConvertTo-Json -InputObject $result -Depth 8 -Compress
+[Console]::Out.WriteLine($json)
+# A successful UI Automation action must end with an explicit zero exit code.
+exit 0
 } catch {
   Write-Output ("NOVA_RESULT:" + (@{ success = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress))
   exit 1
