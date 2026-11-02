@@ -417,6 +417,27 @@ export async function openInstalledApp(appName) {
   });
 }
 
+export async function launchDownloadedInstaller(inputPath) {
+  if (process.platform !== "win32") throw new Error("Kurulum paketleri yalnızca Windows'ta başlatılabilir.");
+  const resolved = await resolveUserItem(inputPath, "Downloads", { allowRoot: false });
+  if (!inside(USER_FOLDERS.Downloads, resolved.path)) {
+    throw new Error("Kurulum dosyası güvenlik nedeniyle yalnızca İndirilenler klasöründen başlatılabilir.");
+  }
+  if (!resolved.stat.isFile()) throw new Error("Kurulum için bir dosya seçmelisin.");
+  const extension = path.extname(resolved.path).toLowerCase();
+  if (![".exe", ".msi"].includes(extension)) throw new Error("Yalnızca .exe veya .msi kurulum paketleri başlatılabilir.");
+  const command = extension === ".msi"
+    ? path.join(process.env.SystemRoot || "C:\\Windows", "System32", "msiexec.exe")
+    : resolved.path;
+  const args = extension === ".msi" ? ["/i", resolved.path] : [];
+  await new Promise((resolve, reject) => {
+    const child = spawn(command, args, { detached: true, stdio: "ignore", windowsHide: false, shell: false });
+    child.once("error", error => reject(new Error("Kurulum paketi başlatılamadı: " + error.message)));
+    child.once("spawn", () => { child.unref(); resolve(); });
+  });
+  return { message: path.basename(resolved.path) + " kurulum paketi başlatıldı. Windows'un güvenlik/UAC pencerelerini kontrol et.", path: resolved.path };
+}
+
 function readSteamQuotedValue(text, key) {
   const match = String(text).match(new RegExp('"' + key + '"\\s+"([^"]+)"', "i"));
   return match ? match[1].replace(/\\\\/g, "\\") : "";
