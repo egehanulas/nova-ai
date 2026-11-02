@@ -15,7 +15,7 @@ import {
 import { URL, pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder, launchSteamGame, searchSpotify } from "./desktop-assistant.js";
+import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder, launchSteamGame, searchSpotify, openSpotify } from "./desktop-assistant.js";
 import { parseDesktopCommand } from "./desktop-command.js";
 import { runComputerAction } from "./computer-control.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
@@ -375,10 +375,7 @@ function registerDesktopAssistantIpc() {
           folder.items.slice(0, 20).map((item) => (item.type === "folder" ? "📁 " : "📄 ") + item.name).join("\\n")).join("\\n\\n") };
       }
       case "open-app":
-        if (intent.app === "spotify") {
-          await shell.openExternal("spotify:");
-          return { message: "Spotify açılıyor." };
-        }
+        if (intent.app === "spotify") return await openSpotify();
         return await openAllowedApp(intent.app);
       case "open-url": {
         let targetUrl = typeof intent.url === "string" ? intent.url : "";
@@ -423,7 +420,7 @@ function registerDesktopAssistantIpc() {
               break;
             }
             if (action.type === "open-app") {
-              if (action.app === "spotify") await shell.openExternal("spotify:");
+              if (action.app === "spotify") await openSpotify();
               else await openAllowedApp(action.app);
             } else if (action.type === "open-url") {
               let parsedUrl;
