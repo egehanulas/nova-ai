@@ -11,7 +11,7 @@ const APP_ALIASES = [
   { names: ["dosya gezgini", "dosya yöneticisi", "explorer"], app: "explorer", label: "Dosya Gezgini" },
   { names: ["whatsapp"], app: "WhatsApp", label: "WhatsApp", installed: true },
   { names: ["telegram"], app: "Telegram", label: "Telegram", installed: true },
-  { names: ["windows ayarları", "ayarlar", "settings"], app: "Windows Settings", label: "Windows Ayarları", installed: true },
+  { names: ["windows ayarları", "ayarlar", "settings"], app: "Settings", label: "Windows Ayarları", installed: true },
   { names: ["görev yöneticisi", "task manager"], app: "Task Manager", label: "Görev Yöneticisi", installed: true }
 ];
 
