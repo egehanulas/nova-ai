@@ -1,6 +1,6 @@
 {
   "name": "nova-desktop",
-  "version": "0.2.0-alpha.29",
+  "version": "0.2.0-alpha.30",
   "private": true,
   "description": "NOVA AI Windows desktop application",
   "type": "module",
@@ -9,7 +9,7 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "test": "node --check src/main.js && node --check src/preload.cjs && node --check src/desktop-command.js && node --check src/computer-control.js && node --test src/desktop-assistant.test.js"
+    "test": "node --check src/main.js && node --check src/preload.cjs && node --check src/desktop-command.js && node --check src/computer-control.js && node --test src/computer-assistant.test.js src/computer-control.test.js src/desktop-assistant.test.js"
   },
   "devDependencies": {
     "@electron-forge/cli": "^8.0.1",
