@@ -327,7 +327,7 @@ export async function resolveUserFolder(input) {
     ? input.match(/^([A-Z])\s+(?:sürücüsündeki|diskindeki|sürücüsünde|diskinde)\s+(.+)$/i)
     : null;
   if (!knownPath && driveFolderMatch) {
-    const relativeFolder = driveFolderMatch[2].replace(/\s+klasörü?$/i, "").trim();
+    const relativeFolder = driveFolderMatch[2].replace(/\s+klasör(?:ü|üne)?$/i, "").trim();
     candidate = path.join(driveFolderMatch[1].toUpperCase() + ":\\", relativeFolder);
   } else if (!knownPath && typeof input === "string" && !path.isAbsolute(input) && !input.includes("/") && !input.includes("\\")) {
     candidate = (await resolveUserItem(input)).path;
