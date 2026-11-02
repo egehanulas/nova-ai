@@ -4,6 +4,8 @@ import os from "node:os";
 import fs from "node:fs/promises";
 import path from "node:path";
 import vm from "node:vm";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import {
   getComputerInfo,
   resolveUserPath,
@@ -552,4 +554,13 @@ test("Steam game resolver finds a uniquely installed title in a library manifest
     else process.env.ProgramFiles = previousProgramFiles;
     await fs.rm(base, { recursive: true, force: true });
   }
+});
+
+test("Windows PowerShell desktop automation script parses without syntax errors", { skip: process.platform !== "win32" }, () => {
+  const scriptPath = fileURLToPath(new URL("./computer-control.ps1", import.meta.url));
+  const command = "$tokens = $null; $errors = $null; [System.Management.Automation.Language.Parser]::ParseFile('" +
+    scriptPath.replace(/'/g, "''") +
+    "', [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count -gt 0) { $errors | Out-String; exit 1 }";
+  const result = spawnSync("powershell.exe", ["-NoLogo", "-NoProfile", "-Command", command], { encoding: "utf8" });
+  assert.equal(result.status, 0, (result.stdout || "") + (result.stderr || ""));
 });
