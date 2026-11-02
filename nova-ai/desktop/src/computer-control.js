@@ -57,12 +57,26 @@ export function validateComputerAction(action) {
 }
 
 export function parseComputerControlOutput(stdout) {
-  const lines = String(stdout || "").split(/\r?\n/).reverse();
-  for (const line of lines) {
-    const marker = line.lastIndexOf("NOVA_RESULT:");
-    const candidate = (marker >= 0 ? line.slice(marker + "NOVA_RESULT:".length) : line).trim();
-    if (!candidate.startsWith("{") || !candidate.endsWith("}")) continue;
-    try { return JSON.parse(candidate); } catch {}
+  const output = String(stdout || "").replace(/^\\uFEFF/, "");
+  for (let start = output.indexOf("{"); start >= 0; start = output.indexOf("{", start + 1)) {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let index = start; index < output.length; index++) {
+      const character = output[index];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (character === "\\\\") escaped = true;
+        else if (character === '"') inString = false;
+        continue;
+      }
+      if (character === '"') inString = true;
+      else if (character === "{") depth++;
+      else if (character === "}" && --depth === 0) {
+        try { return JSON.parse(output.slice(start, index + 1)); } catch {}
+        break;
+      }
+    }
   }
   throw new Error("Windows masaüstü kontrolünden geçerli sonuç alınamadı.");
 }
