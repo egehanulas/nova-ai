@@ -45,20 +45,23 @@ export function parseDesktopCommand(input) {
   const app = APP_ALIASES.find((entry) => entry.names.includes(appText));
   if (app) return { intent: "open-app", app: app.app, label: app.label };
 
+  const createText = raw.toLocaleLowerCase("tr-TR").replace(/\s+/g, " ").trim();
   const createPatterns = [
     /^(?:lütfen\s+)?(?:yeni\s+)?klasör(?:\s+oluştur|\s+aç)\s+(.+?)(?:\s+(masaüstünde|masaüstüne|masaüstüme|belgelerde|belgelerine|belgelerime|indirilenlerde|indirilenlere|indirilenlerime))?$/,
     /^(?:lütfen\s+)?(masaüstüne|masaüstünde|masaüstüme|belgelere|belgelerde|belgelerime|indirilenlere|indirilenlerde|indirilenlerime)\s+(?:bir\s+)?(.+?)\s+(?:adında\s+)?klasör(?:ü)?(?:\s+oluştur)?$/
   ];
-  let match = raw.match(createPatterns[0]);
+  let match = createText.match(createPatterns[0]);
   let folderName, folderLocation = "Desktop";
   if (match) {
-    folderName = cleanTarget(match[1]);
+    const start = raw.toLocaleLowerCase("tr-TR").indexOf(match[1]);
+    folderName = cleanTarget(raw.slice(start, start + match[1].length));
     folderLocation = locationFrom(match[2]);
   } else {
-    match = raw.match(createPatterns[1]);
+    match = createText.match(createPatterns[1]);
     if (match) {
       folderLocation = locationFrom(match[1]);
-      folderName = cleanTarget(match[2]);
+      const start = raw.toLocaleLowerCase("tr-TR").indexOf(match[2]);
+      folderName = cleanTarget(raw.slice(start, start + match[2].length));
     }
   }
   if (folderName) return { intent: "create-folder", name: folderName, location: folderLocation };
