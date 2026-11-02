@@ -3358,7 +3358,8 @@ app.post(
       "Örnek: 'masaüstündeki 1.jpg dosyasını aç' => open-path, target='1.jpg'.",
       "Örnek: 'Masaüstündeki 1.jpg dosyasını İndirilenler klasörüne taşı' => move-file, source='1.jpg', sourceLocation='Desktop', destination='Downloads'.",
       "Dosya açma, arama, taşıma, yeniden adlandırma ve klasör oluşturma işlemleri bilgisayardaki erişilebilir tüm yerel sürücülerde ve klasörlerde yapılabilir; dosya uzantısı kısıtlaması yoktur.",
-      "Kullanıcı bir dosya adı ve konum belirtirse sourceLocation alanına o klasörün tam yolunu, kaynak dosya için mümkünse tam yolu yaz. Bilinmeyen tam yolları uydurma.",
+      "Kullanıcı bir dosya adı ve konum belirtirse location veya sourceLocation alanına konumu koru; mümkünse dosyanın tam yolunu yaz. Bilinmeyen tam yolları uydurma.",
+      "Kullanıcı bir dosyayı açmak istiyorsa uzantısı .exe veya başka bir tür olsa bile open-path sınıflandır; open-app allowlist yalnızca adı belirtilen uygulama komutları içindir.",
       "Örnek: 'masaüstüme Oyunlar diye bir klasör yap' => create-folder, name='Oyunlar', location='Desktop'.",
       "Örnek: 'Steam'i başlat' => open-app, app='steam'.",
       "Örnek: 'şu dosyayı çöpe at: rapor.pdf' => trash-file, target='rapor.pdf'.",
@@ -3397,7 +3398,7 @@ app.post(
     const safeString = (value, max = 1000) =>
       typeof value === "string" ? value.trim().slice(0, max) : "";
     const intent = { intent: allowedIntents.has(parsed?.intent) ? parsed.intent : "unknown" };
-    const fieldLimits = { target: 1000, query: 255, name: 120, source: 1000, sourceLocation: 1000, destination: 1000, newName: 240 };
+    const fieldLimits = { target: 1000, query: 255, name: 120, location: 1000, source: 1000, sourceLocation: 1000, destination: 1000, newName: 240 };
     for (const [key, max] of Object.entries(fieldLimits)) {
       const value = safeString(parsed?.[key], max);
       if (value) intent[key] = value;
