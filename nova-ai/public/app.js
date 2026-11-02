@@ -81,7 +81,7 @@
       progressPanel.textContent = (labels[progress.phase] || "NOVA görev durumu") + step + "\n" + String(progress.message || "");
       progressPanel.style.display = "block";
       progressPanel.style.borderColor = progress.phase === "failed" ? "rgba(255,120,120,.55)" : "rgba(150,160,220,.35)";
-      progressHideTimer = setTimeout(() => { progressPanel.style.display = "none"; }, ["completed", "cancelled", "failed"].includes(progress.phase) ? 6000 : 18000);
+      progressHideTimer = setTimeout(() => { progressPanel.style.display = "none"; }, ["completed", "cancelled", "failed"].includes(progress.phase) ? 6000 : progress.phase === "waiting" ? 18000 : 90000);
     });
   }
 
