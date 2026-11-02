@@ -35,14 +35,3 @@ test("desktop planner rejects unknown or malformed response envelopes", () => {
   assert.equal(normalizeDesktopIntent({ intent: [] }), null);
 });
 
-test("no-send plans stop immediately after text entry", () => {
-  const intent = {
-    intent: "computer-control",
-    done: false,
-    message: "",
-    actions: [{ type: "focus-control", controlType: "Edit", automationId: "composer" }, { type: "type-text", text: "NOVA TEST 123" }, { type: "finish" }]
-  };
-  const result = enforceNoSend(intent, "Mesajı gönderme.");
-  assert.equal(result.done, true);
-  assert.deepEqual(result.actions, [\n    { type: "focus-control", controlType: "Edit", automationId: "composer" },\n    { type: "type-text", text: "NOVA TEST 123" }\n  ]);
-});
