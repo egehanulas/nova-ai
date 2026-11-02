@@ -2,6 +2,9 @@
 
 const dns = require("node:dns").promises;
 const net = require("node:net");
+const http = require("node:http");
+const https = require("node:https");
+const { Readable } = require("node:stream");
 
 const USER_AGENT = "Mozilla/5.0 (compatible; NOVAAI/1.0; +https://github.com/egehanulas/nova-ai)";
 const MAX_HTML_BYTES = 1_500_000;
@@ -33,6 +36,20 @@ function stripTags(value = "") {
     .replace(/\s+/g, " ").trim();
 }
 
+function ipv6ToBigInt(address) {
+  const value = address.toLowerCase().split("%")[0];
+  if (value.includes(".")) return null;
+  const halves = value.split("::");
+  if (halves.length > 2) return null;
+  const left = halves[0] ? halves[0].split(":").filter(Boolean) : [];
+  const right = halves.length === 2 && halves[1] ? halves[1].split(":").filter(Boolean) : [];
+  const missing = 8 - left.length - right.length;
+  if ((halves.length === 1 && missing !== 0) || missing < 0) return null;
+  const groups = [...left, ...Array(missing).fill("0"), ...right];
+  if (groups.length !== 8 || groups.some((group) => !/^[0-9a-f]{1,4}$/.test(group))) return null;
+  return BigInt("0x" + groups.map((group) => group.padStart(4, "0")).join(""));
+}
+
 function isPrivateAddress(address) {
   const version = net.isIP(address);
   if (version === 4) {
@@ -46,15 +63,25 @@ function isPrivateAddress(address) {
       (a === 203 && b === 0 && c === 113) || a >= 224;
   }
   if (version === 6) {
-    const value = address.toLowerCase();
+    const value = address.toLowerCase().replace(/^\[|\]$/g, "");
     if (value.startsWith("::ffff:")) {
       const mapped = value.slice(7);
       return net.isIP(mapped) === 4 ? isPrivateAddress(mapped) : true;
     }
-    return value.startsWith("::") ||
-      value.startsWith("fc") || value.startsWith("fd") ||
-      /^fe[89ab]/.test(value) || value.startsWith("ff") ||
-      value.startsWith("2001:db8:");
+    const numeric = ipv6ToBigInt(value);
+    if (numeric === null) return true;
+    const globalStart = 0x20000000000000000000000000000000n;
+    const globalEnd = 0x40000000000000000000000000000000n;
+    if (numeric < globalStart || numeric >= globalEnd) return true;
+    const special2001Start = 0x20010000000000000000000000000000n;
+    const special2001End = 0x20010200000000000000000000000000n;
+    const sixToFourStart = 0x20020000000000000000000000000000n;
+    const sixToFourEnd = 0x20030000000000000000000000000000n;
+    const documentationStart = 0x20010db8000000000000000000000000n;
+    const documentationEnd = 0x20010dc0000000000000000000000000n;
+    return (numeric >= special2001Start && numeric < special2001End) ||
+      (numeric >= sixToFourStart && numeric < sixToFourEnd) ||
+      (numeric >= documentationStart && numeric < documentationEnd);
   }
   return true;
 }
@@ -70,14 +97,19 @@ async function validatePublicUrl(rawUrl) {
     throw new Error("Yerel veya özel ağ adresleri açılamaz.");
   }
   const version = net.isIP(hostname);
+  let resolvedAddresses;
   if (version) {
     if (isPrivateAddress(hostname)) throw new Error("Özel ağ adresleri açılamaz.");
+    resolvedAddresses = [{ address: hostname, family: version }];
   } else {
-    const addresses = await dns.lookup(hostname, { all: true, verbatim: true });
-    if (!addresses.length || addresses.some((entry) => isPrivateAddress(entry.address))) {
+    resolvedAddresses = await dns.lookup(hostname, { all: true, verbatim: true });
+    if (!resolvedAddresses.length || resolvedAddresses.some((entry) => isPrivateAddress(entry.address))) {
       throw new Error("Bağlantı özel veya güvenilmeyen bir ağ adresine çözümleniyor.");
     }
   }
+  // Keep the exact DNS answers that passed validation. The HTTP connection below
+  // uses these addresses directly so a second DNS lookup cannot be rebound.
+  Object.defineProperty(url, "resolvedAddresses", { value: resolvedAddresses });
   url.hash = "";
   return url;
 }
@@ -156,6 +188,50 @@ async function readLimitedBody(response, maxBytes = MAX_HTML_BYTES) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+function fetchPinnedUrl(url, signal) {
+  return new Promise((resolve, reject) => {
+    const hostname = url.hostname.replace(/^\[|\]$/g, "");
+    const addresses = url.resolvedAddresses || [];
+    const pinned = addresses[0];
+    if (!pinned || isPrivateAddress(pinned.address)) {
+      reject(new Error("Güvenli bağlantı adresi doğrulanamadı."));
+      return;
+    }
+    const transport = url.protocol === "https:" ? https : http;
+    const request = transport.request(url, {
+      method: "GET",
+      signal,
+      servername: net.isIP(hostname) ? undefined : hostname,
+      lookup: (_requestedHost, options, callback) => {
+        if (options?.all) callback(null, addresses);
+        else callback(null, pinned.address, pinned.family);
+      },
+      headers: {
+        Host: url.host,
+        "User-Agent": USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml;q=0.9,text/plain;q=0.8,*/*;q=0.5",
+        "Accept-Language": "en-US,en;q=0.9,tr;q=0.8",
+        "Accept-Encoding": "identity",
+      },
+    }, (incoming) => {
+      const headers = new Headers();
+      for (const [name, value] of Object.entries(incoming.headers)) {
+        if (Array.isArray(value)) value.forEach((entry) => headers.append(name, entry));
+        else if (value !== undefined) headers.set(name, String(value));
+      }
+      const status = incoming.statusCode || 502;
+      const body = [204, 205, 304].includes(status) ? null : Readable.toWeb(incoming);
+      resolve(new Response(body, {
+        status,
+        statusText: incoming.statusMessage,
+        headers,
+      }));
+    });
+    request.once("error", reject);
+    request.end();
+  });
+}
+
 async function fetchPublicPage(rawUrl, signal) {
   let current = rawUrl;
   for (let redirects = 0; redirects <= 4; redirects++) {
@@ -163,17 +239,11 @@ async function fetchPublicPage(rawUrl, signal) {
     const requestSignal = signal
       ? AbortSignal.any([signal, AbortSignal.timeout(12_000)])
       : AbortSignal.timeout(12_000);
-    const response = await fetch(url, {
-      method: "GET", redirect: "manual", signal: requestSignal,
-      headers: {
-        "User-Agent": USER_AGENT,
-        "Accept": "text/html,application/xhtml+xml;q=0.9,text/plain;q=0.8,*/*;q=0.5",
-        "Accept-Language": "en-US,en;q=0.9,tr;q=0.8",
-      },
-    });
+    const response = await fetchPinnedUrl(url, requestSignal);
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const location = response.headers.get("location");
       if (!location || redirects === 4) throw new Error("Sayfa yönlendirmesi tamamlanamadı.");
+      await response.body?.cancel().catch(() => {});
       current = new URL(location, url).href;
       continue;
     }
@@ -436,7 +506,7 @@ async function researchWeb(query, signal) {
 }
 
 module.exports = {
-  extractUrls, fetchPublicPage, parsePage, parseRssFeed,
+  extractUrls, fetchPublicPage, fetchPinnedUrl, parsePage, parseRssFeed,
   parseBingHtml, parseDuckDuckGoHtml, isPrivateAddress,
   validatePublicUrl, readLimitedBody, searchPublicWeb, researchWeb,
   getSeedSources, hasRelevantTopicEvidence,

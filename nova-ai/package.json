@@ -1,6 +1,6 @@
 {
   "name": "nova-ai",
-  "version": "0.2.0-alpha.9",
+  "version": "0.2.0-alpha.10",
   "description": "NOVA AI Türkçe sohbet sitesi",
   "main": "server.js",
   "scripts": {
@@ -12,7 +12,7 @@
     "test:release-metadata": "node --test release-metadata.test.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.76.1",
+    "@supabase/supabase-js": "2.118.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
@@ -20,6 +20,6 @@
     "@huggingface/transformers": "^4.3.2"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }

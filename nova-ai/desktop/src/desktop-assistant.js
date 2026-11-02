@@ -216,10 +216,15 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
     if (!preferredFolder.stat.isDirectory()) throw new Error("Arama konumu bir klasör olmalı.");
     roots = [preferredFolder.path];
   }
+  const explicitProtectedSearch = typeof preferredLocation === "string" &&
+    path.isAbsolute(preferredLocation) && isProtectedSystemPath(preferredLocation);
+  const skipProtectedDirectories = !explicitProtectedSearch;
+  const protectedSearchRoots = skipProtectedDirectories ? protectedRoots() : [];
   const found = [];
   const queue = [...roots];
   const startedAt = Date.now();
   let visited = 0;
+  let inaccessibleDirectories = 0;
   let stop = false;
 
   while (queue.length && !stop) {
@@ -230,13 +235,22 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
     const batch = queue.splice(0, SEARCH_WORKERS);
     visited += batch.length;
     const batches = await Promise.all(batch.map(async (dir) => {
-      try { return await fs.readdir(dir, { withFileTypes: true }); } catch { return []; }
+      try { return await fs.readdir(dir, { withFileTypes: true }); }
+      catch (error) {
+        const isSearchRoot = roots.some((root) => path.resolve(root) === path.resolve(dir));
+        if (isSearchRoot || !["ENOENT", "ENOTDIR"].includes(error?.code)) inaccessibleDirectories += 1;
+        return [];
+      }
     }));
     for (let index = 0; index < batches.length && !stop; index += 1) {
       const dir = batch[index];
       for (const entry of batches[index]) {
         if (entry.isSymbolicLink()) continue;
         const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory() && skipProtectedDirectories) {
+          const isAppData = /(^|[\\/])AppData([\\/]|$)/i.test(fullPath);
+          if (isAppData || protectedSearchRoots.some((root) => inside(root, fullPath))) continue;
+        }
         const normalizedName = entry.name.toLocaleLowerCase("tr-TR");
         if (exactOnly ? normalizedName === needle : normalizedName.includes(needle)) {
           found.push({ name: entry.name, path: fullPath, type: entry.isDirectory() ? "folder" : "file" });
@@ -255,9 +269,12 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
     const bExact = b.name.toLocaleLowerCase("tr-TR") === needle ? 0 : 1;
     return aExact - bExact || a.path.localeCompare(b.path, "tr");
   });
-  Object.defineProperty(found, "truncated", {
-    value: stop && (queue.length > 0 || found.length >= SEARCH_MAX_RESULTS || visited >= SEARCH_MAX_DIRECTORIES || Date.now() - startedAt >= SEARCH_MAX_DURATION_MS),
-    enumerable: true
+  Object.defineProperties(found, {
+    truncated: {
+      value: stop && (queue.length > 0 || found.length >= SEARCH_MAX_RESULTS || visited >= SEARCH_MAX_DIRECTORIES || Date.now() - startedAt >= SEARCH_MAX_DURATION_MS),
+      enumerable: true
+    },
+    inaccessibleDirectories: { value: inaccessibleDirectories, enumerable: true }
   });
   return found;
 }
@@ -277,9 +294,21 @@ export async function openAllowedApp(appName) {
     try { await fs.access(selected.command); } catch { throw new Error(selected.label + " bu bilgisayarda bulunamadı veya varsayılan konumunda kurulu değil."); }
   }
   const child = spawn(selected.command, selected.args, { detached: true, stdio: "ignore", windowsHide: true });
-  child.on("error", (error) => console.error("NOVA app launch failed:", error));
-  child.unref();
-  return { message: selected.label + " açılıyor." };
+  await new Promise((resolve, reject) => {
+    let settled = false;
+    child.once("error", (error) => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(selected.label + " başlatılamadı: " + error.message));
+    });
+    child.once("spawn", () => {
+      if (settled) return;
+      settled = true;
+      child.unref();
+      resolve();
+    });
+  });
+  return { message: selected.label + " uygulaması başarıyla başlatıldı." };
 }
 
 function cleanFileReference(input) {
@@ -304,12 +333,15 @@ export async function resolveUserItem(input, preferredLocation = "", { allowRoot
   }
 
   const exact = await searchUserFiles(candidate, preferredLocation, { exactOnly: true });
-  if (exact.length > 1) {
-    throw new Error("Aynı isimde birden fazla öğe buldum. Lütfen tam konumunu belirt:\n" +
-      exact.slice(0, 8).map((item) => item.path).join("\n"));
+  if (exact.inaccessibleDirectories > 0) {
+    throw new Error("Dosya araması sırasında " + exact.inaccessibleDirectories + " klasöre erişilemedi. Yanlış veya eksik eşleşme seçmemek için tam dosya yolunu belirt ya da arama konumunu daralt.");
   }
   if (exact.truncated) {
     throw new Error("Dosya araması tamamlanamadı. Yanlış dosyayı açmamak için tam dosya yolunu belirt veya konumunu daralt.");
+  }
+  if (exact.length > 1) {
+    throw new Error("Aynı isimde birden fazla öğe buldum. Lütfen tam konumunu belirt:\n" +
+      exact.slice(0, 8).map((item) => item.path).join("\n"));
   }
   if (!exact.length) {
     throw new Error("“" + candidate + "” adlı öğenin tam eşleşmesini bulamadım. Önce dosya araması yap veya tam dosya yolunu belirt.");
@@ -317,8 +349,19 @@ export async function resolveUserItem(input, preferredLocation = "", { allowRoot
   return resolveExistingUserPath(exact[0].path, { allowRoot });
 }
 
+const BLOCKED_OPEN_EXTENSIONS = new Set([
+  ".exe", ".com", ".bat", ".cmd", ".ps1", ".psm1", ".vbs", ".vbe", ".js", ".jse",
+  ".wsf", ".wsh", ".hta", ".scr", ".msi", ".msp", ".mst", ".dll", ".sys", ".ocx",
+  ".cpl", ".lnk", ".url", ".reg", ".sh", ".bash", ".jar", ".appx", ".msix"
+]);
+
 export async function openUserPath(input, preferredLocation = "") {
   const resolved = await resolveUserItem(input, preferredLocation);
+  const normalizedFileName = path.basename(resolved.path).replace(/[ .]+$/g, "").split(":")[0];
+  const extension = path.extname(normalizedFileName).toLowerCase();
+  if (resolved.stat.isFile() && BLOCKED_OPEN_EXTENSIONS.has(extension)) {
+    throw new Error("Çalıştırılabilir dosyalar, komut dosyaları ve Windows kısayolları güvenlik nedeniyle NOVA üzerinden doğrudan açılamaz. İzin verilen uygulamaları uygulama listesinden başlatabilirsin.");
+  }
   return { path: resolved.path, message: "“" + path.basename(resolved.path) + "” açılmaya hazır." };
 }
 

@@ -10,6 +10,7 @@ const {
   parseDuckDuckGoHtml,
   isPrivateAddress,
   validatePublicUrl,
+  fetchPinnedUrl,
   readLimitedBody,
   getSeedSources,
   hasRelevantTopicEvidence,
@@ -35,6 +36,11 @@ test("private IPv4 and IPv6 ranges are rejected", () => {
   }
   assert.equal(isPrivateAddress("8.8.8.8"), false);
   assert.equal(isPrivateAddress("2606:4700:4700::1111"), false);
+  assert.equal(isPrivateAddress("2001:db8::1"), true);
+  assert.equal(isPrivateAddress("2001:1::1"), true);
+  assert.equal(isPrivateAddress("2002:0808:0808::1"), true);
+  assert.equal(isPrivateAddress("::ffff:127.0.0.1"), true);
+  assert.equal(isPrivateAddress("::ffff:8.8.8.8"), false);
 });
 
 test("URL validator rejects localhost and private IPs", async () => {
@@ -124,4 +130,80 @@ test("response reader enforces the byte limit while streaming", async () => {
     readLimitedBody(new Response("🌍"), 3),
     /Sayfa boyutu güvenli okuma sınırını aşıyor/
   );
+});
+
+
+test("URL validation rejects a hostname when any resolved address is private", async () => {
+  const dns = require("node:dns").promises;
+  const originalLookup = dns.lookup;
+  dns.lookup = async () => [
+    { address: "8.8.8.8", family: 4 },
+    { address: "10.0.0.8", family: 4 },
+  ];
+  try {
+    await assert.rejects(
+      validatePublicUrl("https://rebinding.example/private"),
+      /özel veya güvenilmeyen bir ağ adresine/
+    );
+  } finally {
+    dns.lookup = originalLookup;
+  }
+});
+
+test("URL validation retains the exact public DNS answers used for the connection", async () => {
+  const dns = require("node:dns").promises;
+  const originalLookup = dns.lookup;
+  const answers = [
+    { address: "8.8.8.8", family: 4 },
+    { address: "2606:4700:4700::1111", family: 6 },
+  ];
+  dns.lookup = async () => answers;
+  try {
+    const url = await validatePublicUrl("https://pinned.example/article");
+    assert.deepEqual(url.resolvedAddresses, answers);
+  } finally {
+    dns.lookup = originalLookup;
+  }
+});
+
+
+test("page connection uses validated DNS answers without resolving the hostname again", async () => {
+  const dns = require("node:dns").promises;
+  const https = require("node:https");
+  const { Readable } = require("node:stream");
+  const originalLookup = dns.lookup;
+  const originalRequest = https.request;
+  const approved = [{ address: "8.8.8.8", family: 4 }];
+  let connectionLookup;
+  dns.lookup = async () => approved;
+  https.request = (_url, options, callback) => {
+    connectionLookup = options.lookup;
+    const request = {
+      once() { return this; },
+      end() {
+        const incoming = Readable.from([Buffer.from("pinned")]);
+        incoming.statusCode = 200;
+        incoming.statusMessage = "OK";
+        incoming.headers = { "content-type": "text/plain" };
+        callback(incoming);
+      },
+    };
+    return request;
+  };
+  try {
+    const url = await validatePublicUrl("https://pinned.example/article");
+    dns.lookup = async () => [{ address: "127.0.0.1", family: 4 }];
+    const response = await fetchPinnedUrl(url);
+    const connected = await new Promise((resolve, reject) => {
+      connectionLookup("pinned.example", {}, (error, address, family) => {
+        if (error) reject(error);
+        else resolve({ address, family });
+      });
+    });
+    assert.deepEqual(connected, approved[0]);
+    assert.equal(await response.text(), "pinned");
+  } finally {
+    dns.lookup = originalLookup;
+    https.request = originalRequest;
+  }
 });

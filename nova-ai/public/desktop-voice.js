@@ -42,6 +42,7 @@
   const microphoneTestButton = $("microphoneTest");
   const speechServiceStatus = $("speechServiceStatus");
   const speechServiceTestButton = $("speechServiceTest");
+  if (speechServiceTestButton) speechServiceTestButton.textContent = "Yerel modeli test et";
 
   const VOICE_URI_KEY = "nova-ai-voice-uri";
   const VOICE_RATE_KEY = "nova-ai-voice-rate";
@@ -70,6 +71,8 @@
   let peakSpeechRms = 0;
   let noiseFloor = 0.002;
   let pendingTranscript = "";
+  let deferredAudioFrames = [];
+  let deferredAudioSamples = 0;
 
   function setVoiceStatus(message, state = "idle") {
     statusLabel.textContent = message;
@@ -243,6 +246,19 @@
     }
   }
 
+  speechServiceTestButton?.addEventListener("click", async () => {
+    speechServiceTestButton.disabled = true;
+    if (speechServiceStatus) speechServiceStatus.textContent = "Yerel Whisper modeli kontrol ediliyor…";
+    try {
+      await loadTranscriber();
+      if (speechServiceStatus) speechServiceStatus.textContent = "Yerel Whisper modeli hazır. Mikrofon sesi bu cihazda çözümlenir.";
+    } catch (error) {
+      if (speechServiceStatus) speechServiceStatus.textContent = "Yerel model yüklenemedi: " + (error?.message || "bilinmeyen hata");
+    } finally {
+      speechServiceTestButton.disabled = false;
+    }
+  });
+
   function stopSpeech() {
     speechRequest += 1;
     if (synth) synth.cancel();
@@ -394,7 +410,15 @@
       if (speechServiceStatus) speechServiceStatus.textContent = error?.message || "Model yüklenemedi.";
     } finally {
       transcribing = false;
-      if (voiceEnabled && currentSession === sessionId && !waitingForReply && !speaking) {
+      if (voiceEnabled && currentSession === sessionId && deferredAudioFrames.length) {
+        const queuedFrames = deferredAudioFrames;
+        deferredAudioFrames = [];
+        deferredAudioSamples = 0;
+        for (const frame of queuedFrames) {
+          if (!voiceEnabled || currentSession !== sessionId) break;
+          handleAudioFrame(frame, currentSession);
+        }
+      } else if (voiceEnabled && currentSession === sessionId && !waitingForReply && !speaking) {
         setVoiceStatus("Seni dinliyorum…", "listening");
       }
     }
@@ -420,7 +444,17 @@
   }
 
   function handleAudioFrame(frame, currentSession) {
-    if (!voiceEnabled || currentSession !== sessionId || transcribing) return;
+    if (!voiceEnabled || currentSession !== sessionId) return;
+    if (transcribing) {
+      const queued = new Float32Array(frame);
+      deferredAudioFrames.push(queued);
+      deferredAudioSamples += queued.length;
+      const maximumQueuedSamples = (audioContext?.sampleRate || TARGET_SAMPLE_RATE) * 10;
+      while (deferredAudioSamples > maximumQueuedSamples && deferredAudioFrames.length) {
+        deferredAudioSamples -= deferredAudioFrames.shift().length;
+      }
+      return;
+    }
     const copy = new Float32Array(frame);
     let energy = 0;
     for (let i = 0; i < copy.length; i += 1) energy += copy[i] * copy[i];
@@ -563,6 +597,8 @@
     }
     preRoll = [];
     speechChunks = [];
+    deferredAudioFrames = [];
+    deferredAudioSamples = 0;
     capturingSpeech = false;
     silenceSamples = 0;
     speechSamples = 0;

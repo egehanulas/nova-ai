@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import fs from "node:fs/promises";
 import path from "node:path";
+import vm from "node:vm";
 import {
   getComputerInfo,
   resolveUserPath,
@@ -282,5 +283,101 @@ test("computer file mutations reject protected system locations", async () => {
     if (previousWindir === undefined) delete process.env.WINDIR;
     else process.env.WINDIR = previousWindir;
     await fs.rm(base, { recursive: true, force: true });
+  }
+});
+
+
+test("opening files never executes programs, scripts, installers, or Windows shortcuts", async () => {
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-safe-open-test-"));
+  const desktop = path.join(base, "Desktop");
+  const documents = path.join(base, "Documents");
+  const downloads = path.join(base, "Downloads");
+  await Promise.all([desktop, documents, downloads].map((folder) => fs.mkdir(folder, { recursive: true })));
+  for (const name of ["payload.exe", "script.ps1", "shortcut.lnk", "installer.msi", "module.dll"]) {
+    await fs.writeFile(path.join(desktop, name), "test-placeholder");
+  }
+  await fs.writeFile(path.join(desktop, "notes.pdf"), "test-document");
+  configureComputerFileAccess({
+    userFolders: { Desktop: desktop, Documents: documents, Downloads: downloads },
+    driveRoots: [base]
+  });
+
+  try {
+    for (const name of ["payload.exe", "script.ps1", "shortcut.lnk", "installer.msi", "module.dll"]) {
+      await assert.rejects(openUserPath(path.join(desktop, name)), /güvenlik nedeniyle NOVA üzerinden doğrudan açılamaz/);
+    }
+    const document = await openUserPath(path.join(desktop, "notes.pdf"));
+    assert.equal(document.path, await fs.realpath(path.join(desktop, "notes.pdf")));
+  } finally {
+    await fs.rm(base, { recursive: true, force: true });
+  }
+});
+
+
+test("file search reports inaccessible folders and refuses incomplete exact resolution", async () => {
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-inaccessible-search-test-"));
+  const desktop = path.join(base, "Desktop");
+  const documents = path.join(base, "Documents");
+  const downloads = path.join(base, "Downloads");
+  const denied = path.join(base, "Denied");
+  await Promise.all([desktop, documents, downloads, denied].map((folder) => fs.mkdir(folder, { recursive: true })));
+  await fs.writeFile(path.join(denied, "hidden-needle.txt"), "hidden");
+  configureComputerFileAccess({
+    userFolders: { Desktop: desktop, Documents: documents, Downloads: downloads },
+    driveRoots: [base]
+  });
+  const originalReaddir = fs.readdir;
+  fs.readdir = async (target, ...args) => {
+    if (path.resolve(String(target)) === path.resolve(denied)) {
+      throw Object.assign(new Error("Access denied by test"), { code: "EACCES" });
+    }
+    return originalReaddir.call(fs, target, ...args);
+  };
+
+  try {
+    const results = await searchUserFiles("hidden-needle.txt");
+    assert.equal(results.length, 0);
+    assert.equal(results.inaccessibleDirectories, 1);
+    await assert.rejects(resolveUserItem("hidden-needle.txt"), /klasöre erişilemedi/);
+  } finally {
+    fs.readdir = originalReaddir;
+    await fs.rm(base, { recursive: true, force: true });
+  }
+});
+
+
+test("broad searches skip protected system trees but explicit scoped searches can inspect them", async () => {
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-protected-search-test-"));
+  const desktop = path.join(base, "Desktop");
+  const documents = path.join(base, "Documents");
+  const downloads = path.join(base, "Downloads");
+  const windows = path.join(base, "Windows");
+  await Promise.all([desktop, documents, downloads, windows].map((folder) => fs.mkdir(folder, { recursive: true })));
+  await fs.writeFile(path.join(windows, "scoped-needle.txt"), "test");
+  configureComputerFileAccess({
+    userFolders: { Desktop: desktop, Documents: documents, Downloads: downloads },
+    driveRoots: [base]
+  });
+
+  try {
+    const broad = await searchUserFiles("scoped-needle.txt");
+    assert.equal(broad.length, 0);
+    const scoped = await searchUserFiles("scoped-needle.txt", windows);
+    assert.equal(scoped.length, 1);
+    assert.equal(scoped[0].path, await fs.realpath(path.join(windows, "scoped-needle.txt")));
+  } finally {
+    await fs.rm(base, { recursive: true, force: true });
+  }
+});
+
+
+test("desktop assistant HTML inline scripts remain syntactically valid", async () => {
+  const html = await fs.readFile(new URL("./assistant.html", import.meta.url), "utf8");
+  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
+    .map((match) => match[1].trim())
+    .filter(Boolean);
+  assert.ok(scripts.length > 0, "expected at least one inline assistant script");
+  for (const [index, script] of scripts.entries()) {
+    assert.doesNotThrow(() => new vm.Script(script, { filename: "assistant.html:inline-" + index }));
   }
 });
