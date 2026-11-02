@@ -3327,6 +3327,7 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
     "İZİNLİ EYLEMLER:",
     '- {"type":"open-app","app":"discord|steam|chrome|edge|firefox|notepad|calculator|explorer|paint|spotify"}',
     '- {"type":"open-installed-app","app":"exact installed app name, e.g. WhatsApp, Telegram, Windows Settings or Task Manager"} (resolve only through the Windows Start menu app registry; never construct a shell command)',
+    '- {"type":"launch-installer","path":"exact downloaded .exe or .msi file in the user Downloads folder"} (only after explicit local approval; never launch scripts or files outside Downloads),
     '- {"type":"open-url","url":"https://...","app":"chrome"} (app isteğe bağlı; yalnızca http/https)',
     '- {"type":"launch-steam-game","game":"kurulu oyunun tam adı"}',
     '- {"type":"spotify-search","query":"şarkı veya sanatçı"}',
@@ -3372,13 +3373,14 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
     if (!intent || intent.intent !== "computer-control" || !Array.isArray(intent.actions) || intent.actions.length > 8) {
       throw new Error("Masaüstü eylem planı şemaya uymuyor.");
     }
-    const allowedTypes = new Set(["open-app", "open-installed-app", "open-url", "launch-steam-game", "spotify-search", "inspect-screen", "click-text", "focus-control", "type-text", "press-key", "click", "move-mouse", "scroll", "wait", "finish"]);
+    const allowedTypes = new Set(["open-app", "open-installed-app", "launch-installer", "open-url", "launch-steam-game", "spotify-search", "inspect-screen", "click-text", "focus-control", "type-text", "press-key", "click", "move-mouse", "scroll", "wait", "finish"]);
     const allowedApps = new Set(["discord", "steam", "chrome", "edge", "firefox", "notepad", "calculator", "explorer", "paint", "spotify"]);
     const allowedKeys = new Set(["ENTER", "TAB", "ESC", "SPACE", "BACKSPACE", "DELETE", "UP", "DOWN", "LEFT", "RIGHT", "HOME", "END", "CTRL+A", "CTRL+L", "CTRL+T", "CTRL+W", "CTRL+V", "CTRL+C", "CTRL+X", "CTRL+F", "ALT+F4", "SHIFT+TAB", "CTRL+SHIFT+T", "CTRL+SHIFT+TAB", "CTRL+PAGEUP", "CTRL+PAGEDOWN", "CTRL+S", "CTRL+P", "CTRL+R", "CTRL+Z", "CTRL+Y", "ALT+LEFT", "ALT+RIGHT", "F5", "F11"]);
     for (const action of intent.actions) {
       if (!action || typeof action !== "object" || !allowedTypes.has(action.type)) throw new Error("İzin verilmeyen masaüstü eylemi.");
       if (action.type === "open-app" && !allowedApps.has(action.app)) throw new Error("İzin verilmeyen uygulama.");
       if (action.type === "open-installed-app" && (typeof action.app !== "string" || !action.app.trim() || action.app.length > 100 || /[\r\n\0]/.test(action.app))) throw new Error("Yüklü uygulama adı geçersiz.");
+      if (action.type === "launch-installer" && (typeof action.path !== "string" || !action.path.trim() || action.path.length > 260 || /[\r\n\0]/.test(action.path))) throw new Error("Kurulum dosyası yolu geçersiz.");
       if (action.type === "open-url") {
         const url = new URL(String(action.url || ""));
         if (!["http:", "https:"].includes(url.protocol)) throw new Error("Yalnızca HTTP/HTTPS adreslerine izin verilir.");
