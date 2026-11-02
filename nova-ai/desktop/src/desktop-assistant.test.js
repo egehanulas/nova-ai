@@ -137,6 +137,8 @@ test("Turkish desktop intent parser recognizes apps, search and destructive acti
   assert.deepEqual(parseDesktopCommand("masaüstünde 1.jpg"), {
     intent: "search-files", query: "1.jpg"
   });
-  assert.equal(parseDesktopCommand("1.jpg dosyasını sil").intent, "unknown");
+  assert.deepEqual(parseDesktopCommand("1.jpg dosyasını sil"), {
+    intent: "trash-file", target: "1.jpg"
+  });
   assert.equal(parseDesktopCommand("sil 1.jpg").intent, "trash-file");
 });
