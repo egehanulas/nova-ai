@@ -648,6 +648,13 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
       "Bilgisayar bilgilerini görüntüleme ve kişisel klasörlerde dosya arama",
       "Not Defteri, Hesap Makinesi, Dosya Gezgini ve Steam'i açma",
       "Klasör oluşturma, dosya taşıma ve yeniden adlandırma işlemleri için güvenlik onayları"
+    ],
+    "0.2.0-alpha.28": [
+      "NOVA artık Windows masaüstünde mouse ve klavyeyi kullanabiliyor",
+      "Discord, Chrome, Spotify ve diğer desteklenen uygulamalar arasında işlem yapabiliyor",
+      "Steam kütüphanesindeki kurulu oyunları adlarıyla başlatabiliyor",
+      "Ekrandaki erişilebilir öğeleri okuyup adım adım tıklama ve metin yazma",
+      "Rastgele terminal komutları yerine izinli ve doğrulanan masaüstü eylemleri"
     ]
   };
   const suppliedNotes = Array.isArray(releaseNotes)
