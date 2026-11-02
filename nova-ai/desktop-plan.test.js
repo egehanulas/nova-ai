@@ -131,3 +131,20 @@ test("a Discord draft request without a recipient or send instruction does not s
   assert.equal(intent.done, false);
   assert.equal(intent.actions.length, 2);
 });
+
+test("an explicit draft-only instruction overrides implicit Discord DM sending", () => {
+  const intent = {
+    intent: "computer-control",
+    done: false,
+    message: "",
+    actions: [
+      { type: "focus-control", controlType: "Edit", automationId: "composer" },
+      { type: "type-text", text: "Merhaba" },
+      { type: "finish" }
+    ]
+  };
+  enforceNoSend(intent, "Discord'da en son konuştuğum kişiye Merhaba yaz, sadece yaz.");
+  enforceMessageSend(intent, "Discord'da en son konuştuğum kişiye Merhaba yaz, sadece yaz.");
+  assert.deepEqual(intent.actions.map((action) => action.type), ["focus-control", "type-text"]);
+  assert.equal(intent.message, "Metin mesaj kutusuna yazıldı; gönderilmedi.");
+});
