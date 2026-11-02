@@ -16,13 +16,13 @@ function cleanTarget(value) {
     .trim();
 }
 
-const LOCATION_TOKEN = "(?:masaüstü|masaustu|desktop|belgeler|documents|indirilenler|downloads)(?:\\s+klasör)?(?:ndeki|nde|ne|deki|de|e|ündeki|ünde|üne)?";
+const LOCATION_TOKEN = "(?:masaüstü|masaustu|desktop|belgeler|documents|[İiIı]ndirilenler|downloads)(?:\\s+klasör)?(?:ndeki|nde|ne|deki|de|e|ündeki|ünde|üne)?";
 
 function locationFrom(text) {
   const value = String(text || "").toLocaleLowerCase("tr-TR");
   if (/masaüstü|masaustu|desktop/.test(value)) return "Desktop";
   if (/belgeler|documents/.test(value)) return "Documents";
-  if (/indirilenler|download/.test(value)) return "Downloads";
+  if (/indirilenler|ındirilenler|download/.test(value)) return "Downloads";
   return "";
 }
 
