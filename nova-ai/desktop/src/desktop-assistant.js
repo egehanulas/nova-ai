@@ -122,28 +122,60 @@ export async function openAllowedApp(appName) {
   return { message: selected.label + " açılıyor." };
 }
 
-export async function openUserPath(input) {
-  if (typeof input !== "string" || !input.trim()) throw new Error("Açılacak dosya veya klasörün adını yaz.");
-  let candidate = input.trim().replace(/^["“]|["”]$/g, "");
-  if (!path.isAbsolute(candidate) && !candidate.includes("/") && !candidate.includes("\\")) {
-    const matches = await searchUserFiles(candidate);
-    const exact = matches.filter((item) => item.name.toLocaleLowerCase("tr-TR") === candidate.toLocaleLowerCase("tr-TR"));
-    const selected = exact.length ? exact : matches;
-    if (!selected.length) throw new Error("“" + candidate + "” adlı öğeyi Masaüstü, Belgeler veya İndirilenler içinde bulamadım. Önce dosya adını aratabilirsin.");
-    if (selected.length > 1) {
-      throw new Error("Aynı isimde birden fazla öğe buldum. Hangisini açayım?\n" +
-        selected.slice(0, 5).map((item) => item.path).join("\n"));
-    }
-    candidate = selected[0].path;
-  } else {
-    candidate = candidate
-      .replace(/^~(?=[\\/])/, HOME)
-      .replace(/^(?:masaüstü|masaustu|desktop)(?=[\\/])/i, path.join(HOME, "Desktop"))
-      .replace(/^(?:belgeler|documents)(?=[\\/])/i, path.join(HOME, "Documents"))
-      .replace(/^(?:indirilenler|downloads)(?=[\\/])/i, path.join(HOME, "Downloads"));
+function cleanFileReference(input) {
+  return String(input || "")
+    .trim()
+    .replace(/^["“”'\s]+|["“”'\s]+$/g, "")
+    .replace(/^(?:(?:lütfen)\s+)?(?:(?:masaüstündeki|masaüstünde|masaustündeki|belgelerdeki|belgelerde|indirilenlerdeki|indirilenlerde)\s+)/i, "")
+    .replace(/\s+(?:(?:dosyasını|dosyayı|dosyası|dosya|klasörünü|klasörü|öğesini|öğeyi))$/i, "")
+    .trim();
+}
+
+function rootForLocation(location) {
+  const normalized = String(location || "").toLocaleLowerCase("tr-TR");
+  if (!normalized) return null;
+  const key = normalized.includes("masaüst") || normalized.includes("desktop") ? "Desktop"
+    : normalized.includes("belge") || normalized.includes("document") ? "Documents"
+      : normalized.includes("indir") || normalized.includes("download") ? "Downloads" : null;
+  if (!key) return null;
+  return ROOTS.find((root) => ROOT_LABELS.get(root) === key) || null;
+}
+
+export async function resolveUserItem(input, preferredLocation = "") {
+  if (typeof input !== "string" || !input.trim()) throw new Error("İşlem yapılacak dosya veya klasörün adını yaz.");
+  let candidate = cleanFileReference(input)
+    .replace(/^~(?=[\\/])/, HOME)
+    .replace(/^(?:masaüstü|masaustu|desktop)(?=[\\/])/i, path.join(HOME, "Desktop"))
+    .replace(/^(?:belgeler|documents)(?=[\\/])/i, path.join(HOME, "Documents"))
+    .replace(/^(?:indirilenler|downloads)(?=[\\/])/i, path.join(HOME, "Downloads"));
+
+  if (path.isAbsolute(candidate) || candidate.includes("/") || candidate.includes("\\")) {
+    return resolveExistingUserPath(candidate, { allowRoot: false });
   }
-  const { path: safePath } = await resolveExistingUserPath(candidate);
-  return { path: safePath, message: "“" + path.basename(safePath) + "” açılmaya hazır." };
+
+  const matches = await searchUserFiles(candidate);
+  const normalized = candidate.toLocaleLowerCase("tr-TR");
+  const exact = matches.filter((item) => item.name.toLocaleLowerCase("tr-TR") === normalized);
+  const selectedPool = exact.length ? exact : matches;
+  if (!selectedPool.length) {
+    throw new Error("“" + candidate + "” adlı öğeyi Masaüstü, Belgeler veya İndirilenler içinde bulamadım. Dosya adını ve konumunu kontrol et.");
+  }
+
+  const preferredRoot = rootForLocation(preferredLocation);
+  const preferredMatches = preferredRoot
+    ? selectedPool.filter((item) => inside(preferredRoot, path.resolve(item.path)))
+    : [];
+  const selected = preferredMatches.length ? preferredMatches : selectedPool;
+  if (selected.length > 1) {
+    throw new Error("Aynı isimde birden fazla öğe buldum. Lütfen konumunu belirt: " +
+      selected.slice(0, 6).map((item) => item.path).join(" | "));
+  }
+  return resolveExistingUserPath(selected[0].path, { allowRoot: false });
+}
+
+export async function openUserPath(input, preferredLocation = "") {
+  const resolved = await resolveUserItem(input, preferredLocation);
+  return { path: resolved.path, message: "“" + path.basename(resolved.path) + "” açılmaya hazır." };
 }
 
 export async function resolveUserFileForTrash(input) {
@@ -164,8 +196,8 @@ export async function createUserFolder(parentInput, folderName) {
   return { message: "“" + name + "” klasörü oluşturuldu.", path: destination };
 }
 
-export async function moveUserFile(sourceInput, destinationFolderInput, newName) {
-  const { path: source, stat: sourceStat } = await resolveExistingUserPath(sourceInput, { allowRoot: false });
+export async function moveUserFile(sourceInput, destinationFolderInput, newName, sourceLocation = "") {
+  const { path: source, stat: sourceStat } = await resolveUserItem(sourceInput, sourceLocation);
   if (sourceStat.isSymbolicLink()) throw new Error("Kısayol ve sembolik bağlantılar taşınamaz.");
   const { path: destinationFolder, stat: destinationStat } = await resolveExistingUserPath(destinationFolderInput);
   if (!destinationStat.isDirectory()) throw new Error("Hedef konum bir klasör olmalı.");
