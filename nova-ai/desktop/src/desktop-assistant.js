@@ -378,7 +378,7 @@ export async function openInstalledApp(appName) {
   const script = [
     '$ErrorActionPreference = "Stop"',
     '$ProgressPreference = "SilentlyContinue"',
-    '[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)',
+    '[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)',
     '$query = [string]$env:NOVA_APP_QUERY',
     'try {',
     '  if ($query -ieq "Settings" -or $query -ieq "Windows Settings") {',
