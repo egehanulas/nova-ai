@@ -196,6 +196,9 @@ test("Turkish desktop parser recognizes explicit user-folder phrases and nested 
   assert.deepEqual(parseDesktopCommand("Belgeler klasöründeki rapor.pdf dosyasını aç"), {
     intent: "open-path", target: "rapor.pdf", location: "Documents"
   });
+  assert.deepEqual(parseDesktopCommand("Oyunlar klasöründe 121.png dosyasını bul"), {
+    intent: "search-files", query: "121.png", location: "Oyunlar"
+  });
 });
 
 
@@ -263,12 +266,15 @@ test("moving a file by natural-language source name resolves its explicitly name
   await fs.mkdir(path.join(documents, "Euro Truck Simulator 2"), { recursive: true });
   await fs.writeFile(path.join(documents, "Euro Truck Simulator 2", "1.jpg"), "other-image");
   await fs.mkdir(path.join(desktop, "Oyunlar"), { recursive: true });
+  await fs.writeFile(path.join(desktop, "Oyunlar", "121.png"), "nested-folder-search-target");
   await fs.writeFile(path.join(desktop, "to-move.txt"), "custom-folder-target");
   configureUserFolderPaths({ Desktop: desktop, Documents: documents, Downloads: downloads });
 
   try {
     const scopedResults = await searchUserFiles("1.jpg", "Desktop");
     assert.deepEqual(scopedResults.map((item) => item.path), [path.join(desktop, "1.jpg")]);
+    const nestedFolderResults = await searchUserFiles("121.png", "Oyunlar");
+    assert.deepEqual(nestedFolderResults.map((item) => item.path), [path.join(desktop, "Oyunlar", "121.png")]);
     const result = await resolveUserItem("1.jpg dosyasını", "Desktop");
     assert.equal(result.path, await fs.realpath(path.join(desktop, "1.jpg")));
     const moved = await moveUserFile("1.jpg dosyasını", downloads, "", "Desktop");
