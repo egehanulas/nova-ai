@@ -220,6 +220,34 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
     path.isAbsolute(preferredLocation) && isProtectedSystemPath(preferredLocation);
   const skipProtectedDirectories = !explicitProtectedSearch;
   const protectedSearchRoots = skipProtectedDirectories ? protectedRoots() : [];
+
+  // When the user explicitly names a known folder (e.g. Downloads), an exact
+  // match directly inside that folder is sufficient. Do not let unrelated,
+  // inaccessible child folders invalidate a file that is already resolved.
+  if (exactOnly && preferredKey) {
+    try {
+      const entries = await fs.readdir(roots[0], { withFileTypes: true });
+      const directMatches = entries
+        .filter((entry) => !entry.isSymbolicLink() &&
+          entry.name.toLocaleLowerCase("tr-TR") === needle)
+        .map((entry) => ({
+          name: entry.name,
+          path: path.join(roots[0], entry.name),
+          type: entry.isDirectory() ? "folder" : "file"
+        }))
+        .sort((a, b) => a.path.localeCompare(b.path, "tr"));
+      if (directMatches.length) {
+        Object.defineProperties(directMatches, {
+          truncated: { value: false, enumerable: true },
+          inaccessibleDirectories: { value: 0, enumerable: true }
+        });
+        return directMatches;
+      }
+    } catch {
+      // Let the normal traversal report a missing or inaccessible search root.
+    }
+  }
+
   const found = [];
   const queue = [...roots];
   const startedAt = Date.now();
