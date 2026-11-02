@@ -225,9 +225,14 @@ test("full computer access searches deeply and handles arbitrary file extensions
   const documents = path.join(base, "Documents");
   const downloads = path.join(base, "Downloads");
   const deepFolder = path.join(base, "OtherDrive", "Projects", "Nested", "Level4", "Level5", "Level6");
-  await Promise.all([desktop, documents, downloads, deepFolder].map((folder) => fs.mkdir(folder, { recursive: true })));
+  const desktopNested = path.join(desktop, "Nested");
+  await Promise.all([desktop, documents, downloads, deepFolder, desktopNested].map((folder) => fs.mkdir(folder, { recursive: true })));
   const source = path.join(deepFolder, "archive.custom-extension");
-  await fs.writeFile(source, "arbitrary-file-content");
+  const desktopSource = path.join(desktopNested, "desktop-scope.custom-extension");
+  await Promise.all([
+    fs.writeFile(source, "arbitrary-file-content"),
+    fs.writeFile(desktopSource, "desktop-scoped-content")
+  ]);
   configureComputerFileAccess({
     userFolders: { Desktop: desktop, Documents: documents, Downloads: downloads },
     driveRoots: [base]
@@ -239,6 +244,8 @@ test("full computer access searches deeply and handles arbitrary file extensions
     assert.deepEqual(matches.map((item) => item.path), [source]);
     const scopedMatches = await searchUserFiles("archive.custom-extension", path.join(base, "OtherDrive", "Projects"));
     assert.deepEqual(scopedMatches.map((item) => item.path), [source]);
+    const desktopScopedMatches = await searchUserFiles("desktop-scope.custom-extension", desktopNested);
+    assert.deepEqual(desktopScopedMatches.map((item) => item.path), [desktopSource]);
     const resolvedFolder = await resolveUserFolder(path.join(base, "OtherDrive", "Projects"));
     assert.equal(resolvedFolder.path, await fs.realpath(path.join(base, "OtherDrive", "Projects")));
     const opened = await openUserPath("archive.custom-extension");
