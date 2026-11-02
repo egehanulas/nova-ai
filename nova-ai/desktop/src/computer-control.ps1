@@ -70,8 +70,8 @@ public static class NovaDesktopInput {
         } catch {}
       }
       if ($matches.Count -ne 1) {
-        if ($matches.Count -gt 1) { throw "“$needle” metni birden fazla yerde bulundu; yanlış yere tıklamamak için işlem durduruldu." }
-        throw "Ekranda “$needle” adlı tıklanabilir öğe bulunamadı."
+        if ($matches.Count -gt 1) { throw "'$needle' metni birden fazla yerde bulundu; yanlış yere tıklamamak için işlem durduruldu." }
+        throw "Ekranda '$needle' adlı tıklanabilir öğe bulunamadı."
       }
       $element = $matches[0]
       $invoked = $false
@@ -92,7 +92,7 @@ public static class NovaDesktopInput {
         [NovaDesktopInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
         [NovaDesktopInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
       }
-      $result.message = "“$needle” öğesine tıklandı."
+      $result.message = "'$needle' öğesine tıklandı."
     }
     "focus-control" {
       $controlType = [string]$action.controlType
