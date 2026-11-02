@@ -12,7 +12,7 @@ function cleanTarget(value) {
     .trim()
     .replace(/^[“”"'\s]+|[“”"'\s]+$/g, "")
     .replace(/^(?:lütfen\s+)?(?:(?:şu|bu)\s+)?/i, "")
-    .replace(/\s+(?:dosyasını|dosyayı|dosyası|klasörünü|klasörü|öğesini|öğeyi)$/i, "")
+    .replace(/(?:['’](?:yi|yı|yu|yü|i|ı|u|ü)|\s+(?:dosyasını|dosyayı|dosyası|klasörünü|klasörü|öğesini|öğeyi))$/i, "")
     .trim();
 }
 
@@ -76,10 +76,10 @@ export function parseDesktopCommand(input) {
   if (searchMatch) return { intent: "search-files", query: cleanTarget(searchMatch[1]) };
 
   // Natural phrasing: "masaüstündeki 1.jpg dosyasını aç", "1.jpg'yi aç", "şunu aç: 1.jpg".
-  const locatedOpenMatch = raw.match(/^(?:lütfen\\s+)?(?:masaüstündeki|masaüstünde|belgelerdeki|belgelerde|indirilenlerdeki|indirilenlerde)\\s+(.+?)\\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\\s*(?:aç|göster|çalıştır)(?:\\s+(?:lütfen|artık))?$/i);
+  const locatedOpenMatch = raw.match(/^(?:lütfen\s+)?(?:masaüstündeki|masaüstünde|belgelerdeki|belgelerde|indirilenlerdeki|indirilenlerde)\s+(.+?)\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\s*(?:aç|göster|çalıştır)(?:\s+(?:lütfen|artık))?$/i);
   const openMatch = locatedOpenMatch
-    || raw.match(/^(?:(?:lütfen)\\s+)?(?:(?:bana|benim için)\\s+)?(?:şunu\\s+)?(?:aç|göster|çalıştır)\\s*[:：]?\\s*(.+)$/i)
-    || raw.match(/^(.+?)\\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\\s*(?:aç|göster|çalıştır)(?:\\s+(?:lütfen|artık))?$/i);
+    || raw.match(/^(?:(?:lütfen)\s+)?(?:(?:bana|benim için)\s+)?(?:şunu\s+)?(?:aç|göster|çalıştır)\s*[:：]?\s*(.+)$/i)
+    || raw.match(/^(.+?)\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\s*(?:aç|göster|çalıştır)(?:\s+(?:lütfen|artık))?$/i);
   if (openMatch) {
     const target = cleanTarget(openMatch[1]);
     if (target) return { intent: "open-path", target };
