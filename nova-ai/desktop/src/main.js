@@ -341,8 +341,8 @@ function registerDesktopAssistantIpc() {
           "Content-Type": "application/json",
           "Authorization": "Bearer " + accessToken
         },
-        body: JSON.stringify({ command: rawCommand, observations: observations.slice(-1) }),
-        signal: AbortSignal.timeout(45000)
+        body: JSON.stringify({ command: rawCommand, observations: observations.slice(-6) }),
+        signal: AbortSignal.timeout(25000)
       });
       if (!response.ok) throw new Error("NOVA komut yorumlama servisi HTTP " + response.status);
       const interpreted = await response.json();
