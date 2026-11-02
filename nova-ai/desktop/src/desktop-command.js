@@ -80,6 +80,14 @@ export function parseDesktopCommand(input) {
     destination: normalizeDestination(match[3])
   };
 
+  match = command.match(/^([A-Z])\s+(?:sürücüsündeki|diskindeki)\s+(.+?)\s+(?:dosyasını|dosyayı|klasörünü|öğesini)\s+(.+?)\s+taşı(?:\s+lütfen)?$/i);
+  if (match) return {
+    intent: "move-file",
+    source: cleanTarget(match[2]),
+    sourceLocation: match[1].toUpperCase() + ":\\",
+    destination: normalizeDestination(match[3])
+  };
+
   match = command.match(/^(.+?)\s+(?:dosyasını|dosyayı|klasörünü|öğesini)\s+(.+?)\s+taşı(?:\s+lütfen)?$/i);
   if (match) return {
     intent: "move-file",
@@ -100,6 +108,13 @@ export function parseDesktopCommand(input) {
   const searchMatch = command.match(/^(?:dosya\s+ara|ara|bul|dosyayı\s+bul|dosya\s+bul)\s+(.+)$/i);
   if (searchMatch) return { intent: "search-files", query: cleanTarget(searchMatch[1]) };
 
+  const driveOpenMatch = command.match(/^([A-Z])\s+(?:sürücüsündeki|diskindeki)\s+(.+?)\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\s*(?:aç|göster|çalıştır)(?:\s+(?:lütfen|artık))?$/i);
+  if (driveOpenMatch) return {
+    intent: "open-path",
+    target: cleanTarget(driveOpenMatch[2]),
+    location: driveOpenMatch[1].toUpperCase() + ":\\"
+  };
+
   const locatedOpenMatch = command.match(/^(?:lütfen\s+)?(masaüstündeki|masaüstünde|belgelerdeki|belgelerde|indirilenlerdeki|indirilenlerde)\s+(.+?)\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\s*(?:aç|göster|çalıştır)(?:\s+(?:lütfen|artık))?$/i);
   const openMatch = locatedOpenMatch
     || command.match(/^(?:(?:lütfen)\s+)?(?:(?:bana|benim için)\s+)?(?:şunu\s+)?(?:aç|göster|çalıştır)\s*[:：]?\s*(.+)$/i)
@@ -112,6 +127,13 @@ export function parseDesktopCommand(input) {
       ...(locatedOpenMatch && locationFrom(locatedOpenMatch[1]) ? { location: locationFrom(locatedOpenMatch[1]) } : {})
     };
   }
+
+  match = command.match(/^([A-Z])\s+(?:sürücüsünde|diskinde)\s+(.+)$/i);
+  if (match) return {
+    intent: "search-files",
+    query: cleanTarget(match[2]),
+    location: match[1].toUpperCase() + ":\\"
+  };
 
   match = command.match(/^(?:masaüstünde|masaüstündeki|belgelerde|belgelerdeki|indirilenlerde|indirilenlerdeki)\s+(.+)$/i);
   if (match) return {
