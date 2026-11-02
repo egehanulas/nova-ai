@@ -15,7 +15,7 @@ import {
 import { URL } from "node:url";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureUserFolderPaths } from "./desktop-assistant.js";
+import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder } from "./desktop-assistant.js";
 import { parseDesktopCommand } from "./desktop-command.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 
@@ -343,18 +343,15 @@ function registerDesktopAssistantIpc() {
     const parent = getDialogParent(event);
     const folders = () => listUserFolders();
     const findFolder = async (name) => {
-      const all = await folders();
-      const normalized = String(name || "Desktop").toLocaleLowerCase("tr-TR");
-      const aliases = normalized.includes("belge") || normalized.includes("document") ? ["documents"] :
-        normalized.includes("indir") || normalized.includes("download") ? ["downloads"] : ["desktop"];
-      const found = all.find((item) => aliases.includes(item.name.toLocaleLowerCase("tr-TR")));
-      if (!found) throw new Error("İstenen konum bulunamadı.");
-      return found.path;
+      const knownFolder = getUserFolderPath(name);
+      if (knownFolder) return knownFolder;
+      const resolved = await resolveUserFolder(name);
+      return resolved.path;
     };
 
     switch (intent.intent) {
       case "help":
-        return { message: "Şunları doğal şekilde söyleyebilirsin: “Masaüstündeki 1.jpg dosyasını aç”, “Masaüstüne Oyunlar adında klasör oluştur”, “Steam'i aç”, “indirilenlerde PDF dosyasını bul”, “şu dosyayı Belgeler'e taşı”. Dosya silme, taşıma ve klasör oluşturma işlemlerinde onay isterim." };
+        return { message: "Bilgisayarındaki sürücülerdeki dosya ve klasörleri arayabilir, açabilir, taşıyabilir ve yeniden adlandırabilirim. Örnek: “image.png dosyasını aç”, “D sürücüsündeki rapor.pdf dosyasını aç”, “Masaüstündeki video.mp4 dosyasını İndirilenler klasörüne taşı”. Sistem klasörlerinde arama ve açma yapılabilir; kritik sistem dosyaları değiştirilemez. Taşıma, silme ve klasör oluşturma işlemlerinde onay isterim." };
       case "computer-info":
         return { message: JSON.stringify(getComputerInfo(), null, 2) };
       case "list-folders": {
@@ -366,12 +363,12 @@ function registerDesktopAssistantIpc() {
         return await openAllowedApp(intent.app);
       case "search-files": {
         const found = await searchUserFiles(intent.query, intent.location || "");
-        if (!found.length) return { message: "“" + intent.query + "” için Masaüstü, Belgeler ve İndirilenler içinde eşleşme bulamadım." };
-        return { message: "Bulduğum öğeler:\n" + found.slice(0, 30).map((item, index) =>
+        if (!found.length) return { message: "“" + intent.query + "” için erişilebilir sürücülerde eşleşme bulamadım." };
+        return { message: "Bulduğum öğeler:" + (found.truncated ? " (arama sınırına ulaşıldı; sonuçlar kısmi olabilir)" : "") + "\n" + found.slice(0, 30).map((item, index) =>
           (index + 1) + ". " + (item.type === "folder" ? "📁 " : "📄 ") + item.name + "\n" + item.path).join("\n") };
       }
       case "open-path": {
-        const resolved = await openUserPath(intent.target);
+        const resolved = await openUserPath(intent.target, intent.location || "");
         const error = await shell.openPath(resolved.path);
         if (error) throw new Error("Öğe açılamadı: " + error);
         return { message: "“" + path.basename(resolved.path) + "” açıldı.", path: resolved.path };
@@ -743,11 +740,13 @@ if (!handleSquirrelEvent()) {
   });
 
   app.whenReady().then(() => {
-    configureUserFolderPaths({
+    const userFolders = {
       Desktop: app.getPath("desktop"),
       Documents: app.getPath("documents"),
       Downloads: app.getPath("downloads")
-    });
+    };
+    const driveRoots = await discoverDriveRoots();
+    configureComputerFileAccess({ userFolders, driveRoots });
     configureMicrophonePermissions();
     registerDesktopAssistantIpc();
     createApplicationMenu();
