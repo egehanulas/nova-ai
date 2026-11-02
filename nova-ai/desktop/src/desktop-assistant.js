@@ -233,7 +233,8 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
     const batches = await Promise.all(batch.map(async (dir) => {
       try { return await fs.readdir(dir, { withFileTypes: true }); }
       catch (error) {
-        if (!["ENOENT", "ENOTDIR"].includes(error?.code)) inaccessibleDirectories += 1;
+        const isSearchRoot = roots.some((root) => path.resolve(root) === path.resolve(dir));
+        if (isSearchRoot || !["ENOENT", "ENOTDIR"].includes(error?.code)) inaccessibleDirectories += 1;
         return [];
       }
     }));
