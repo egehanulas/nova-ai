@@ -67,7 +67,7 @@ test("explicit Discord send requests reject plans without Enter", () => {
   assert.throws(() => enforceMessageSend(intent, 'Discord\'da "Merhaba" yaz ve gönder.'), /gönderim adımını içermiyor/i);
 });
 
-test("explicit no-send requests are never upgraded to send", () => {
+test("explicit no-send requests reject Enter", () => {
   const intent = {
     intent: "computer-control",
     done: false,
@@ -76,6 +76,23 @@ test("explicit no-send requests are never upgraded to send", () => {
       { type: "focus-control", controlType: "Edit", automationId: "composer" },
       { type: "type-text", text: "NOVA TEST 123" },
       { type: "press-key", key: "ENTER" }
+    ]
+  };
+  assert.throws(
+    () => enforceNoSend(intent, 'Mesajı kesinlikle gönderme. "NOVA TEST 123" yaz.'),
+    /cannot include Enter/i
+  );
+});
+
+test("explicit no-send requests stop immediately after exact text entry", () => {
+  const intent = {
+    intent: "computer-control",
+    done: false,
+    message: "",
+    actions: [
+      { type: "focus-control", controlType: "Edit", automationId: "composer" },
+      { type: "type-text", text: "NOVA TEST 123" },
+      { type: "finish" }
     ]
   };
   enforceNoSend(intent, 'Mesajı kesinlikle gönderme. "NOVA TEST 123" yaz.');
