@@ -121,7 +121,7 @@ function protectedRoots() {
     process.env.ProgramData
   ].filter((value) => typeof value === "string" && path.isAbsolute(value));
   for (const root of ROOTS) {
-    for (const name of ["System Volume Information", "$Recycle.Bin", "Recovery", "Config.Msi", "Boot", "EFI"]) {
+    for (const name of ["Windows", "Program Files", "Program Files (x86)", "ProgramData", "System Volume Information", "$Recycle.Bin", "Recovery", "Config.Msi", "Boot", "EFI"]) {
       candidates.push(path.join(root, name));
     }
   }
