@@ -365,10 +365,10 @@ function registerDesktopAssistantIpc() {
       case "open-app":
         return await openAllowedApp(intent.app);
       case "search-files": {
-        const found = await searchUserFiles(intent.query);
+        const found = await searchUserFiles(intent.query, intent.location || "");
         if (!found.length) return { message: "“" + intent.query + "” için Masaüstü, Belgeler ve İndirilenler içinde eşleşme bulamadım." };
-        return { message: "Bulduğum öğeler:\\n" + found.slice(0, 30).map((item, index) =>
-          (index + 1) + ". " + (item.type === "folder" ? "📁 " : "📄 ") + item.name + "\\n" + item.path).join("\\n") };
+        return { message: "Bulduğum öğeler:\n" + found.slice(0, 30).map((item, index) =>
+          (index + 1) + ". " + (item.type === "folder" ? "📁 " : "📄 ") + item.name + "\n" + item.path).join("\n") };
       }
       case "open-path": {
         const resolved = await openUserPath(intent.target);
