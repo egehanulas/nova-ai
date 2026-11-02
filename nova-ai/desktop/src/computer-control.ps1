@@ -25,27 +25,31 @@ public static class NovaDesktopInput {
       [NovaDesktopInput]::GetWindowText($handle, $windowTitle, $windowTitle.Capacity) | Out-Null
       $root = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
       $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
-      $items = @()
+      $controls = @()
+      $texts = @()
       $limit = [Math]::Min($all.Count, 2500)
-      for ($i = 0; $i -lt $limit -and $items.Count -lt 100; $i++) {
+      for ($i = 0; $i -lt $limit; $i++) {
         $element = $all.Item($i)
         try {
           $current = $element.Current
           if (-not $current.IsOffscreen -and $current.IsEnabled) {
             $name = [string]$current.Name
-            $control = [string]$current.ControlType.ProgrammaticName
-            if ($name.Trim() -or $control -match "Edit|Button|ListItem|Hyperlink|TabItem|Text") {
-              $items += @{
+            $control = $current.ControlType.ProgrammaticName.Replace("ControlType.", "")
+            if ($name.Trim() -or $control -match "Edit|Button|ListItem|Hyperlink|TabItem|ComboBox|MenuItem|Text") {
+              $item = @{
                 name = $name.Substring(0, [Math]::Min(160, $name.Length))
-                controlType = $control.Replace("ControlType.", "")
+                controlType = $control
                 automationId = [string]$current.AutomationId
                 className = [string]$current.ClassName
                 focusable = [bool]$current.IsKeyboardFocusable
               }
+              if ($control -match "Edit|Button|ListItem|Hyperlink|TabItem|ComboBox|MenuItem") { $controls += $item }
+              elseif ($name.Trim()) { $texts += $item }
             }
           }
         } catch {}
       }
+      $items = @($controls + $texts | Select-Object -First 100)
       $result.activeWindow = $windowTitle.ToString()
       $result.items = $items
       $result.message = "Etkin penceredeki erişilebilir denetimler listelendi."
@@ -115,13 +119,13 @@ public static class NovaDesktopInput {
       $value = [string]$action.text
       if ($value.Length -gt 4000) { throw "Yazılacak metin çok uzun." }
       $oldClipboard = $null
-      try { $oldClipboard = [Windows.Forms.Clipboard]::GetText() } catch {}
+      $hadTextClipboard = $false
+      try { $hadTextClipboard = [Windows.Forms.Clipboard]::ContainsText(); if ($hadTextClipboard) { $oldClipboard = [Windows.Forms.Clipboard]::GetText() } } catch {}
       [Windows.Forms.Clipboard]::SetText($value)
       [Windows.Forms.SendKeys]::SendWait("^v")
       Start-Sleep -Milliseconds 250
-      if ($null -ne $oldClipboard -and $oldClipboard.Length -le 4000) {
-        [Windows.Forms.Clipboard]::SetText($oldClipboard)
-      }
+      if ($hadTextClipboard -and $oldClipboard.Length -le 4000) { [Windows.Forms.Clipboard]::SetText($oldClipboard) }
+      elseif (-not $hadTextClipboard) { [Windows.Forms.Clipboard]::Clear() }
       $result.message = "Metin yazıldı."
     }
     "press-key" {
