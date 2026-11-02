@@ -11,19 +11,22 @@ import {
   openUserPath,
   resolveUserItem,
   moveUserFile,
-  configureUserFolderPaths
+  configureUserFolderPaths,
+  configureComputerFileAccess,
+  resolveUserFolder,
+  isProtectedSystemPath
 } from "./desktop-assistant.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 import { parseDesktopCommand } from "./desktop-command.js";
 
-test("user path resolver accepts only the three approved folders", () => {
+test("user path resolver accepts configured user folders and rejects unrelated paths", () => {
   const home = os.homedir();
   for (const name of ["Desktop", "Documents", "Downloads"]) {
     assert.equal(resolveUserPath(path.join(home, name)), path.join(home, name));
     assert.equal(resolveUserPath(path.join(home, name, "sample.txt")), path.join(home, name, "sample.txt"));
   }
-  assert.throws(() => resolveUserPath(path.join(home, "Pictures", "private.txt")), /yalnızca Masaüstü/);
-  assert.throws(() => resolveUserPath(path.join(home, "Desktop", "..", "..", "Windows", "system.ini")), /yalnızca Masaüstü/);
+  assert.throws(() => resolveUserPath(path.join(home, "Pictures", "private.txt")), /erişilebilen yerel sürücüler/);
+  assert.throws(() => resolveUserPath(path.join(home, "Desktop", "..", "..", "Windows", "system.ini")), /erişilebilen yerel sürücüler/);
 });
 
 test("user path resolver rejects empty, non-string and oversized input", () => {
@@ -43,8 +46,8 @@ test("computer information includes stable system fields", () => {
 });
 
 test("file search validates its query before reading folders", async () => {
-  await assert.rejects(searchUserFiles(""), /dosya adı yaz/);
-  await assert.rejects(searchUserFiles("x".repeat(121)), /120 karakter/);
+  await assert.rejects(searchUserFiles(""), /dosya veya klasör adı yaz/);
+  await assert.rejects(searchUserFiles("x".repeat(256)), /255 karakter/);
 });
 
 test("application launcher rejects anything outside the fixed allowlist", async () => {
@@ -114,13 +117,31 @@ test("desktop updater retry can be cancelled or reset without leaving a pending 
 
 test("Turkish desktop intent parser understands natural file-open phrasing", () => {
   assert.deepEqual(parseDesktopCommand("Masaüstündeki 1.jpg dosyasını aç"), {
-    intent: "open-path", target: "1.jpg"
+    intent: "open-path", target: "1.jpg", location: "Desktop"
   });
   assert.deepEqual(parseDesktopCommand("1.jpg'yi aç"), {
     intent: "open-path", target: "1.jpg"
   });
   assert.deepEqual(parseDesktopCommand("lütfen aç: \"1.jpg\""), {
     intent: "open-path", target: "1.jpg"
+  });
+  assert.deepEqual(parseDesktopCommand("image.png dosyasını aç"), {
+    intent: "open-path", target: "image.png"
+  });
+  assert.deepEqual(parseDesktopCommand("Masaüstündeki image.png dosyasını aç"), {
+    intent: "open-path", target: "image.png", location: "Desktop"
+  });
+  assert.deepEqual(parseDesktopCommand("Masaüstündeki image.png dosyasını İndirilenler klasörüne taşı"), {
+    intent: "move-file", source: "image.png", sourceLocation: "Desktop", destination: "Downloads"
+  });
+  assert.deepEqual(parseDesktopCommand("D sürücüsündeki rapor.pdf dosyasını aç"), {
+    intent: "open-path", target: "rapor.pdf", location: "D:\\"
+  });
+  assert.deepEqual(parseDesktopCommand("D sürücüsündeki rapor.pdf dosyasını İndirilenler klasörüne taşı"), {
+    intent: "move-file", source: "rapor.pdf", sourceLocation: "D:\\", destination: "Downloads"
+  });
+  assert.deepEqual(parseDesktopCommand("D sürücüsünde rapor.pdf"), {
+    intent: "search-files", query: "rapor.pdf", location: "D:\\"
   });
 });
 
@@ -153,7 +174,7 @@ test("Turkish desktop intent parser recognizes apps, search and destructive acti
 
 
 test("opening a file by its bare filename resolves the exact item in known folders", async () => {
-  const base = await fs.mkdtemp(path.join(os.tmpdir(), "nova-desktop-path-test-"));
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-desktop-path-test-"));
   const desktop = path.join(base, "desktop");
   const documents = path.join(base, "documents");
   const downloads = path.join(base, "downloads");
@@ -173,7 +194,7 @@ test("opening a file by its bare filename resolves the exact item in known folde
 
 
 test("moving a file by natural-language source name resolves its explicitly named folder", async () => {
-  const base = await fs.mkdtemp(path.join(os.tmpdir(), "nova-desktop-move-test-"));
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-desktop-move-test-"));
   const desktop = path.join(base, "desktop");
   const documents = path.join(base, "documents");
   const downloads = path.join(base, "downloads");
@@ -193,6 +214,73 @@ test("moving a file by natural-language source name resolves its explicitly name
     assert.equal(await fs.readFile(path.join(downloads, "1.jpg"), "utf8"), "desktop-image");
     await assert.rejects(resolveUserItem("1.jpg"), /birden fazla öğe/);
   } finally {
+    await fs.rm(base, { recursive: true, force: true });
+  }
+});
+
+
+test("full computer access searches deeply and handles arbitrary file extensions", async () => {
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-computer-access-test-"));
+  const desktop = path.join(base, "Desktop");
+  const documents = path.join(base, "Documents");
+  const downloads = path.join(base, "Downloads");
+  const deepFolder = path.join(base, "OtherDrive", "Projects", "Nested", "Level4", "Level5", "Level6");
+  const desktopNested = path.join(desktop, "Nested");
+  await Promise.all([desktop, documents, downloads, deepFolder, desktopNested].map((folder) => fs.mkdir(folder, { recursive: true })));
+  const source = path.join(deepFolder, "archive.custom-extension");
+  const desktopSource = path.join(desktopNested, "desktop-scope.custom-extension");
+  await Promise.all([
+    fs.writeFile(source, "arbitrary-file-content"),
+    fs.writeFile(desktopSource, "desktop-scoped-content")
+  ]);
+  configureComputerFileAccess({
+    userFolders: { Desktop: desktop, Documents: documents, Downloads: downloads },
+    driveRoots: [base]
+  });
+
+  try {
+    assert.equal(resolveUserPath(source), source);
+    const matches = await searchUserFiles("archive.custom-extension");
+    assert.deepEqual(matches.map((item) => item.path), [source]);
+    const scopedMatches = await searchUserFiles("archive.custom-extension", path.join(base, "OtherDrive", "Projects"));
+    assert.deepEqual(scopedMatches.map((item) => item.path), [source]);
+    const desktopScopedMatches = await searchUserFiles("desktop-scope.custom-extension", desktopNested);
+    assert.deepEqual(desktopScopedMatches.map((item) => item.path), [desktopSource]);
+    const resolvedFolder = await resolveUserFolder(path.join(base, "OtherDrive", "Projects"));
+    assert.equal(resolvedFolder.path, await fs.realpath(path.join(base, "OtherDrive", "Projects")));
+    const opened = await openUserPath("archive.custom-extension");
+    assert.equal(opened.path, await fs.realpath(source));
+    const moved = await moveUserFile(source, downloads, "");
+    assert.equal(moved.path, path.join(downloads, "archive.custom-extension"));
+    assert.equal(await fs.readFile(moved.path, "utf8"), "arbitrary-file-content");
+    assert.equal(isProtectedSystemPath(path.join(base, "AppData", "Local", "critical.dat")), true);
+  } finally {
+    await fs.rm(base, { recursive: true, force: true });
+  }
+});
+
+test("computer file mutations reject protected system locations", async () => {
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-protected-path-test-"));
+  const desktop = path.join(base, "Desktop");
+  const documents = path.join(base, "Documents");
+  const downloads = path.join(base, "Downloads");
+  const protectedFolder = path.join(base, "Windows", "System32");
+  await Promise.all([desktop, documents, downloads, protectedFolder].map((folder) => fs.mkdir(folder, { recursive: true })));
+  const source = path.join(protectedFolder, "critical.dll");
+  await fs.writeFile(source, "do-not-modify");
+  const previousWindir = process.env.WINDIR;
+  configureComputerFileAccess({
+    userFolders: { Desktop: desktop, Documents: documents, Downloads: downloads },
+    driveRoots: [base]
+  });
+  process.env.WINDIR = path.join(base, "Windows");
+
+  try {
+    await assert.rejects(moveUserFile(source, downloads, ""), /sistem klasörleri/);
+    assert.equal(await fs.readFile(source, "utf8"), "do-not-modify");
+  } finally {
+    if (previousWindir === undefined) delete process.env.WINDIR;
+    else process.env.WINDIR = previousWindir;
     await fs.rm(base, { recursive: true, force: true });
   }
 });
