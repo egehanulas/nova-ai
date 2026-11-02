@@ -309,10 +309,6 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
   return found;
 }
 
-function findInstalledExecutable(candidates) {
-  return candidates.find((candidate) => typeof candidate === "string" && candidate.trim());
-}
-
 function launchDetached(command, args = []) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { detached: true, stdio: "ignore", windowsHide: true });
@@ -348,15 +344,14 @@ export async function openAllowedApp(appName, extraArgs = []) {
   };
   const selected = apps[appName];
   if (!selected) throw new Error("Bu uygulama güvenlik nedeniyle izin verilen uygulamalar listesinde değil.");
-  const command = findInstalledExecutable(selected.candidates);
-  if (!command) throw new Error(selected.label + " bu bilgisayarda bulunamadı veya varsayılan konumunda kurulu değil.");
-  try {
-    await fs.access(command);
-  } catch {
-    if (!["notepad", "calculator", "explorer", "paint"].includes(appName)) {
-      throw new Error(selected.label + " bu bilgisayarda bulunamadı veya varsayılan konumunda kurulu değil.");
-    }
+  let command = "";
+  for (const candidate of selected.candidates) {
+    try { await fs.access(candidate); command = candidate; break; } catch {}
   }
+  if (!command && ["notepad", "calculator", "explorer", "paint"].includes(appName)) {
+    command = selected.candidates[0];
+  }
+  if (!command) throw new Error(selected.label + " bu bilgisayarda bulunamadı veya varsayılan konumunda kurulu değil.");
   try {
     await launchDetached(command, [...selected.args, ...extraArgs]);
   } catch (error) {
