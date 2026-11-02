@@ -396,7 +396,13 @@ function registerDesktopAssistantIpc() {
       }
       case "create-folder": {
         const destination = await findFolder(intent.location);
-        // Folder creation is a reversible, low-risk action; no confirmation dialog is needed.
+        const answer = await dialog.showMessageBox(parent, {
+          type: "question", title: "Klasör oluşturma onayı",
+          message: "Yeni klasör oluşturulsun mu?",
+          detail: path.join(destination, String(intent.name || "")),
+          buttons: ["Oluştur", "Vazgeç"], defaultId: 1, cancelId: 1
+        });
+        if (answer.response !== 0) return { message: "İşlem iptal edildi." };
         return await createUserFolder(destination, intent.name);
       }
       case "move-file":
