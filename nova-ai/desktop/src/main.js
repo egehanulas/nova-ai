@@ -718,6 +718,14 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
       "Steam kütüphanesindeki kurulu oyunları adlarıyla başlatabiliyor",
       "Ekrandaki erişilebilir öğeleri okuyup adım adım tıklama ve metin yazma",
       "Rastgele terminal komutları yerine izinli ve doğrulanan masaüstü eylemleri"
+    ],
+    "0.2.0-alpha.33": [
+      "Windows Başlat menüsüne kayıtlı uygulamaları adlarıyla bulup açma",
+      "Chrome ve Edge dahil uygulamalarda daha fazla sekme ve gezinme kısayolu",
+      "Uzun masaüstü görevleri için daha geniş çalışma süresi ve takılan işlemleri durdurma",
+      "Ekran okuma başarısız olduğunda güvenli otomatik yeniden deneme",
+      "Görev adımlarını sohbet ekranında ayrıntılı olarak gösterme",
+      "Satın alma, hesap ayarı ve program yönetiminde yerel onay kontrolleri"
     ]
   };
   const suppliedNotes = Array.isArray(releaseNotes)
