@@ -504,7 +504,15 @@ test("desktop command parser supports browser, Spotify and installed Steam game 
     intent: "open-url", url: "https://www.youtube.com"
   });
   assert.deepEqual(parseDesktopCommand("Spotify'da Blinding Lights çal"), {
-    intent: "spotify-search", query: "Blinding Lights"
+    intent: "computer-control", done: false,
+    actions: [
+      { type: "spotify-search", query: "Blinding Lights" },
+      { type: "wait", ms: 1800 },
+      { type: "inspect-screen" }
+    ]
+  });
+  assert.deepEqual(parseDesktopCommand("Chrome'dan YouTube aç"), {
+    intent: "open-url", app: "chrome", url: "https://www.youtube.com"
   });
   assert.deepEqual(parseDesktopCommand("Steam'de Dying Light: The Beast aç"), {
     intent: "launch-steam-game", game: "Dying Light: The Beast"
