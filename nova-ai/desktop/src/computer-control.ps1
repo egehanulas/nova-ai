@@ -93,7 +93,7 @@ public static class NovaDesktopInput {
     "focus-control" {
       $controlType = [string]$action.controlType
       if ($controlType -notin @("Edit", "Button", "List", "ComboBox", "Document")) { throw "Bu denetim türüne odaklanmaya izin verilmiyor." }
-      $root = [System.Windows.Automation.AutomationElement]::RootElement
+      $root = [System.Windows.Automation.AutomationElement]::FromHandle([NovaDesktopInput]::GetForegroundWindow())
       $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
       $matches = @()
       $limit = [Math]::Min($all.Count, 3000)
@@ -129,9 +129,9 @@ public static class NovaDesktopInput {
         ENTER = "{ENTER}"; TAB = "{TAB}"; ESC = "{ESC}"; SPACE = " "
         BACKSPACE = "{BACKSPACE}"; DELETE = "{DELETE}"; UP = "{UP}"; DOWN = "{DOWN}"
         LEFT = "{LEFT}"; RIGHT = "{RIGHT}"; HOME = "{HOME}"; END = "{END}"
-        CTRL+A = "^a"; CTRL+L = "^l"; CTRL+T = "^t"; CTRL+W = "^w"
-        CTRL+V = "^v"; CTRL+C = "^c"; CTRL+X = "^x"; CTRL+F = "^f"
-        ALT+F4 = "%{F4}"; SHIFT+TAB = "+{TAB}"
+        "CTRL+A" = "^a"; "CTRL+L" = "^l"; "CTRL+T" = "^t"; "CTRL+W" = "^w"
+        "CTRL+V" = "^v"; "CTRL+C" = "^c"; "CTRL+X" = "^x"; "CTRL+F" = "^f"
+        "ALT+F4" = "%{F4}"; "SHIFT+TAB" = "+{TAB}"
       }
       $key = ([string]$action.key).ToUpperInvariant()
       if (-not $keys.ContainsKey($key)) { throw "Bu klavye kısayoluna izin verilmiyor." }
