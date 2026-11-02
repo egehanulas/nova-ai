@@ -3397,7 +3397,7 @@ app.post(
     const safeString = (value, max = 1000) =>
       typeof value === "string" ? value.trim().slice(0, max) : "";
     const intent = { intent: allowedIntents.has(parsed?.intent) ? parsed.intent : "unknown" };
-    const fieldLimits = { target: 1000, query: 240, name: 120, source: 1000, sourceLocation: 1000, destination: 1000, newName: 240 };
+    const fieldLimits = { target: 1000, query: 255, name: 120, source: 1000, sourceLocation: 1000, destination: 1000, newName: 240 };
     for (const [key, max] of Object.entries(fieldLimits)) {
       const value = safeString(parsed?.[key], max);
       if (value) intent[key] = value;
