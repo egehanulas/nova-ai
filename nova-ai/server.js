@@ -3327,7 +3327,7 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
     "İZİNLİ EYLEMLER:",
     '- {"type":"open-app","app":"discord|steam|chrome|edge|firefox|notepad|calculator|explorer|paint|spotify"}',
     '- {"type":"open-installed-app","app":"exact installed app name, e.g. WhatsApp, Telegram, Windows Settings or Task Manager"} (resolve only through the Windows Start menu app registry; never construct a shell command)',
-    '- {"type":"launch-installer","path":"exact downloaded .exe or .msi file in the user Downloads folder"} (only after explicit local approval; never launch scripts or files outside Downloads),
+    '- {"type":"launch-installer","path":"exact downloaded .exe or .msi file in the Downloads folder"} (only after explicit local approval; never launch scripts or files outside Downloads)',
     '- {"type":"open-url","url":"https://...","app":"chrome"} (app isteğe bağlı; yalnızca http/https)',
     '- {"type":"launch-steam-game","game":"kurulu oyunun tam adı"}',
     '- {"type":"spotify-search","query":"şarkı veya sanatçı"}',
