@@ -21,7 +21,8 @@ import { createUpdateRetryScheduler } from "./update-retry.js";
 
 const NOVA_URL = "https://nova-ai-xxid.onrender.com/";
 const NOVA_ORIGIN = new URL(NOVA_URL).origin;
-const UPDATE_FEED_URL = "https://github.com/egehanulas/nova-ai/releases/latest/download";
+// Keep the trailing slash: Squirrel resolves RELEASES relative to this feed directory.
+const UPDATE_FEED_URL = "https://github.com/egehanulas/nova-ai/releases/latest/download/";
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const UPDATE_CHECK_TIMEOUT_MS = 45_000;
 const UPDATE_DOWNLOAD_TIMEOUT_MS = 30 * 60 * 1000;
