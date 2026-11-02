@@ -505,7 +505,7 @@ async function researchWeb(query, signal) {
 }
 
 module.exports = {
-  extractUrls, fetchPublicPage, parsePage, parseRssFeed,
+  extractUrls, fetchPublicPage, fetchPinnedUrl, parsePage, parseRssFeed,
   parseBingHtml, parseDuckDuckGoHtml, isPrivateAddress,
   validatePublicUrl, readLimitedBody, searchPublicWeb, researchWeb,
   getSeedSources, hasRelevantTopicEvidence,
