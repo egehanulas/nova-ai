@@ -41,7 +41,10 @@ function enforceNoSend(intent, command) {
 function enforceMessageSend(intent, command) {
   const text = String(command || "");
   const noSend = /mesaj[ıi]\s+(?:(?:kesinlikle|sakın|asla)\s+)?gönderme/iu.test(text);
-  const sendRequested = !noSend && /(?:\bgönder\b|\byolla\b|mesaj\s+at\b)/iu.test(text);
+  const explicitSendRequested = /(?:\bgönder\b|\byolla\b|mesaj\s+at\b)/iu.test(text);
+  const directDmSendRequested =
+    /discord[\s\S]*(?:en\s+son|son)\s+(?:konuştuğum|yazıştığım|mesajlaştığım)[\s\S]*(?:kişiye|sohbetine|dm(?:['’]ine|ine)?)[\s\S]*\byaz\b/iu.test(text);
+  const sendRequested = !noSend && (explicitSendRequested || directDmSendRequested);
   if (!sendRequested || !intent || !Array.isArray(intent.actions)) return intent;
 
   const textIndex = intent.actions.findIndex((action) => action?.type === "type-text");
@@ -52,7 +55,9 @@ function enforceMessageSend(intent, command) {
   if (!focused) throw new Error("Mesaj gönderilmeden önce mesaj kutusu odaklanmalı.");
 
   const quotedText = text.match(/["“]([^"”]+)["”]/u);
-  if (quotedText && intent.actions[textIndex].text !== quotedText[1]) {
+  const directMessage = text.match(/(?:kişiye|sohbetine|dm(?:['’]ine|ine)?)\s+(.+?)\s+(?:yaz(?:ıp)?|gönder|yolla)\b/iu);
+  const requestedMessage = quotedText?.[1] || directMessage?.[1]?.trim();
+  if (requestedMessage && intent.actions[textIndex].text !== requestedMessage) {
     throw new Error("Gönderilecek metin kullanıcı isteğindeki metinle eşleşmiyor.");
   }
 
