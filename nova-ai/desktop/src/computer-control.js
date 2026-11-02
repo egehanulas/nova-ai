@@ -125,7 +125,7 @@ export async function runComputerAction(action) {
     let stderr = "";
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
-    child.stdout.on("data", chunk => { stdout = (stdout + chunk).slice(-20000); });
+    child.stdout.on("data", chunk => { stdout = (stdout + chunk).slice(-250000); });
     child.stderr.on("data", chunk => { stderr = (stderr + chunk).slice(-8000); });
     child.once("error", error => reject(new Error("Windows masaüstü kontrolü başlatılamadı: " + error.message)));
     child.once("close", code => {
@@ -135,12 +135,12 @@ export async function runComputerAction(action) {
         reject(new Error(error.message + (stderr.trim() ? " " + stderr.slice(-1000) : "")));
         return;
       }
-      if (code !== 0 || !result.success) {
+      if (!result.success) {
         const details = [
           result.error,
           code !== 0 ? "PowerShell çıkış kodu: " + code : "",
           stderr.trim() ? "PowerShell stderr: " + stderr.trim().slice(-1200) : "",
-          !result.error && stdout.trim() ? "PowerShell çıktısı: " + stdout.trim().slice(-1200) : ""
+          !result.error && stdout.trim() ? "PowerShell çıktısı: " + stdout.trim().slice(-500) : ""
         ].filter(Boolean).join(" | ");
         reject(new Error(details || "Masaüstü kontrolü başarısız."));
       } else resolve(result);
