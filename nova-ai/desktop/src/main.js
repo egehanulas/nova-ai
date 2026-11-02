@@ -488,6 +488,7 @@ function registerDesktopAssistantIpc() {
               action.type === "open-url" ? "Tarayıcıda web adresi açılıyor." :
               action.type === "launch-steam-game" ? (action.game + " oyunu başlatılıyor.") :
               action.type === "spotify-search" ? (action.query + " Spotify'da aranıyor.") :
+              action.type === "research-web" ? "Web kaynakları araştırılıyor ve yanıt hazırlanıyor." :
               action.type === "inspect-screen" ? "Etkin pencere inceleniyor." :
               action.type === "click-text" ? "Ekrandaki hedef öğeye tıklanıyor." :
               action.type === "focus-control" ? "İlgili giriş alanına odaklanılıyor." :
@@ -548,6 +549,22 @@ function registerDesktopAssistantIpc() {
               await launchSteamGame(action.game);
             } else if (action.type === "spotify-search") {
               await searchSpotify(action.query);
+            } else if (action.type === "research-web") {
+              const response = await fetch(new URL("/api/research", NOVA_URL), {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": "Bearer " + accessToken
+                },
+                body: JSON.stringify({ messages: [{ role: "user", content: String(action.query || "").slice(0, 1200) }] }),
+                signal: AbortSignal.timeout(90000)
+              });
+              const research = await response.json().catch(() => ({}));
+              if (!response.ok || !research.success || typeof research.answer !== "string" || !research.answer.trim()) {
+                throw new Error(research.error || "NOVA web araştırmasını tamamlayamadı.");
+              }
+              reportProgress("completed", "Araştırma yanıtı hazır.", completed + 1, completed + 1);
+              return { message: research.answer, steps: completed + 1, sources: research.sources || [] };
             } else {
               await runComputerAction(action);
             }
