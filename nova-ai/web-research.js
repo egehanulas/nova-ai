@@ -47,7 +47,7 @@ function ipv6ToBigInt(address) {
   if ((halves.length === 1 && missing !== 0) || missing < 0) return null;
   const groups = [...left, ...Array(missing).fill("0"), ...right];
   if (groups.length !== 8 || groups.some((group) => !/^[0-9a-f]{1,4}$/.test(group))) return null;
-  return BigInt("0x" + groups.join("").padStart(32, "0"));
+  return BigInt("0x" + groups.map((group) => group.padStart(4, "0")).join(""));
 }
 
 function isPrivateAddress(address) {
