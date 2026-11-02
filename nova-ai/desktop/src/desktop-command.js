@@ -93,7 +93,7 @@ export function parseDesktopCommand(input) {
     .replace(/^(?:lütfen\s+)?(?:(?:bana|benim için)\s+)?/i, "")
     .replace(/^(?:uygulamayı\s+)?(?:aç|başlat|çalıştır)\s+/i, "")
     .replace(/\s+(?:uygulamasını\s+)?(?:aç|başlat|çalıştır)(?:\s+(?:lütfen|artık))?$/i, "")
-    .replace(/(?:['’])?(?:larını|lerini|ları|leri|sini|sını|nı|ni|nu|nü|yı|yi|yu|yü|ı|i|u|ü)$/iu, "")
+    .replace(/(?:['’](?:nı|ni|nu|nü|yı|yi|yu|yü|ı|i|u|ü)|(?:larını|lerini|ları|leri|sini|sını|nı|ni|nu|nü|yı|yi|yu|yü))$/iu, "")
     .trim();
   const app = APP_ALIASES.find((entry) => entry.names.includes(appText));
   if (app) return app.installed ? { intent: "open-installed-app", app: app.app, label: app.label } : { intent: "open-app", app: app.app, label: app.label };
