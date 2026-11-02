@@ -407,6 +407,84 @@ function folderLookupCandidates(input) {
   return [...new Set(candidates.filter(Boolean))];
 }
 
+async function findNamedUserFolder(input) {
+  const needle = String(input || "").trim().toLocaleLowerCase("tr-TR");
+  if (!needle) return null;
+  const roots = [...new Set(Object.values(USER_FOLDERS).map((value) => path.resolve(value)))];
+  const protectedSearchRoots = protectedRoots();
+  const isSkippable = (fullPath) => {
+    const isAppData = /(^|[\\/])AppData([\\/]|$)/i.test(fullPath);
+    return isAppData || protectedSearchRoots.some((root) => inside(root, fullPath));
+  };
+  let inaccessibleDirectories = 0;
+  const initialDirectories = [];
+  const directMatches = [];
+
+  const initialEntries = await Promise.all(roots.map(async (root) => {
+    try {
+      return { root, entries: await fs.readdir(root, { withFileTypes: true }) };
+    } catch (error) {
+      if (!["ENOENT", "ENOTDIR"].includes(error?.code)) inaccessibleDirectories += 1;
+      return { root, entries: [] };
+    }
+  }));
+
+  for (const { root, entries } of initialEntries) {
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+      const fullPath = path.join(root, entry.name);
+      if (isSkippable(fullPath)) continue;
+      if (entry.name.toLocaleLowerCase("tr-TR") === needle) directMatches.push(fullPath);
+      initialDirectories.push(fullPath);
+    }
+  }
+
+  if (directMatches.length > 1) {
+    throw new Error("Aynı isimde birden fazla klasör buldum. Lütfen klasörün tam yolunu belirt.");
+  }
+  if (directMatches.length === 1) return directMatches[0];
+
+  const matches = [];
+  const queue = initialDirectories;
+  const startedAt = Date.now();
+  let visited = 0;
+  while (queue.length) {
+    if (visited >= SEARCH_MAX_DIRECTORIES || Date.now() - startedAt >= SEARCH_MAX_DURATION_MS) {
+      throw new Error("Klasör araması güvenli süre sınırına ulaştı. Lütfen klasörün tam yolunu belirt.");
+    }
+    const batch = queue.splice(0, SEARCH_WORKERS);
+    visited += batch.length;
+    const batches = await Promise.all(batch.map(async (dir) => {
+      try { return await fs.readdir(dir, { withFileTypes: true }); }
+      catch (error) {
+        if (!["ENOENT", "ENOTDIR"].includes(error?.code)) inaccessibleDirectories += 1;
+        return [];
+      }
+    }));
+    for (let index = 0; index < batches.length; index += 1) {
+      const dir = batch[index];
+      for (const entry of batches[index]) {
+        if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+        const fullPath = path.join(dir, entry.name);
+        if (isSkippable(fullPath)) continue;
+        if (entry.name.toLocaleLowerCase("tr-TR") === needle) {
+          matches.push(fullPath);
+          if (matches.length > 1) {
+            throw new Error("Aynı isimde birden fazla klasör buldum. Lütfen klasörün tam yolunu belirt.");
+          }
+        }
+        queue.push(fullPath);
+      }
+    }
+  }
+
+  if (matches.length === 1) return matches[0];
+  if (inaccessibleDirectories > 0) {
+    throw new Error("Klasör aranırken " + inaccessibleDirectories + " klasöre erişilemedi. Lütfen klasörün tam yolunu belirt.");
+  }
+  return null;
+}
+
 export async function resolveUserFolder(input) {
   const knownPath = getUserFolderPath(input);
   let candidate = knownPath || input;
@@ -424,19 +502,19 @@ export async function resolveUserFolder(input) {
     const relativeFolder = driveFolderMatch[2].replace(/\s+klasör(?:ü|üne)?$/i, "").trim();
     candidate = path.join(driveFolderMatch[1].toUpperCase() + ":\\", relativeFolder);
   } else if (!knownPath && typeof input === "string" && !path.isAbsolute(input) && !input.includes("/") && !input.includes("\\")) {
-    let resolvedItem = null;
+    let resolvedFolderPath = null;
     let lastError = null;
     for (const candidateName of folderLookupCandidates(input)) {
       try {
-        resolvedItem = await resolveUserItem(candidateName);
-        break;
+        resolvedFolderPath = await findNamedUserFolder(candidateName);
+        if (resolvedFolderPath) break;
       } catch (error) {
-        if (/birden fazla öğe/i.test(error?.message || "")) throw error;
+        if (/birden fazla klasör/i.test(error?.message || "")) throw error;
         lastError = error;
       }
     }
-    if (!resolvedItem) throw lastError || new Error("Belirttiğin hedef klasörü bulamadım.");
-    candidate = resolvedItem.path;
+    if (!resolvedFolderPath) throw lastError || new Error("Belirttiğin hedef klasörü bulamadım.");
+    candidate = resolvedFolderPath;
   }
   const resolved = await resolveExistingUserPath(candidate);
   if (!resolved.stat.isDirectory()) throw new Error("Belirttiğin hedef bir klasör değil.");
