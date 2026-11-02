@@ -216,6 +216,10 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
     if (!preferredFolder.stat.isDirectory()) throw new Error("Arama konumu bir klasör olmalı.");
     roots = [preferredFolder.path];
   }
+  const explicitProtectedSearch = typeof preferredLocation === "string" &&
+    path.isAbsolute(preferredLocation) && isProtectedSystemPath(preferredLocation);
+  const skipProtectedDirectories = !explicitProtectedSearch;
+  const protectedSearchRoots = skipProtectedDirectories ? protectedRoots() : [];
   const found = [];
   const queue = [...roots];
   const startedAt = Date.now();
@@ -243,6 +247,10 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
       for (const entry of batches[index]) {
         if (entry.isSymbolicLink()) continue;
         const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory() && skipProtectedDirectories) {
+          const isAppData = /(^|[\\/])AppData([\\/]|$)/i.test(fullPath);
+          if (isAppData || protectedSearchRoots.some((root) => inside(root, fullPath))) continue;
+        }
         const normalizedName = entry.name.toLocaleLowerCase("tr-TR");
         if (exactOnly ? normalizedName === needle : normalizedName.includes(needle)) {
           found.push({ name: entry.name, path: fullPath, type: entry.isDirectory() ? "folder" : "file" });
