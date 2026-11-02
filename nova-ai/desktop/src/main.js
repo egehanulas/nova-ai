@@ -441,7 +441,7 @@ function registerDesktopAssistantIpc() {
       buttons: ["Taşı", "Vazgeç"], defaultId: 1, cancelId: 1
     });
     if (answer.response !== 0) return { message: "İşlem iptal edildi." };
-    return moveUserFile(payload.source, payload.destination, payload.newName);
+    return moveUserFile(payload.source, payload.destination, payload.newName, payload.sourceLocation || "");
   });
   ipcMain.handle("nova-desktop:trash-file", async (event, input) => {
     requireTrustedWindows(event);
