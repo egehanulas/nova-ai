@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseComputerControlOutput } from "./computer-control.js";
+import { parseComputerControlOutput, validateComputerAction } from "./computer-control.js";
 
 test("validates absolute and relative mouse movement actions", () => {
   assert.doesNotThrow(() => validateComputerAction({ type: "move-mouse", x: 300, y: 250 }));
