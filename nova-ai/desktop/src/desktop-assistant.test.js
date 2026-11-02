@@ -284,3 +284,30 @@ test("computer file mutations reject protected system locations", async () => {
     await fs.rm(base, { recursive: true, force: true });
   }
 });
+
+
+test("opening files never executes programs, scripts, installers, or Windows shortcuts", async () => {
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-safe-open-test-"));
+  const desktop = path.join(base, "Desktop");
+  const documents = path.join(base, "Documents");
+  const downloads = path.join(base, "Downloads");
+  await Promise.all([desktop, documents, downloads].map((folder) => fs.mkdir(folder, { recursive: true })));
+  for (const name of ["payload.exe", "script.ps1", "shortcut.lnk", "installer.msi", "module.dll"]) {
+    await fs.writeFile(path.join(desktop, name), "test-placeholder");
+  }
+  await fs.writeFile(path.join(desktop, "notes.pdf"), "test-document");
+  configureComputerFileAccess({
+    userFolders: { Desktop: desktop, Documents: documents, Downloads: downloads },
+    driveRoots: [base]
+  });
+
+  try {
+    for (const name of ["payload.exe", "script.ps1", "shortcut.lnk", "installer.msi", "module.dll"]) {
+      await assert.rejects(openUserPath(path.join(desktop, name)), /güvenlik nedeniyle NOVA üzerinden doğrudan açılamaz/);
+    }
+    const document = await openUserPath(path.join(desktop, "notes.pdf"));
+    assert.equal(document.path, await fs.realpath(path.join(desktop, "notes.pdf")));
+  } finally {
+    await fs.rm(base, { recursive: true, force: true });
+  }
+});
