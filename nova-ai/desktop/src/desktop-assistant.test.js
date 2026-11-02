@@ -134,6 +134,15 @@ test("Turkish desktop intent parser understands natural file-open phrasing", () 
   assert.deepEqual(parseDesktopCommand("Masaüstündeki image.png dosyasını İndirilenler klasörüne taşı"), {
     intent: "move-file", source: "image.png", sourceLocation: "Desktop", destination: "Downloads"
   });
+  assert.deepEqual(parseDesktopCommand("D sürücüsündeki rapor.pdf dosyasını aç"), {
+    intent: "open-path", target: "rapor.pdf", location: "D:\\"
+  });
+  assert.deepEqual(parseDesktopCommand("D sürücüsündeki rapor.pdf dosyasını İndirilenler klasörüne taşı"), {
+    intent: "move-file", source: "rapor.pdf", sourceLocation: "D:\\", destination: "Downloads"
+  });
+  assert.deepEqual(parseDesktopCommand("D sürücüsünde rapor.pdf"), {
+    intent: "search-files", query: "rapor.pdf", location: "D:\\"
+  });
 });
 
 test("Turkish desktop intent parser understands folder creation in different word orders", () => {
