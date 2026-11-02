@@ -22,7 +22,7 @@ import {
 } from "./desktop-assistant.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 import { parseDesktopCommand } from "./desktop-command.js";
-import { validateComputerAction, runComputerAction } from "./computer-control.js";
+import { validateComputerAction, runComputerAction, parseComputerControlOutput } from "./computer-control.js";
 
 test("user path resolver accepts configured user folders and rejects unrelated paths", () => {
   const home = os.homedir();
@@ -525,6 +525,12 @@ test("desktop command parser supports browser, Spotify and installed Steam game 
 test("computer control validates supported actions and rejects unsafe or malformed inputs", () => {
   assert.equal(validateComputerAction({ type: "inspect-screen" }).type, "inspect-screen");
   assert.equal(validateComputerAction({ type: "type-text", text: "Ben Nova" }).text, "Ben Nova");
+  assert.deepEqual(validateComputerAction({
+    type: "focus-control", controlType: "Edit", automationId: "ChannelTextArea"
+  }), { type: "focus-control", controlType: "Edit", automationId: "ChannelTextArea" });
+  assert.throws(() => validateComputerAction({
+    type: "focus-control", controlType: "Edit", automationId: "x".repeat(101)
+  }), /Odaklanılacak/);
   assert.throws(() => validateComputerAction({ type: "run-command", command: "whoami" }), /Desteklenmeyen/);
   assert.throws(() => validateComputerAction({ type: "press-key", key: "WIN+R" }), /İzin verilmeyen/);
   assert.throws(() => validateComputerAction({ type: "click", x: -1, y: 30 }), /koordinat/);
@@ -556,6 +562,22 @@ test("Steam game resolver finds a uniquely installed title in a library manifest
     else process.env.ProgramFiles = previousProgramFiles;
     await fs.rm(base, { recursive: true, force: true });
   }
+});
+
+test("PowerShell startup CLIXML progress does not corrupt desktop action results", () => {
+  const startupProgress = '<Objs Version="1.1.0.1"><Obj S="progress"><AV>Preparing modules for first use.</AV></Obj></Objs>';
+  const output = startupProgress + '\r\n{"success":true,"message":"Metin yazıldı."}\r\n';
+  assert.deepEqual(parseComputerControlOutput(output), { success: true, message: "Metin yazıldı." });
+  assert.deepEqual(parseComputerControlOutput('#< CLIXML <Objs/>{"success":true,"items":[{"name":"Mesaj","bounds":{"x":1,"y":2}}]}'), { success: true, items: [{ name: "Mesaj", bounds: { x: 1, y: 2 } }] });
+  assert.deepEqual(parseComputerControlOutput('NOVA_RESULT:{"success":false,"error":"test"}'), { success: false, error: "test" });
+  assert.throws(() => parseComputerControlOutput(startupProgress), /geçerli sonuç/);
+});
+
+test("desktop screen inspection prioritizes editable controls and supports AutomationId targeting", async () => {
+  const script = await fs.readFile(new URL("./computer-control.ps1", import.meta.url), "utf8");
+  assert.match(script, /\$inputControls\s*=\s*@\(\)/);
+  assert.match(script, /\$items\s*=\s*@\(\$inputControls\s*\+\s*\$controls\s*\+\s*\$texts/);
+  assert.match(script, /\$current\.AutomationId\s*-eq\s*\[string\]\$action\.automationId/);
 });
 
 test("Windows PowerShell desktop automation script parses without syntax errors", { skip: process.platform !== "win32" }, () => {

@@ -29,7 +29,8 @@ export function validateComputerAction(action) {
   }
   if (action.type === "focus-control" &&
       (!["Edit", "Button", "List", "ComboBox", "Document"].includes(action.controlType) ||
-       (action.name != null && (typeof action.name !== "string" || action.name.length > 180)))) {
+       (action.name != null && (typeof action.name !== "string" || action.name.length > 180)) ||
+       (action.automationId != null && (typeof action.automationId !== "string" || action.automationId.length > 100)))) {
     throw new Error("Odaklanılacak denetim geçersiz.");
   }
   if (action.type === "press-key" && !ALLOWED_KEYS.has(String(action.key || "").toUpperCase())) {
@@ -53,6 +54,31 @@ export function validateComputerAction(action) {
     throw new Error("Bekleme süresi geçersiz.");
   }
   return action;
+}
+
+export function parseComputerControlOutput(stdout) {
+  const output = String(stdout || "").replace(/^\uFEFF/, "");
+  for (let start = output.indexOf("{"); start >= 0; start = output.indexOf("{", start + 1)) {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let index = start; index < output.length; index++) {
+      const character = output[index];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (character === "\\") escaped = true;
+        else if (character === '"') inString = false;
+        continue;
+      }
+      if (character === '"') inString = true;
+      else if (character === "{") depth++;
+      else if (character === "}" && --depth === 0) {
+        try { return JSON.parse(output.slice(start, index + 1)); } catch {}
+        break;
+      }
+    }
+  }
+  throw new Error("Windows masaüstü kontrolünden geçerli sonuç alınamadı.");
 }
 
 export async function runComputerAction(action) {
@@ -80,8 +106,11 @@ export async function runComputerAction(action) {
     child.once("error", error => reject(new Error("Windows masaüstü kontrolü başlatılamadı: " + error.message)));
     child.once("close", code => {
       let result;
-      try { result = JSON.parse(stdout.trim()); }
-      catch { reject(new Error("Windows masaüstü kontrolünden geçerli sonuç alınamadı. " + stderr.slice(-1000))); return; }
+      try { result = parseComputerControlOutput(stdout); }
+      catch (error) {
+        reject(new Error(error.message + (stderr.trim() ? " " + stderr.slice(-1000) : "")));
+        return;
+      }
       if (code !== 0 || !result.success) reject(new Error(result.error || "Masaüstü kontrolü başarısız."));
       else resolve(result);
     });

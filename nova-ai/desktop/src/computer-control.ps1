@@ -1,4 +1,5 @@
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 try {
   Add-Type -AssemblyName UIAutomationClient
   Add-Type -AssemblyName UIAutomationTypes
@@ -24,6 +25,9 @@ public static class NovaDesktopInput {
       [NovaDesktopInput]::GetWindowText($handle, $windowTitle, $windowTitle.Capacity) | Out-Null
       $root = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
       $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+      # Put editable message composers first: Discord can expose many buttons
+      # before its textbox, and a flat first-100 slice used to hide the composer.
+      $inputControls = @()
       $controls = @()
       $texts = @()
       $limit = [Math]::Min($all.Count, 2500)
@@ -34,7 +38,7 @@ public static class NovaDesktopInput {
           if (-not $current.IsOffscreen -and $current.IsEnabled) {
             $name = [string]$current.Name
             $control = $current.ControlType.ProgrammaticName.Replace("ControlType.", "")
-            if ($name.Trim() -or $control -match "Edit|Button|ListItem|Hyperlink|TabItem|ComboBox|MenuItem|Text") {
+            if ($name.Trim() -or $control -match "Edit|Document|Button|ListItem|Hyperlink|TabItem|ComboBox|MenuItem|Text") {
               $item = @{
                 name = $name.Substring(0, [Math]::Min(160, $name.Length))
                 controlType = $control
@@ -43,13 +47,14 @@ public static class NovaDesktopInput {
                 focusable = [bool]$current.IsKeyboardFocusable
                 bounds = @{ x = [int]$current.BoundingRectangle.Left; y = [int]$current.BoundingRectangle.Top; width = [int]$current.BoundingRectangle.Width; height = [int]$current.BoundingRectangle.Height }
               }
-              if ($control -match "Edit|Button|ListItem|Hyperlink|TabItem|ComboBox|MenuItem") { $controls += $item }
+              if ($control -match "Edit|Document") { $inputControls += $item }
+              elseif ($control -match "Button|ListItem|Hyperlink|TabItem|ComboBox|MenuItem") { $controls += $item }
               elseif ($name.Trim()) { $texts += $item }
             }
           }
         } catch {}
       }
-      $items = @($controls + $texts | Select-Object -First 100)
+      $items = @($inputControls + $controls + $texts | Select-Object -First 100)
       $result.activeWindow = $windowTitle.ToString()
       $result.items = $items
       $result.message = "Etkin penceredeki erişilebilir denetimler listelendi."
@@ -107,7 +112,9 @@ public static class NovaDesktopInput {
           $current = $element.Current
           $type = $current.ControlType.ProgrammaticName.Replace("ControlType.", "")
           if (-not $current.IsOffscreen -and $current.IsEnabled -and $type -eq $controlType -and $current.IsKeyboardFocusable) {
-            if (-not $action.name -or [string]$current.Name -eq [string]$action.name) { $matches += $element }
+            $nameMatches = (-not $action.name) -or ([string]$current.Name -eq [string]$action.name)
+            $idMatches = (-not $action.automationId) -or ([string]$current.AutomationId -eq [string]$action.automationId)
+            if ($nameMatches -and $idMatches) { $matches += $element }
           }
         } catch {}
       }
@@ -181,6 +188,6 @@ public static class NovaDesktopInput {
   }
   $result | ConvertTo-Json -Depth 8 -Compress
 } catch {
-  @{ success = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress
+  Write-Output ("NOVA_RESULT:" + (@{ success = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress))
   exit 1
 }
