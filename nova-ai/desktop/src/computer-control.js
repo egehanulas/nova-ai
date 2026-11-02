@@ -117,13 +117,12 @@ export async function runComputerAction(action) {
   validateComputerAction(action);
   if (process.platform !== "win32") throw new Error("Masaüstü kontrolü yalnızca Windows'ta kullanılabilir.");
   const payload = Buffer.from(JSON.stringify(action), "utf8").toString("base64");
-  const script = await fs.readFile(SCRIPT_PATH, "utf8");
-  const encodedScript = Buffer.from(script, "utf16le").toString("base64");
+  await fs.access(SCRIPT_PATH);
   const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
   return await new Promise((resolve, reject) => {
     const child = spawn(powershell, [
       "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-      "-STA", "-EncodedCommand", encodedScript
+      "-STA", "-File", SCRIPT_PATH
     ], {
       windowsHide: true,
       env: { ...process.env, NOVA_CONTROL_PAYLOAD: payload },
