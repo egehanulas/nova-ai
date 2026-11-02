@@ -189,6 +189,7 @@ test("Turkish desktop parser recognizes explicit user-folder phrases and nested 
   assert.deepEqual(parseDesktopCommand("İndirilenler klasöründeki 121.png dosyasını masaüstündeki Oyunlar klasörüne taşı"), {
     intent: "move-file", source: "121.png", sourceLocation: "Downloads", destination: "Desktop/Oyunlar"
   });
+  assert.equal(parseDesktopCommand("İndirilenler klasöründeki 121.png dosyasını masaüstündeki Oyunlar'a taşı").destination, "Desktop/Oyunlar");
   assert.deepEqual(parseDesktopCommand("İndirilenler klasöründeki 121.png"), {
     intent: "search-files", query: "121.png", location: "Downloads"
   });
