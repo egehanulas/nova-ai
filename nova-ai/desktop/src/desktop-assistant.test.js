@@ -343,3 +343,28 @@ test("file search reports inaccessible folders and refuses incomplete exact reso
     await fs.rm(base, { recursive: true, force: true });
   }
 });
+
+
+test("broad searches skip protected system trees but explicit scoped searches can inspect them", async () => {
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-protected-search-test-"));
+  const desktop = path.join(base, "Desktop");
+  const documents = path.join(base, "Documents");
+  const downloads = path.join(base, "Downloads");
+  const windows = path.join(base, "Windows");
+  await Promise.all([desktop, documents, downloads, windows].map((folder) => fs.mkdir(folder, { recursive: true })));
+  await fs.writeFile(path.join(windows, "scoped-needle.txt"), "test");
+  configureComputerFileAccess({
+    userFolders: { Desktop: desktop, Documents: documents, Downloads: downloads },
+    driveRoots: [base]
+  });
+
+  try {
+    const broad = await searchUserFiles("scoped-needle.txt");
+    assert.equal(broad.length, 0);
+    const scoped = await searchUserFiles("scoped-needle.txt", windows);
+    assert.equal(scoped.length, 1);
+    assert.equal(scoped[0].path, await fs.realpath(path.join(windows, "scoped-needle.txt")));
+  } finally {
+    await fs.rm(base, { recursive: true, force: true });
+  }
+});
