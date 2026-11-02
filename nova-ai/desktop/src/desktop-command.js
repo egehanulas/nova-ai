@@ -91,7 +91,7 @@ export function parseDesktopCommand(input) {
 
   // A bare filename request is treated as a search, never as a guessed action.
   match = raw.match(/^(?:masaüstünde|masaüstündeki|belgelerde|belgelerdeki|indirilenlerde|indirilenlerdeki)\s+(.+)$/i);
-  if (match) return { intent: "search-files", query: cleanTarget(match[1]) };
+  if (match) return { intent: "search-files", query: cleanTarget(match[1]), location: locationFrom(raw.slice(0, raw.indexOf(match[1]))) };
 
   return { intent: "unknown" };
 }
