@@ -31,10 +31,12 @@ function inside(parent, target) {
 }
 
 function normalizeFolderKey(value) {
-  const normalized = String(value || "").toLocaleLowerCase("tr-TR");
-  if (normalized.includes("masaüst") || normalized.includes("desktop")) return "Desktop";
-  if (normalized.includes("belge") || normalized.includes("document")) return "Documents";
-  if (normalized.includes("indir") || normalized.includes("download")) return "Downloads";
+  const raw = String(value || "").trim();
+  if (!raw || path.isAbsolute(raw)) return "";
+  const normalized = raw.toLocaleLowerCase("tr-TR").replace(/\\s+(?:klasörü|klasörüne)$/i, "").trim();
+  if (/^(?:masaüstü|masaustu|masaüstüne|masaüstünde|masaüstündeki|desktop)$/.test(normalized)) return "Desktop";
+  if (/^(?:belgeler|belgelere|belgelerde|belgelerdeki|documents)$/.test(normalized)) return "Documents";
+  if (/^(?:indirilenler|indirilenlere|indirilenlerde|indirilenlerdeki|downloads)$/.test(normalized)) return "Downloads";
   return "";
 }
 
