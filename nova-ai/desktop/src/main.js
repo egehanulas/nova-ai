@@ -377,8 +377,11 @@ function registerDesktopAssistantIpc() {
       case "search-files": {
         const found = await searchUserFiles(intent.query, intent.location || "");
         if (!found.length) {
-          if (found.inaccessibleDirectories) {
-            return { message: "“" + intent.query + "” için erişilebilen klasörlerde eşleşme bulamadım. Ancak " + found.inaccessibleDirectories + " klasöre erişilemedi; arama eksik kalmış olabilir." };
+          const reasons = [];
+          if (found.truncated) reasons.push("arama sınırına ulaşıldı");
+          if (found.inaccessibleDirectories) reasons.push(found.inaccessibleDirectories + " klasöre erişilemedi");
+          if (reasons.length) {
+            return { message: "“" + intent.query + "” için erişilebilen alanlarda eşleşme bulamadım; ancak " + reasons.join(" ve ") + ". Arama eksik kalmış olabilir." };
           }
           return { message: "“" + intent.query + "” için erişilebilir sürücülerde eşleşme bulamadım." };
         }
