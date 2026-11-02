@@ -12,7 +12,7 @@ import {
   session,
   ipcMain
 } from "electron";
-import { URL } from "node:url";
+import { URL, pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder } from "./desktop-assistant.js";
@@ -280,6 +280,8 @@ function showDesktopAssistant() {
     assistantWindow.focus();
     return;
   }
+  const assistantFile = path.join(app.getAppPath(), "src", "assistant.html");
+  const assistantFileUrl = pathToFileURL(assistantFile).href;
   assistantWindow = new BrowserWindow({
     width: 1040, height: 860, minWidth: 760, minHeight: 650, show: false,
     backgroundColor: "#090b12", title: "NOVA AI — Bilgisayar Asistanı",
@@ -288,18 +290,29 @@ function showDesktopAssistant() {
       nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true
     }
   });
+  assistantWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  assistantWindow.webContents.on("will-navigate", (event, targetUrl) => {
+    if (targetUrl !== assistantFileUrl) event.preventDefault();
+  });
+  assistantWindow.webContents.on("will-redirect", (event, targetUrl) => {
+    if (targetUrl !== assistantFileUrl) event.preventDefault();
+  });
   assistantWindow.once("ready-to-show", () => assistantWindow?.show());
   assistantWindow.on("closed", () => { assistantWindow = undefined; });
-  void assistantWindow.loadFile(path.join(app.getAppPath(), "src", "assistant.html"));
+  void assistantWindow.loadFile(assistantFile);
 }
 
 function registerDesktopAssistantIpc() {
+  const assistantFileUrl = pathToFileURL(path.join(app.getAppPath(), "src", "assistant.html")).href;
   const isTrustedSender = (event) => {
-    if (assistantWindow && !assistantWindow.isDestroyed() && event.sender === assistantWindow.webContents) return true;
+    const frame = event.senderFrame;
+    if (!frame || frame.parent) return false;
+    if (assistantWindow && !assistantWindow.isDestroyed() && event.sender === assistantWindow.webContents) {
+      return frame.url === assistantFileUrl;
+    }
     if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) return false;
     try {
-      const frame = event.senderFrame;
-      return Boolean(frame && !frame.parent && new URL(frame.url).origin === NOVA_ORIGIN);
+      return new URL(frame.url).origin === NOVA_ORIGIN;
     } catch { return false; }
   };
   const requireTrustedWindows = (event) => {
@@ -363,8 +376,16 @@ function registerDesktopAssistantIpc() {
         return await openAllowedApp(intent.app);
       case "search-files": {
         const found = await searchUserFiles(intent.query, intent.location || "");
-        if (!found.length) return { message: "“" + intent.query + "” için erişilebilir sürücülerde eşleşme bulamadım." };
-        return { message: "Bulduğum öğeler:" + (found.truncated ? " (arama sınırına ulaşıldı; sonuçlar kısmi olabilir)" : "") + "\n" + found.slice(0, 30).map((item, index) =>
+        if (!found.length) {
+          if (found.inaccessibleDirectories) {
+            return { message: "“" + intent.query + "” için erişilebilen klasörlerde eşleşme bulamadım. Ancak " + found.inaccessibleDirectories + " klasöre erişilemedi; arama eksik kalmış olabilir." };
+          }
+          return { message: "“" + intent.query + "” için erişilebilir sürücülerde eşleşme bulamadım." };
+        }
+        const warnings = [];
+        if (found.truncated) warnings.push("arama sınırına ulaşıldı");
+        if (found.inaccessibleDirectories) warnings.push(found.inaccessibleDirectories + " klasöre erişilemedi");
+        return { message: "Bulduğum öğeler:" + (warnings.length ? " (arama kısmi olabilir: " + warnings.join(", ") + ")" : "") + "\n" + found.slice(0, 30).map((item, index) =>
           (index + 1) + ". " + (item.type === "folder" ? "📁 " : "📄 ") + item.name + "\n" + item.path).join("\n") };
       }
       case "open-path": {
