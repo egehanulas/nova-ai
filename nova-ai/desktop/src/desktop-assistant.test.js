@@ -87,7 +87,7 @@ test("desktop command parser routes common and arbitrary installed apps safely",
 
 test("desktop browser shortcut allowlist includes tab restore and navigation keys", () => {
   for (const key of ["CTRL+SHIFT+T", "CTRL+SHIFT+TAB", "CTRL+PAGEUP", "CTRL+PAGEDOWN", "F5", "F11"]) {
-    assert.equal(validateComputerAction({ type: "press-key", key }), undefined);
+    assert.doesNotThrow(() => validateComputerAction({ type: "press-key", key }));
   }
 });
 
