@@ -131,6 +131,9 @@ export function isProtectedSystemPath(input) {
   const resolved = path.resolve(input);
   const driveRoot = path.parse(resolved).root;
   if (resolved === driveRoot) return true;
+  const relativeToDrive = path.relative(driveRoot, resolved);
+  const firstSegment = relativeToDrive.split(path.sep).filter(Boolean)[0] || "";
+  if (["pagefile.sys", "hiberfil.sys", "swapfile.sys", "bootmgr", "bootnxt"].includes(firstSegment.toLowerCase())) return true;
   if (/(^|[\\/])AppData([\\/]|$)/i.test(resolved)) return true;
   return protectedRoots().some((root) => inside(root, resolved));
 }
