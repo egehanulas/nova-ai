@@ -77,6 +77,12 @@ test("desktop command parser routes common and arbitrary installed apps safely",
   assert.deepEqual(parseDesktopCommand("Telegram aç"), {
     intent: "open-installed-app", app: "Telegram", label: "Telegram"
   });
+  assert.deepEqual(parseDesktopCommand("Not Defteri aç"), {
+    intent: "open-app", app: "notepad", label: "Not Defteri"
+  });
+  assert.deepEqual(parseDesktopCommand("Hesap Makinesi aç"), {
+    intent: "open-app", app: "calculator", label: "Hesap Makinesi"
+  });
   assert.deepEqual(parseDesktopCommand("Windows Ayarları aç"), {
     intent: "open-installed-app", app: "Settings", label: "Windows Ayarları"
   });
