@@ -379,7 +379,7 @@ export async function openInstalledApp(appName) {
     '$exact = @($apps | Where-Object { [string]$_.Name -ieq $query })',
     'if ($exact.Count -gt 1) { throw "Bu isimde birden fazla uygulama bulundu." }',
     'if ($exact.Count -eq 1) { $selected = $exact[0] } else {',
-    '  $matches = @($apps | Where-Object { ([string]$_.Name).IndexOf($query, [StringComparison]::OrdinalIgnoreCase) -ge 0 })',
+    '  $matches = @($apps | Where-Object { ([string]$_.Name).IndexOf($query, [System.StringComparison]::OrdinalIgnoreCase) -ge 0 })',
     '  if ($matches.Count -eq 0) { throw "Başlat menüsünde belirtilen uygulama bulunamadı." }',
     '  if ($matches.Count -gt 1) { throw ("Birden fazla uygulama eşleşti: " + ((@($matches | Select-Object -First 8 -ExpandProperty Name)) -join ", ")) }',
     '  $selected = $matches[0]',
