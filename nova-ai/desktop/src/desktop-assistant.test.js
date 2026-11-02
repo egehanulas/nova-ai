@@ -158,7 +158,7 @@ test("opening a file by its bare filename resolves the exact item in known folde
 
   try {
     const result = await openUserPath("1.jpg");
-    assert.equal(result.path, path.join(desktop, "1.jpg"));
+    assert.equal(result.path, await fs.realpath(path.join(desktop, "1.jpg")));
     await fs.writeFile(path.join(documents, "1.jpg"), "duplicate");
     await assert.rejects(openUserPath("1.jpg"), /birden fazla öğe/);
   } finally {
