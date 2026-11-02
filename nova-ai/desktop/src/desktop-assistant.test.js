@@ -189,7 +189,7 @@ test("moving a file by natural-language source name resolves its explicitly name
     const result = await resolveUserItem("1.jpg dosyasını", "Desktop");
     assert.equal(result.path, await fs.realpath(path.join(desktop, "1.jpg")));
     const moved = await moveUserFile("1.jpg dosyasını", downloads, "", "Desktop");
-    assert.equal(moved.path, path.join(downloads, "1.jpg"));
+    assert.equal(moved.path, await fs.realpath(path.join(downloads, "1.jpg")));
     assert.equal(await fs.readFile(path.join(downloads, "1.jpg"), "utf8"), "desktop-image");
     await assert.rejects(resolveUserItem("1.jpg"), /birden fazla öğe/);
   } finally {
