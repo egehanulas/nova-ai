@@ -76,7 +76,7 @@ export function parseDesktopCommand(input) {
   browserMatch = command.match(/^(?:youtube|youtube\.com|yt)\s+(?:aç|gir)$/iu);
   if (browserMatch) return { intent: "open-url", url: "https://www.youtube.com" };
 
-  browserMatch = command.match(/^(?:youtube|youtube\.com|yt)(?:['’]?(?:da|de))?\s+(.+?)\s+(?:(video(?:su|sunu)?)\s+)?(ara|aç|ac|çal|cal|oynat)$/iu);
+  browserMatch = command.match(/^(?:youtube|youtube\.com|yt)(?:\s*['’]?(?:da|de))?\s+(.+?)\s+(?:(video(?:su|sunu)?)\s+)?(ara|aç|ac|çal|cal|oynat)$/iu);
   if (browserMatch) {
     const query = browserMatch[1].trim() + (browserMatch[2] ? " video" : "");
     const url = "https://www.youtube.com/results?search_query=" + encodeURIComponent(query);
