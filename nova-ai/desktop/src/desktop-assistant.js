@@ -348,7 +348,9 @@ const BLOCKED_OPEN_EXTENSIONS = new Set([
 
 export async function openUserPath(input, preferredLocation = "") {
   const resolved = await resolveUserItem(input, preferredLocation);
-  if (resolved.stat.isFile() && BLOCKED_OPEN_EXTENSIONS.has(path.extname(resolved.path).toLowerCase())) {
+  const normalizedFileName = path.basename(resolved.path).replace(/[ .]+$/g, "").split(":")[0];
+  const extension = path.extname(normalizedFileName).toLowerCase();
+  if (resolved.stat.isFile() && BLOCKED_OPEN_EXTENSIONS.has(extension)) {
     throw new Error("Çalıştırılabilir dosyalar, komut dosyaları ve Windows kısayolları güvenlik nedeniyle NOVA üzerinden doğrudan açılamaz. İzin verilen uygulamaları uygulama listesinden başlatabilirsin.");
   }
   return { path: resolved.path, message: "“" + path.basename(resolved.path) + "” açılmaya hazır." };
