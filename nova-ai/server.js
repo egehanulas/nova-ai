@@ -3232,6 +3232,7 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
           name: String(entry?.name || "").slice(0, 160),
           controlType: String(entry?.controlType || "").slice(0, 40),
           automationId: String(entry?.automationId || "").slice(0, 100),
+          className: String(entry?.className || "").slice(0, 100),
           focusable: Boolean(entry?.focusable),
           bounds: entry?.bounds && typeof entry.bounds === "object" ? {
             x: Number(entry.bounds.x) || 0,
@@ -3257,7 +3258,8 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
     '- {"type":"spotify-search","query":"şarkı veya sanatçı"}',
     '- {"type":"inspect-screen"} (yalnızca etkin pencerenin erişilebilir denetimlerini oku)',
     '- {"type":"click-text","text":"ekranda gözlenen tam metin"} (yalnızca gözlemde gerçekten bulunan tam metni kullan)',
-    '- {"type":"focus-control","controlType":"Edit|Button|List|ComboBox|Document","name":"gözlemdeki tam ad"}',
+    '- {"type":"focus-control","controlType":"Edit|Button|List|ComboBox|Document","name":"gözlemdeki tam ad","automationId":"gözlemdeki AutomationId"} (name veya automationId ile tekil hedefleme; en az biri)',
+
     '- {"type":"type-text","text":"yazılacak metin"}',
     '- {"type":"press-key","key":"ENTER|TAB|ESC|SPACE|BACKSPACE|DELETE|UP|DOWN|LEFT|RIGHT|HOME|END|CTRL+A|CTRL+L|CTRL+T|CTRL+W|CTRL+V|CTRL+C|CTRL+X|CTRL+F|ALT+F4|SHIFT+TAB"}',
     '- {"type":"click","x":100,"y":100}, {"type":"move-mouse","x":100,"y":100} veya {"type":"move-mouse","dx":40,"dy":-20}, {"type":"scroll","amount":-120}, {"type":"wait","ms":500}, {"type":"finish"}',
@@ -3265,7 +3267,8 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
     "- İlk turda uygulamayı aç, kısa bekle ve inspect-screen iste. Sonraki turda yalnızca gözlemdeki gerçek denetim adlarını kullan.",
     "- Kullanıcı en son konuştuğu kişiyi isterse, yalnızca gözlemde açıkça görülen en güncel birebir sohbeti belirle. Sunucu/kanal veya kişi ayrımı belirsizse tahmin etme.",
     "- Sohbet açıldıktan sonra tekrar inspect-screen yap ve başlıktaki kişinin doğru olduğunu kontrol etmeden mesaj yazma.",
-    "- Mesaj kutusunu gözlemdeki Edit denetiminden tekil olarak seç. Mesajı aynen yaz; kullanıcı açıkça göndermeni istemediyse Enter'a basma.",
+    "- Mesaj kutusu için inspect-screen çıktısındaki Edit/Document denetimlerini ve automationId/className alanlarını özellikle incele; bu alanlar gözlemde mevcutsa kullan.",
+    "- Mesaj kutusunu gözlemdeki Edit veya Document denetiminden name ya da automationId ile tekil olarak seç. Sonra type-text ile istenen metni aynen yaz; kullanıcı açıkça göndermeni istemediyse Enter'a basma. Sadece sohbeti açmak görevi tamamlamaz.",
     "- Kullanıcı açıkça mesajı gönder derse, metni yazdıktan sonra Enter ile gönder. Satın alma, ödeme, sipariş, hesap silme veya dosya silme gibi geri alınamaz işlemleri yapma; kullanıcı onayı iste.",
     "- Steam oyunu için yalnızca kurulu oyun adı iste; oyun adını uydurma. Spotify şarkı isteğinde arama ekranını aç, inspect-screen ile sonuçları oku, yalnızca istenen şarkıyla açıkça eşleşen sonucu tıkla ve oynatmayı başlat. Birden fazla benzer sonuç varsa tahmin etme; kullanıcıdan sanatçı/sürüm ayrıntısı iste. Abonelik veya ödeme işlemi yapma.",
     "- Web adreslerini yalnızca http/https olarak aç. Bilinmeyen uygulama veya rastgele komut çalıştırma; PowerShell, CMD, terminal veya kabuk komutu üretme.",
@@ -3302,6 +3305,11 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
       }
       if (action.type === "type-text" && (typeof action.text !== "string" || action.text.length > 4000)) throw new Error("Yazılacak metin geçersiz.");
       if (action.type === "click-text" && (typeof action.text !== "string" || !action.text.trim() || action.text.length > 180)) throw new Error("Tıklama metni geçersiz.");
+      if (action.type === "focus-control" &&
+          (!["Edit", "Button", "List", "ComboBox", "Document"].includes(action.controlType) ||
+           (action.name != null && (typeof action.name !== "string" || action.name.length > 180)) ||
+           (action.automationId != null && (typeof action.automationId !== "string" || action.automationId.length > 100)) ||
+           (!action.name && !action.automationId))) throw new Error("Odaklanılacak denetim geçersiz.");
       if (action.type === "press-key" && !allowedKeys.has(String(action.key || "").toUpperCase())) throw new Error("İzin verilmeyen klavye tuşu.");
       if (action.type === "launch-steam-game" && (typeof action.game !== "string" || !action.game.trim() || action.game.length > 120)) throw new Error("Steam oyun adı geçersiz.");
       if (action.type === "spotify-search" && (typeof action.query !== "string" || !action.query.trim() || action.query.length > 180)) throw new Error("Spotify araması geçersiz.");
