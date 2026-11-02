@@ -57,7 +57,7 @@ export function validateComputerAction(action) {
 }
 
 export function parseComputerControlOutput(stdout) {
-  const output = String(stdout || "").replace(/^\\uFEFF/, "");
+  const output = String(stdout || "").replace(/^\uFEFF/, "");
   for (let start = output.indexOf("{"); start >= 0; start = output.indexOf("{", start + 1)) {
     let depth = 0;
     let inString = false;
@@ -66,7 +66,7 @@ export function parseComputerControlOutput(stdout) {
       const character = output[index];
       if (inString) {
         if (escaped) escaped = false;
-        else if (character === "\\\\") escaped = true;
+        else if (character === "\\") escaped = true;
         else if (character === '"') inString = false;
         continue;
       }
