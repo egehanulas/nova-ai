@@ -99,3 +99,52 @@ test("explicit no-send requests stop immediately after exact text entry", () => 
   assert.deepEqual(intent.actions.map((action) => action.type), ["focus-control", "type-text"]);
   assert.equal(intent.message, "Metin mesaj kutusuna yazıldı; gönderilmedi.");
 });
+
+test("a direct Discord DM write command sends the exact message by default", () => {
+  const intent = {
+    intent: "computer-control",
+    done: false,
+    message: "",
+    actions: [
+      { type: "focus-control", controlType: "Edit", automationId: "composer" },
+      { type: "type-text", text: "Merhaba" },
+      { type: "press-key", key: "ENTER" }
+    ]
+  };
+  const result = enforceMessageSend(intent, "Discord'da en son konuştuğum kişiye Merhaba yaz.");
+  assert.equal(result.done, true);
+  assert.equal(result.message, "Mesaj Discord sohbetine gönderildi.");
+  assert.deepEqual(result.actions.map((action) => action.type), ["focus-control", "type-text", "press-key"]);
+});
+
+test("a Discord draft request without a recipient or send instruction does not send", () => {
+  const intent = {
+    intent: "computer-control",
+    done: false,
+    message: "",
+    actions: [
+      { type: "focus-control", controlType: "Edit", automationId: "composer" },
+      { type: "type-text", text: "NOVA TEST 123" }
+    ]
+  };
+  enforceMessageSend(intent, 'Discord sohbetini aç ve mesaj kutusuna "NOVA TEST 123" yaz.');
+  assert.equal(intent.done, false);
+  assert.equal(intent.actions.length, 2);
+});
+
+test("an explicit draft-only instruction overrides implicit Discord DM sending", () => {
+  const intent = {
+    intent: "computer-control",
+    done: false,
+    message: "",
+    actions: [
+      { type: "focus-control", controlType: "Edit", automationId: "composer" },
+      { type: "type-text", text: "Merhaba" },
+      { type: "finish" }
+    ]
+  };
+  enforceNoSend(intent, "Discord'da en son konuştuğum kişiye Merhaba yaz, sadece yaz.");
+  enforceMessageSend(intent, "Discord'da en son konuştuğum kişiye Merhaba yaz, sadece yaz.");
+  assert.deepEqual(intent.actions.map((action) => action.type), ["focus-control", "type-text"]);
+  assert.equal(intent.message, "Metin mesaj kutusuna yazıldı; gönderilmedi.");
+});
