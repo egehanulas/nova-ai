@@ -400,49 +400,56 @@ function registerDesktopAssistantIpc() {
       case "launch-steam-game":
         return await launchSteamGame(intent.game);
       case "computer-control": {
-        if (!Array.isArray(intent.actions) || intent.actions.length > 12) {
-          throw new Error("Masaüstü kontrol planı geçersiz veya çok uzun.");
-        }
+        let currentIntent = intent;
         let completed = 0;
-        for (const action of intent.actions) {
-          if (!action || typeof action !== "object") throw new Error("Masaüstü kontrol adımı geçersiz.");
-          if (action.type === "finish") break;
-          if (action.type === "inspect-screen") {
-            const result = await runComputerAction(action);
-            observations.push({ activeWindow: result.activeWindow || "", items: result.items || [] });
-            const nextIntent = await requestInterpretation();
-            if (!nextIntent || nextIntent.intent !== "computer-control" || !Array.isArray(nextIntent.actions)) {
-              throw new Error("NOVA ekrandaki durumu yorumlayamadı; güvenli olması için işlem durduruldu.");
+        for (let round = 0; round < 6; round += 1) {
+          if (!Array.isArray(currentIntent.actions) || currentIntent.actions.length > 8) {
+            throw new Error("Masaüstü kontrol planı geçersiz veya çok uzun.");
+          }
+          let needsReplan = false;
+          for (const action of currentIntent.actions) {
+            if (!action || typeof action !== "object") throw new Error("Masaüstü kontrol adımı geçersiz.");
+            if (action.type === "finish") {
+              return { message: "İstenen masaüstü işlemleri tamamlandı.", steps: completed };
             }
-            intent = nextIntent;
-            break;
+            if (action.type === "inspect-screen") {
+              const result = await runComputerAction(action);
+              observations.push({ activeWindow: result.activeWindow || "", items: result.items || [] });
+              currentIntent = await requestInterpretation();
+              if (!currentIntent || currentIntent.intent !== "computer-control" || !Array.isArray(currentIntent.actions)) {
+                throw new Error("NOVA ekrandaki durumu yorumlayamadı; güvenli olması için işlem durduruldu.");
+              }
+              needsReplan = true;
+              break;
+            }
+            if (action.type === "open-app") {
+              if (action.app === "spotify") await shell.openExternal("spotify:");
+              else await openAllowedApp(action.app);
+            } else if (action.type === "open-url") {
+              let parsedUrl;
+              try { parsedUrl = new URL(String(action.url || "")); } catch { throw new Error("Açılacak internet adresi geçersiz."); }
+              if (!["https:", "http:"].includes(parsedUrl.protocol)) throw new Error("Yalnızca HTTP ve HTTPS adresleri açılabilir.");
+              if (action.app === "chrome") await openAllowedApp("chrome", [parsedUrl.href]);
+              else if (action.app === "edge") await openAllowedApp("edge", [parsedUrl.href]);
+              else if (action.app === "firefox") await openAllowedApp("firefox", [parsedUrl.href]);
+              else openExternal(parsedUrl.href);
+            } else if (action.type === "launch-steam-game") {
+              await launchSteamGame(action.game);
+            } else if (action.type === "spotify-search") {
+              await searchSpotify(action.query);
+            } else {
+              await runComputerAction(action);
+            }
+            completed += 1;
           }
-          if (action.type === "open-app") {
-            if (action.app === "spotify") await shell.openExternal("spotify:");
-            else await openAllowedApp(action.app);
-          } else if (action.type === "open-url") {
-            let parsedUrl;
-            try { parsedUrl = new URL(String(action.url || "")); } catch { throw new Error("Açılacak internet adresi geçersiz."); }
-            if (!["https:", "http:"].includes(parsedUrl.protocol)) throw new Error("Yalnızca HTTP ve HTTPS adresleri açılabilir.");
-            if (action.app === "chrome") await openAllowedApp("chrome", [parsedUrl.href]);
-            else openExternal(parsedUrl.href);
-          } else if (action.type === "launch-steam-game") {
-            await launchSteamGame(action.game);
-          } else if (action.type === "spotify-search") {
-            await searchSpotify(action.query);
-          } else {
-            await runComputerAction(action);
+          if (!needsReplan) {
+            if (currentIntent.done === true) {
+              return { message: "İstenen masaüstü işlemleri tamamlandı.", steps: completed };
+            }
+            return { message: "Masaüstü adımları uygulandı; devam etmek için komutun kalan kısmını belirt.", steps: completed };
           }
-          completed += 1;
         }
-        if (intent.done === true || intent.actions.every((action) => action.type === "finish")) {
-          return { message: "İstenen masaüstü işlemleri tamamlandı.", steps: completed };
-        }
-        if (observations.length >= 6) throw new Error("Güvenlik sınırı nedeniyle masaüstü görevi durduruldu.");
-        if (intent.actions.some((action) => action.type === "inspect-screen")) {
-          return { message: "Ekran incelendi ve sonraki işlem planlandı; devam etmek için komutu tekrar ver." };
-        }
-        return { message: "Masaüstü işlemleri tamamlandı.", steps: completed };
+        throw new Error("Masaüstü görevi güvenlik sınırına ulaştı; tamamlanmamış adımlar durduruldu.");
       }
       case "search-files": {
         const found = await searchUserFiles(intent.query, intent.location || "");
