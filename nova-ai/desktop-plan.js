@@ -17,7 +17,7 @@ function normalizeDesktopIntent(parsed) {
 }
 
 function enforceNoSend(intent, command) {
-  const requested = /mesaj[ıi]\s+(?:(?:kesinlikle|sakın|asla)\s+)?gönderme/iu.test(String(command || ""));
+  const requested = /(?:mesaj[ıi]\s+(?:(?:kesinlikle|sakın|asla)\s+)?gönderme|sadece\s+yaz|yalnızca\s+yaz)/iu.test(String(command || ""));
   if (!requested || !intent || !Array.isArray(intent.actions)) return intent;
   if (intent.actions.some((action) => action?.type === "press-key" && String(action.key || "").toUpperCase() === "ENTER")) {
     throw new Error("An explicit no-send request cannot include Enter.");
@@ -40,7 +40,7 @@ function enforceNoSend(intent, command) {
 
 function enforceMessageSend(intent, command) {
   const text = String(command || "");
-  const noSend = /mesaj[ıi]\s+(?:(?:kesinlikle|sakın|asla)\s+)?gönderme/iu.test(text);
+  const noSend = /(?:mesaj[ıi]\s+(?:(?:kesinlikle|sakın|asla)\s+)?gönderme|sadece\s+yaz|yalnızca\s+yaz)/iu.test(text);
   const explicitSendRequested = /(?:\bgönder\b|\byolla\b|mesaj\s+at\b)/iu.test(text);
   const directDmSendRequested =
     /discord[\s\S]*(?:en\s+son|son)\s+(?:konuştuğum|yazıştığım|mesajlaştığım)[\s\S]*(?:kişiye|sohbetine|dm(?:['’]ine|ine)?)[\s\S]*\byaz\b/iu.test(text);
