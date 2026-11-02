@@ -568,6 +568,7 @@ test("PowerShell startup CLIXML progress does not corrupt desktop action results
   const startupProgress = '<Objs Version="1.1.0.1"><Obj S="progress"><AV>Preparing modules for first use.</AV></Obj></Objs>';
   const output = startupProgress + '\r\n{"success":true,"message":"Metin yazıldı."}\r\n';
   assert.deepEqual(parseComputerControlOutput(output), { success: true, message: "Metin yazıldı." });
+  assert.deepEqual(parseComputerControlOutput('#< CLIXML <Objs/>{"success":true,"items":[{"name":"Mesaj","bounds":{"x":1,"y":2}}]}'), { success: true, items: [{ name: "Mesaj", bounds: { x: 1, y: 2 } }] });
   assert.deepEqual(parseComputerControlOutput('NOVA_RESULT:{"success":false,"error":"test"}'), { success: false, error: "test" });
   assert.throws(() => parseComputerControlOutput(startupProgress), /geçerli sonuç/);
 });
