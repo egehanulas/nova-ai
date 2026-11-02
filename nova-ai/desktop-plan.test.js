@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { normalizeDesktopIntent, enforceNoSend } = require("./desktop-plan");
+const { normalizeDesktopIntent, enforceNoSend, enforceMessageSend } = require("./desktop-plan");
 
 test("desktop planner accepts the documented flat JSON response", () => {
   const intent = normalizeDesktopIntent({
@@ -35,3 +35,50 @@ test("desktop planner rejects unknown or malformed response envelopes", () => {
   assert.equal(normalizeDesktopIntent({ intent: [] }), null);
 });
 
+
+test("explicit Discord send requests require exact text, focus and Enter", () => {
+  const intent = {
+    intent: "computer-control",
+    done: false,
+    message: "",
+    actions: [
+      { type: "focus-control", controlType: "Edit", automationId: "composer" },
+      { type: "type-text", text: "Merhaba" },
+      { type: "press-key", key: "ENTER" },
+      { type: "finish" }
+    ]
+  };
+  const result = enforceMessageSend(intent, 'Discord\'da en son konuştuğum kişiye "Merhaba" yaz ve gönder.');
+  assert.equal(result.done, true);
+  assert.equal(result.message, "Mesaj Discord sohbetine gönderildi.");
+  assert.deepEqual(result.actions.map((action) => action.type), ["focus-control", "type-text", "press-key"]);
+});
+
+test("explicit Discord send requests reject plans without Enter", () => {
+  const intent = {
+    intent: "computer-control",
+    done: false,
+    message: "",
+    actions: [
+      { type: "focus-control", controlType: "Edit", automationId: "composer" },
+      { type: "type-text", text: "Merhaba" }
+    ]
+  };
+  assert.throws(() => enforceMessageSend(intent, 'Discord\'da "Merhaba" yaz ve gönder.'), /gönderim adımını içermiyor/i);
+});
+
+test("explicit no-send requests are never upgraded to send", () => {
+  const intent = {
+    intent: "computer-control",
+    done: false,
+    message: "",
+    actions: [
+      { type: "focus-control", controlType: "Edit", automationId: "composer" },
+      { type: "type-text", text: "NOVA TEST 123" },
+      { type: "press-key", key: "ENTER" }
+    ]
+  };
+  enforceNoSend(intent, 'Mesajı kesinlikle gönderme. "NOVA TEST 123" yaz.');
+  assert.deepEqual(intent.actions.map((action) => action.type), ["focus-control", "type-text"]);
+  assert.equal(intent.message, "Metin mesaj kutusuna yazıldı; gönderilmedi.");
+});
