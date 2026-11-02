@@ -21,13 +21,19 @@ function locationFrom(text) {
   if (/masaüst/.test(value)) return "Desktop";
   if (/belge/.test(value)) return "Documents";
   if (/indirilen|download/.test(value)) return "Downloads";
-  return "Desktop";
+  return "";
+}
+
+function normalizeDestination(value) {
+  const cleaned = cleanTarget(value).replace(/\\s+(?:klasörüne|klasörüne|klasörüne)$/i, "").trim();
+  return locationFrom(cleaned) || cleaned;
 }
 
 export function parseDesktopCommand(input) {
   const raw = String(input || "").trim();
   if (!raw || raw.length > 500) return { intent: "unknown" };
-  const text = raw.toLocaleLowerCase("tr-TR")
+  const command = raw.replace(/[.!?]+$/g, "").trim();
+  const text = command.toLocaleLowerCase("tr-TR")
     .replace(/[!?.,;]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
