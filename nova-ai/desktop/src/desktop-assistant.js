@@ -141,7 +141,7 @@ function rootForLocation(location) {
   return ROOTS.find((root) => ROOT_LABELS.get(root) === key) || null;
 }
 
-export async function resolveUserItem(input, preferredLocation = "") {
+export async function resolveUserItem(input, preferredLocation = "", { allowRoot = true } = {}) {
   if (typeof input !== "string" || !input.trim()) throw new Error("İşlem yapılacak dosya veya klasörün adını yaz.");
   let candidate = cleanFileReference(input)
     .replace(/^~(?=[\\/])/, HOME)
@@ -150,7 +150,7 @@ export async function resolveUserItem(input, preferredLocation = "") {
     .replace(/^(?:indirilenler|downloads)(?=[\\/])/i, path.join(HOME, "Downloads"));
 
   if (path.isAbsolute(candidate) || candidate.includes("/") || candidate.includes("\\")) {
-    return resolveExistingUserPath(candidate, { allowRoot: false });
+    return resolveExistingUserPath(candidate, { allowRoot });
   }
 
   const matches = await searchUserFiles(candidate);
@@ -170,7 +170,7 @@ export async function resolveUserItem(input, preferredLocation = "") {
     throw new Error("Aynı isimde birden fazla öğe buldum. Lütfen konumunu belirt: " +
       selected.slice(0, 6).map((item) => item.path).join(" | "));
   }
-  return resolveExistingUserPath(selected[0].path, { allowRoot: false });
+  return resolveExistingUserPath(selected[0].path, { allowRoot });
 }
 
 export async function openUserPath(input, preferredLocation = "") {
@@ -197,7 +197,7 @@ export async function createUserFolder(parentInput, folderName) {
 }
 
 export async function moveUserFile(sourceInput, destinationFolderInput, newName, sourceLocation = "") {
-  const { path: source, stat: sourceStat } = await resolveUserItem(sourceInput, sourceLocation);
+  const { path: source, stat: sourceStat } = await resolveUserItem(sourceInput, sourceLocation, { allowRoot: false });
   if (sourceStat.isSymbolicLink()) throw new Error("Kısayol ve sembolik bağlantılar taşınamaz.");
   const { path: destinationFolder, stat: destinationStat } = await resolveExistingUserPath(destinationFolderInput);
   if (!destinationStat.isDirectory()) throw new Error("Hedef konum bir klasör olmalı.");
