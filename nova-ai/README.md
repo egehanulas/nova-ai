@@ -1,6 +1,6 @@
 # NOVA AI
 
-**Web/API sürümü:** 0.2.0-alpha.10 · **Windows masaüstü:** 0.2.0-alpha.33 · **Kanal:** Alfa
+**Web/API sürümü:** 0.2.0-alpha.10 · **Windows masaüstü:** 0.2.0-alpha.34 · **Kanal:** Alfa
 
 NOVA AI; Türkçe sohbet, kalıcı kullanıcı hafızası, canlı web araştırması, yapılandırılmış hava durumu/futbol sorguları ve Unreal Engine 5.8 bilgi tabanı için geliştirilmiş kişisel asistandır.
 
@@ -65,6 +65,14 @@ Supabase SQL Editor'de sırasıyla `003`, `004` ve `006` migration dosyalarını
 - `npm run check` — JavaScript syntax checks for the server, client, and utility scripts.
 - `npm run test:embeddings` — downloads/loads the local embedding model and verifies that it returns a finite 384-dimensional vector.
 - `npm start` runs the syntax checks before starting the server.
+
+## Alpha 34 masaüstü güvenilirliği
+
+- Türkçe uygulama adlarının hâl ekleri normalize edilir; Windows Ayarları ve Görev Yöneticisi doğrudan Windows URI/uygulama giriş noktalarıyla açılır.
+- YouTube/yt doğal dil aramaları doğrudan YouTube sonuçlarına yönlendirilir; “dosyaları incele” isteği sürücü ve kullanıcı klasörlerinin üst düzey içeriğini listeler.
+- Güncel bilgi ve araştırma istekleri Google sayfasını açmakla bırakılmaz; mevcut web araştırma servisi üzerinden kaynaklar incelenip yanıt hazırlanır.
+- Mouse/fare yön komutları göreli hareket eylemine çevrilir; hareket eylemleri için doğrulama testleri bulunur.
+- Yüklü uygulama başlatma hataları CLIXML yerine yapılandırılmış JSON hata çıktısı verir.
 
 ## Alfa sürümü ve bilinen sınırlar
 
