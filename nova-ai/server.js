@@ -3261,7 +3261,7 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
     "- Sohbet açıldıktan sonra tekrar inspect-screen yap ve başlıktaki kişinin doğru olduğunu kontrol etmeden mesaj yazma.",
     "- Mesaj kutusunu gözlemdeki Edit denetiminden tekil olarak seç. Mesajı aynen yaz; kullanıcı açıkça göndermeni istemediyse Enter'a basma.",
     "- Kullanıcı açıkça mesajı gönder derse, metni yazdıktan sonra Enter ile gönder. Satın alma, ödeme, sipariş, hesap silme veya dosya silme gibi geri alınamaz işlemleri yapma; kullanıcı onayı iste.",
-    "- Steam oyunu için yalnızca kurulu oyun adı iste; oyun adını uydurma. Spotify isteğinde Spotify aramasını aç; kullanıcı istemedikçe abonelik işlemi yapma.",
+    "- Steam oyunu için yalnızca kurulu oyun adı iste; oyun adını uydurma. Spotify şarkı isteğinde arama ekranını aç, inspect-screen ile sonuçları oku, yalnızca istenen şarkıyla açıkça eşleşen sonucu tıkla ve oynatmayı başlat. Birden fazla benzer sonuç varsa tahmin etme; kullanıcıdan sanatçı/sürüm ayrıntısı iste. Abonelik veya ödeme işlemi yapma.",
     "- Web adreslerini yalnızca http/https olarak aç. Bilinmeyen uygulama veya rastgele komut çalıştırma; PowerShell, CMD, terminal veya kabuk komutu üretme.",
     "- Ekran gözlemi yoksa click-text veya focus-control üretme. Koordinatları gözlem olmadan tahmin etme.",
     "- Her turda en fazla 8 eylem ver. Ekran gözlemi gerekiyorsa actions içine inspect-screen koy. İş tamamen bitince done:true ve actions:[{type:'finish'}] döndür.",
