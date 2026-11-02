@@ -114,6 +114,13 @@ export function parseDesktopCommand(input) {
     || command.match(/^(.+?)\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\s*(?:sil|çöp kutusuna taşı|geri dönüşüm kutusuna taşı)$/i);
   if (match) return { intent: "trash-file", target: cleanTarget(match[1]) };
 
+  const folderSearchMatch = command.match(/^(?:lütfen\s+)?(.+?)\s+klasör(?:ündeki|ünde|undaki|unde)\s+(.+?)\s+(?:(?:dosyasını|dosyayı|dosya)\s+)?(?:bul|ara)(?:\s+lütfen)?$/iu);
+  if (folderSearchMatch) return {
+    intent: "search-files",
+    query: cleanTarget(folderSearchMatch[2]),
+    location: cleanTarget(folderSearchMatch[1])
+  };
+
   const searchMatch = command.match(/^(?:dosya\s+ara|ara|bul|dosyayı\s+bul|dosya\s+bul)\s+(.+)$/i);
   if (searchMatch) return { intent: "search-files", query: cleanTarget(searchMatch[1]) };
 
