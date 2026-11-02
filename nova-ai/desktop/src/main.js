@@ -15,7 +15,7 @@ import {
 import { URL, pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder, launchSteamGame, searchSpotify, openSpotify, openInstalledApp } from "./desktop-assistant.js";
+import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder, launchSteamGame, searchSpotify, openSpotify, openInstalledApp, launchDownloadedInstaller } from "./desktop-assistant.js";
 import { parseDesktopCommand } from "./desktop-command.js";
 import { runComputerAction } from "./computer-control.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
@@ -350,8 +350,9 @@ function registerDesktopAssistantIpc() {
       const label = [action?.text, action?.name, action?.automationId].filter(Boolean).join(" ");
       const purchasePattern = /(?:satın\s*al|sipariş\s*ver|öde|checkout|buy\s*now|place\s+order|complete\s+purchase|confirm\s+purchase|pay\s*now)/iu;
       const deletePattern = /(?:sil|delete|remove|move\s+to\s+trash|çöp\s+kutusu)/iu;
+      if (action?.type === "launch-installer") return "Program kurulumu";
       if (purchasePattern.test(label)) return "Satın alma veya ödeme";
-      if (deletePattern.test(label)) return "Dosya silme veya kaldırma";
+      if (deletePattern.test(label) || /(?:uninstall|kaldır)/iu.test(label)) return "Dosya veya program kaldırma";
       const latest = observations[observations.length - 1];
       const items = Array.isArray(latest?.items) ? latest.items : [];
       const matches = items.filter(item => {
@@ -532,6 +533,8 @@ function registerDesktopAssistantIpc() {
               else await openAllowedApp(action.app);
             } else if (action.type === "open-installed-app") {
               await openInstalledApp(action.app);
+            } else if (action.type === "launch-installer") {
+              await launchDownloadedInstaller(action.path);
             } else if (action.type === "open-url") {
               let parsedUrl;
               try { parsedUrl = new URL(String(action.url || "")); } catch { throw new Error("Açılacak internet adresi geçersiz."); }
