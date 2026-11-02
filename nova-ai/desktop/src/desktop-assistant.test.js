@@ -13,6 +13,7 @@ import {
   moveUserFile,
   configureUserFolderPaths,
   configureComputerFileAccess,
+  resolveUserFolder,
   isProtectedSystemPath
 } from "./desktop-assistant.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
@@ -227,6 +228,10 @@ test("full computer access searches deeply and handles arbitrary file extensions
     assert.equal(resolveUserPath(source), source);
     const matches = await searchUserFiles("archive.custom-extension");
     assert.deepEqual(matches.map((item) => item.path), [source]);
+    const scopedMatches = await searchUserFiles("archive.custom-extension", path.join(base, "OtherDrive", "Projects"));
+    assert.deepEqual(scopedMatches.map((item) => item.path), [source]);
+    const resolvedFolder = await resolveUserFolder(path.join(base, "OtherDrive", "Projects"));
+    assert.equal(resolvedFolder.path, await fs.realpath(path.join(base, "OtherDrive", "Projects")));
     const opened = await openUserPath("archive.custom-extension");
     assert.equal(opened.path, await fs.realpath(source));
     const moved = await moveUserFile(source, downloads, "");
