@@ -3232,7 +3232,13 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
           name: String(entry?.name || "").slice(0, 160),
           controlType: String(entry?.controlType || "").slice(0, 40),
           automationId: String(entry?.automationId || "").slice(0, 100),
-          focusable: Boolean(entry?.focusable)
+          focusable: Boolean(entry?.focusable),
+          bounds: entry?.bounds && typeof entry.bounds === "object" ? {
+            x: Number(entry.bounds.x) || 0,
+            y: Number(entry.bounds.y) || 0,
+            width: Number(entry.bounds.width) || 0,
+            height: Number(entry.bounds.height) || 0
+          } : null
         })) : []
       }))
     : [];
@@ -3254,7 +3260,7 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
     '- {"type":"focus-control","controlType":"Edit|Button|List|ComboBox|Document","name":"gözlemdeki tam ad"}',
     '- {"type":"type-text","text":"yazılacak metin"}',
     '- {"type":"press-key","key":"ENTER|TAB|ESC|SPACE|BACKSPACE|DELETE|UP|DOWN|LEFT|RIGHT|HOME|END|CTRL+A|CTRL+L|CTRL+T|CTRL+W|CTRL+V|CTRL+C|CTRL+X|CTRL+F|ALT+F4|SHIFT+TAB"}',
-    '- {"type":"click","x":100,"y":100}, {"type":"move-mouse","x":100,"y":100}, {"type":"scroll","amount":-120}, {"type":"wait","ms":500}, {"type":"finish"}',
+    '- {"type":"click","x":100,"y":100}, {"type":"move-mouse","x":100,"y":100} veya {"type":"move-mouse","dx":40,"dy":-20}, {"type":"scroll","amount":-120}, {"type":"wait","ms":500}, {"type":"finish"}',
     "PLANLAMA:",
     "- İlk turda uygulamayı aç, kısa bekle ve inspect-screen iste. Sonraki turda yalnızca gözlemdeki gerçek denetim adlarını kullan.",
     "- Kullanıcı en son konuştuğu kişiyi isterse, yalnızca gözlemde açıkça görülen en güncel birebir sohbeti belirle. Sunucu/kanal veya kişi ayrımı belirsizse tahmin etme.",
@@ -3263,7 +3269,7 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
     "- Kullanıcı açıkça mesajı gönder derse, metni yazdıktan sonra Enter ile gönder. Satın alma, ödeme, sipariş, hesap silme veya dosya silme gibi geri alınamaz işlemleri yapma; kullanıcı onayı iste.",
     "- Steam oyunu için yalnızca kurulu oyun adı iste; oyun adını uydurma. Spotify şarkı isteğinde arama ekranını aç, inspect-screen ile sonuçları oku, yalnızca istenen şarkıyla açıkça eşleşen sonucu tıkla ve oynatmayı başlat. Birden fazla benzer sonuç varsa tahmin etme; kullanıcıdan sanatçı/sürüm ayrıntısı iste. Abonelik veya ödeme işlemi yapma.",
     "- Web adreslerini yalnızca http/https olarak aç. Bilinmeyen uygulama veya rastgele komut çalıştırma; PowerShell, CMD, terminal veya kabuk komutu üretme.",
-    "- Ekran gözlemi yoksa click-text veya focus-control üretme. Koordinatları gözlem olmadan tahmin etme.",
+    "- Ekran gözlemi yoksa click-text veya focus-control üretme. Koordinatları gözlem olmadan tahmin etme; gözlemdeki bounds alanı varsa merkezini kullan.",
     "- Her turda en fazla 8 eylem ver. Ekran gözlemi gerekiyorsa actions içine inspect-screen koy. İş tamamen bitince done:true ve actions:[{type:'finish'}] döndür.",
     "- Belirsiz durumda tahmin etme; done:true ve actions:[{type:'finish'}] döndür.",
     "message alanına kullanıcıya gösterilecek kısa Türkçe durum veya gerekli netleştirme sorusunu yaz. Görev bitmediyse boş bırak.",
