@@ -5,33 +5,122 @@ import { spawn } from "node:child_process";
 
 const HOME = os.homedir();
 const ROOT_NAMES = ["Desktop", "Documents", "Downloads"];
-let ROOTS = [...new Set(ROOT_NAMES.flatMap((name) => {
-  const candidates = [path.join(HOME, name)];
-  const oneDrive = process.env.OneDrive || process.env.OneDriveCommercial || process.env.OneDriveConsumer;
-  if (oneDrive) candidates.push(path.join(oneDrive, name));
-  return candidates;
-}))];
+const SEARCH_MAX_RESULTS = 250;
+const SEARCH_MAX_DIRECTORIES = 300_000;
+const SEARCH_MAX_DURATION_MS = 120_000;
+const SEARCH_WORKERS = 8;
+let USER_FOLDERS = Object.fromEntries(ROOT_NAMES.map((name) => [name, path.join(HOME, name)]));
+let ROOTS = [...new Set(Object.values(USER_FOLDERS).map((value) => path.resolve(value)))];
 let ROOT_LABELS = new Map(ROOTS.map((root) => [root, path.basename(root)]));
-
-export function configureUserFolderPaths(paths = {}) {
-  const entries = ROOT_NAMES.map((name) => [name, paths[name]]);
-  if (entries.some(([, value]) => typeof value !== "string" || !path.isAbsolute(value))) {
-    throw new Error("Windows kullanıcı klasör yolları geçersiz.");
-  }
-  ROOTS = entries.map(([, value]) => path.resolve(value));
-  ROOT_LABELS = new Map(entries.map(([name, value]) => [path.resolve(value), name]));
-}
 
 function inside(parent, target) {
   const relative = path.relative(parent, target);
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
+function normalizeFolderKey(value) {
+  const normalized = String(value || "").toLocaleLowerCase("tr-TR");
+  if (normalized.includes("masaüst") || normalized.includes("desktop")) return "Desktop";
+  if (normalized.includes("belge") || normalized.includes("document")) return "Documents";
+  if (normalized.includes("indir") || normalized.includes("download")) return "Downloads";
+  return "";
+}
+
+export function configureUserFolderPaths(paths = {}) {
+  const entries = ROOT_NAMES.map((name) => [name, paths[name]]);
+  if (entries.some(([, value]) => typeof value !== "string" || !path.isAbsolute(value))) {
+    throw new Error("Windows kullanıcı klasör yolları geçersiz.");
+  }
+  USER_FOLDERS = Object.fromEntries(entries.map(([name, value]) => [name, path.resolve(value)]));
+  ROOTS = [...new Set(entries.map(([, value]) => path.resolve(value)))];
+  ROOT_LABELS = new Map(entries.map(([name, value]) => [path.resolve(value), name]));
+}
+
+export async function discoverDriveRoots() {
+  if (process.platform !== "win32") return [...new Set(Object.values(USER_FOLDERS).map((value) => path.parse(value).root).filter(Boolean))];
+  const letters = "CDEFGHIJKLMNOPQRSTUVWXYZAB".split("");
+  const roots = await Promise.all(letters.map((letter) => new Promise((resolve) => {
+    const root = letter + ":\\";
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        resolve(null);
+      }
+    }, 1200);
+    fs.stat(root).then((stat) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(stat.isDirectory() ? root : null);
+    }).catch(() => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(null);
+    });
+  })));
+  return [...new Set([...roots.filter(Boolean), ...Object.values(USER_FOLDERS).map((value) => path.parse(value).root).filter(Boolean)])];
+}
+
+export function configureComputerFileAccess({ userFolders = {}, driveRoots = [] } = {}) {
+  const entries = ROOT_NAMES.map((name) => [name, userFolders[name] || USER_FOLDERS[name]]);
+  if (entries.some(([, value]) => typeof value !== "string" || !path.isAbsolute(value))) {
+    throw new Error("Windows kullanıcı klasör yolları geçersiz.");
+  }
+  USER_FOLDERS = Object.fromEntries(entries.map(([name, value]) => [name, path.resolve(value)]));
+  const roots = [...driveRoots, ...Object.values(USER_FOLDERS).map((value) => path.parse(value).root || value)]
+    .filter((value) => typeof value === "string" && path.isAbsolute(value))
+    .map((value) => path.resolve(value));
+  ROOTS = [...new Set(roots.length ? roots : Object.values(USER_FOLDERS).map((value) => path.resolve(value)))];
+  ROOT_LABELS = new Map(ROOTS.map((root) => [root, path.parse(root).root ? path.parse(root).root.replace(/[\\/]+$/, "") : path.basename(root)]));
+  for (const [name, value] of entries) ROOT_LABELS.set(path.resolve(value), name);
+}
+
+export function getUserFolderPath(location) {
+  const key = normalizeFolderKey(location);
+  return key ? USER_FOLDERS[key] : "";
+}
+
 export function resolveUserPath(input) {
   if (typeof input !== "string" || !input.trim() || input.length > 1000) throw new Error("Geçerli bir dosya yolu gir.");
   const resolved = path.resolve(input.trim());
-  if (!ROOTS.some((root) => inside(root, resolved))) throw new Error("NOVA yalnızca Masaüstü, Belgeler ve İndirilenler klasörlerinde işlem yapabilir.");
+  if (!ROOTS.some((root) => inside(root, resolved))) {
+    throw new Error("Bu yol NOVA tarafından erişilebilen yerel sürücülerden birinin içinde değil.");
+  }
   return resolved;
+}
+
+function protectedRoots() {
+  const candidates = [
+    process.env.WINDIR,
+    process.env.SystemRoot,
+    process.env.ProgramFiles,
+    process.env["ProgramFiles(x86)"],
+    process.env.ProgramW6432,
+    process.env.ProgramData
+  ].filter((value) => typeof value === "string" && path.isAbsolute(value));
+  for (const root of ROOTS) {
+    for (const name of ["System Volume Information", "$Recycle.Bin", "Recovery", "Config.Msi", "Boot", "EFI"]) {
+      candidates.push(path.join(root, name));
+    }
+  }
+  return [...new Set(candidates.map((value) => path.resolve(value)))];
+}
+
+export function isProtectedSystemPath(input) {
+  if (typeof input !== "string" || !path.isAbsolute(input)) return true;
+  const resolved = path.resolve(input);
+  const driveRoot = path.parse(resolved).root;
+  if (resolved === driveRoot) return true;
+  if (/(^|[\\/])AppData([\\/]|$)/i.test(resolved)) return true;
+  return protectedRoots().some((root) => inside(root, resolved));
+}
+
+function assertMutablePath(input) {
+  if (isProtectedSystemPath(input)) {
+    throw new Error("Windows sistem klasörleri ve kritik uygulama dosyaları değiştirilemez. Bu konumda yalnızca arama ve açma yapılabilir.");
+  }
 }
 
 async function resolveExistingUserPath(input, { allowRoot = true } = {}) {
@@ -45,11 +134,12 @@ async function resolveExistingUserPath(input, { allowRoot = true } = {}) {
     currentPath = path.join(currentPath, segment);
     const segmentStat = await fs.lstat(currentPath);
     if (segmentStat.isSymbolicLink()) {
-      throw new Error("Kısayol ve sembolik bağlantılar güvenlik nedeniyle açılamaz veya değiştirilemez.");
+      throw new Error("Sembolik bağlantılar ve klasör bağlantıları güvenlik nedeniyle açılamaz veya değiştirilemez.");
     }
   }
 
   const stat = await fs.lstat(resolved);
+  if (stat.isSymbolicLink()) throw new Error("Sembolik bağlantılar güvenlik nedeniyle kullanılamaz.");
   const realPath = await fs.realpath(resolved);
   const canonicalRoots = await Promise.all(ROOTS.map(async (root) => {
     try { return await fs.realpath(root); } catch { return null; }
@@ -73,34 +163,71 @@ export async function listUserFolders() {
   for (const root of ROOTS) {
     try {
       const entries = await fs.readdir(root, { withFileTypes: true });
-      results.push({ name: ROOT_LABELS.get(root) || path.basename(root), path: root, items: entries.slice(0, 100).map((entry) => ({
-        name: entry.name, type: entry.isDirectory() ? "folder" : "file", path: path.join(root, entry.name)
-      })) });
-    } catch { results.push({ name: ROOT_LABELS.get(root) || path.basename(root), path: root, items: [] }); }
+      results.push({
+        name: ROOT_LABELS.get(root) || path.parse(root).root.replace(/[\\/]+$/, "") || path.basename(root),
+        path: root,
+        items: entries.slice(0, 100).map((entry) => ({
+          name: entry.name, type: entry.isDirectory() ? "folder" : "file", path: path.join(root, entry.name)
+        }))
+      });
+    } catch {
+      results.push({ name: ROOT_LABELS.get(root) || path.basename(root), path: root, items: [] });
+    }
   }
   return results;
 }
 
 export async function searchUserFiles(query, preferredLocation = "") {
-  if (typeof query !== "string" || !query.trim() || query.length > 120) throw new Error("Aramak için en fazla 120 karakterlik bir dosya adı yaz.");
-  const needle = query.trim().toLocaleLowerCase("tr-TR"), found = [];
-  async function walk(dir, depth) {
-    if (depth < 0 || found.length >= 100) return;
-    let entries;
-    try { entries = await fs.readdir(dir, { withFileTypes: true }); } catch { return; }
-    for (const entry of entries) {
-      if (found.length >= 100) break;
-      if (entry.name.startsWith(".") || entry.isSymbolicLink()) continue;
-      const fullPath = path.join(dir, entry.name);
-      if (entry.name.toLocaleLowerCase("tr-TR").includes(needle)) found.push({
-        name: entry.name, path: fullPath, type: entry.isDirectory() ? "folder" : "file"
-      });
-      if (entry.isDirectory() && depth > 0) await walk(fullPath, depth - 1);
+  if (typeof query !== "string" || !query.trim() || query.length > 240) {
+    throw new Error("Aramak için en fazla 240 karakterlik bir dosya veya klasör adı yaz.");
+  }
+  const needle = query.trim().toLocaleLowerCase("tr-TR");
+  const preferredKey = normalizeFolderKey(preferredLocation);
+  const preferredRoot = preferredKey ? USER_FOLDERS[preferredKey] : "";
+  const roots = preferredRoot ? [preferredRoot] : ROOTS;
+  const found = [];
+  const queue = [...roots];
+  const startedAt = Date.now();
+  let visited = 0;
+  let stop = false;
+
+  async function worker() {
+    while (!stop) {
+      if (found.length >= SEARCH_MAX_RESULTS || visited >= SEARCH_MAX_DIRECTORIES || Date.now() - startedAt >= SEARCH_MAX_DURATION_MS) {
+        stop = true;
+        break;
+      }
+      const dir = queue.shift();
+      if (!dir) break;
+      visited += 1;
+      let entries;
+      try { entries = await fs.readdir(dir, { withFileTypes: true }); } catch { continue; }
+      for (const entry of entries) {
+        if (entry.isSymbolicLink()) continue;
+        const fullPath = path.join(dir, entry.name);
+        if (entry.name.toLocaleLowerCase("tr-TR").includes(needle)) {
+          found.push({ name: entry.name, path: fullPath, type: entry.isDirectory() ? "folder" : "file" });
+          if (found.length >= SEARCH_MAX_RESULTS) {
+            stop = true;
+            break;
+          }
+        }
+        if (entry.isDirectory()) queue.push(fullPath);
+      }
     }
   }
-  for (const root of ROOTS) await walk(root, 3);
-  const preferredRoot = rootForLocation(preferredLocation);
-  return preferredRoot ? found.filter((item) => inside(preferredRoot, path.resolve(item.path))) : found;
+
+  await Promise.all(Array.from({ length: SEARCH_WORKERS }, () => worker()));
+  found.sort((a, b) => {
+    const aExact = a.name.toLocaleLowerCase("tr-TR") === needle ? 0 : 1;
+    const bExact = b.name.toLocaleLowerCase("tr-TR") === needle ? 0 : 1;
+    return aExact - bExact || a.path.localeCompare(b.path, "tr");
+  });
+  Object.defineProperty(found, "truncated", {
+    value: stop && (queue.length > 0 || found.length >= SEARCH_MAX_RESULTS || visited >= SEARCH_MAX_DIRECTORIES || Date.now() - startedAt >= SEARCH_MAX_DURATION_MS),
+    enumerable: true
+  });
+  return found;
 }
 
 export async function openAllowedApp(appName) {
@@ -128,48 +255,32 @@ function cleanFileReference(input) {
     .trim()
     .replace(/^["“”'\s]+|["“”'\s]+$/g, "")
     .replace(/^(?:(?:lütfen)\s+)?(?:(?:masaüstündeki|masaüstünde|masaustündeki|belgelerdeki|belgelerde|indirilenlerdeki|indirilenlerde)\s+)/i, "")
-    .replace(/\s+(?:(?:dosyasını|dosyayı|dosyası|dosya|klasörünü|klasörü|öğesini|öğeyi))$/i, "")
+    .replace(/\s+(?:(?:dosyasını|dosyayı|dosyası|dosya|klasörünü|klasörü|öğesini|öğeyi|klasörüne|klasörüne))$/i, "")
     .trim();
-}
-
-function rootForLocation(location) {
-  const normalized = String(location || "").toLocaleLowerCase("tr-TR");
-  if (!normalized) return null;
-  const key = normalized.includes("masaüst") || normalized.includes("desktop") ? "Desktop"
-    : normalized.includes("belge") || normalized.includes("document") ? "Documents"
-      : normalized.includes("indir") || normalized.includes("download") ? "Downloads" : null;
-  if (!key) return null;
-  return ROOTS.find((root) => ROOT_LABELS.get(root) === key) || null;
 }
 
 export async function resolveUserItem(input, preferredLocation = "", { allowRoot = true } = {}) {
   if (typeof input !== "string" || !input.trim()) throw new Error("İşlem yapılacak dosya veya klasörün adını yaz.");
   let candidate = cleanFileReference(input)
     .replace(/^~(?=[\\/])/, HOME)
-    .replace(/^(?:masaüstü|masaustu|desktop)(?=[\\/])/i, path.join(HOME, "Desktop"))
-    .replace(/^(?:belgeler|documents)(?=[\\/])/i, path.join(HOME, "Documents"))
-    .replace(/^(?:indirilenler|downloads)(?=[\\/])/i, path.join(HOME, "Downloads"));
+    .replace(/^(?:masaüstü|masaustu|desktop)(?=[\\/])/i, USER_FOLDERS.Desktop)
+    .replace(/^(?:belgeler|documents)(?=[\\/])/i, USER_FOLDERS.Documents)
+    .replace(/^(?:indirilenler|downloads)(?=[\\/])/i, USER_FOLDERS.Downloads);
 
   if (path.isAbsolute(candidate) || candidate.includes("/") || candidate.includes("\\")) {
     return resolveExistingUserPath(candidate, { allowRoot });
   }
 
-  const matches = await searchUserFiles(candidate);
+  const matches = await searchUserFiles(candidate, preferredLocation);
   const normalized = candidate.toLocaleLowerCase("tr-TR");
   const exact = matches.filter((item) => item.name.toLocaleLowerCase("tr-TR") === normalized);
-  const selectedPool = exact.length ? exact : matches;
-  if (!selectedPool.length) {
-    throw new Error("“" + candidate + "” adlı öğeyi Masaüstü, Belgeler veya İndirilenler içinde bulamadım. Dosya adını ve konumunu kontrol et.");
+  const selected = exact.length ? exact : matches;
+  if (!selected.length) {
+    throw new Error("“" + candidate + "” adlı öğeyi bilgisayarındaki erişilebilir sürücülerde bulamadım. Dosya adını kontrol et veya tam yolunu belirt.");
   }
-
-  const preferredRoot = rootForLocation(preferredLocation);
-  const preferredMatches = preferredRoot
-    ? selectedPool.filter((item) => inside(preferredRoot, path.resolve(item.path)))
-    : [];
-  const selected = preferredMatches.length ? preferredMatches : selectedPool;
   if (selected.length > 1) {
-    throw new Error("Aynı isimde birden fazla öğe buldum. Lütfen konumunu belirt: " +
-      selected.slice(0, 6).map((item) => item.path).join(" | "));
+    throw new Error("Aynı isimde birden fazla öğe buldum. Lütfen tam konumunu belirt:\n" +
+      selected.slice(0, 8).map((item) => item.path).join("\n"));
   }
   return resolveExistingUserPath(selected[0].path, { allowRoot });
 }
@@ -179,17 +290,32 @@ export async function openUserPath(input, preferredLocation = "") {
   return { path: resolved.path, message: "“" + path.basename(resolved.path) + "” açılmaya hazır." };
 }
 
+export async function resolveUserFolder(input) {
+  const knownPath = getUserFolderPath(input);
+  const resolved = await resolveExistingUserPath(knownPath || input);
+  if (!resolved.stat.isDirectory()) throw new Error("Belirttiğin hedef bir klasör değil.");
+  return resolved;
+}
+
 export async function resolveUserFileForTrash(input) {
-  const { path: safePath } = await resolveExistingUserPath(input, { allowRoot: false });
+  const { path: safePath, stat } = await resolveExistingUserPath(input, { allowRoot: false });
+  if (stat.isDirectory() && path.resolve(safePath) === path.parse(safePath).root) {
+    throw new Error("Bir sürücünün tamamı Geri Dönüşüm Kutusu'na taşınamaz.");
+  }
+  assertMutablePath(safePath);
   return safePath;
 }
 
 export async function createUserFolder(parentInput, folderName) {
-  const { path: parent, stat } = await resolveExistingUserPath(parentInput);
+  const { path: parent, stat } = await resolveUserFolder(parentInput);
   if (!stat.isDirectory()) throw new Error("Yeni klasör oluşturmak için hedef bir klasör olmalı.");
+  assertMutablePath(parent);
   const name = String(folderName || "").trim();
-  if (!name || name.length > 80 || /[<>:"/\\|?*]/.test(name) || name === "." || name === ".." || /[. ]$/.test(name)) throw new Error("Klasör adı geçersiz.");
+  if (!name || name.length > 120 || /[<>:"/\\|?*]/.test(name) || name === "." || name === ".." || /[. ]$/.test(name)) {
+    throw new Error("Klasör adı geçersiz.");
+  }
   const destination = path.join(parent, name);
+  assertMutablePath(destination);
   try { await fs.mkdir(destination); } catch (error) {
     if (error.code === "EEXIST") throw new Error("Bu konumda aynı isimde bir dosya veya klasör zaten var.");
     throw error;
@@ -197,20 +323,65 @@ export async function createUserFolder(parentInput, folderName) {
   return { message: "“" + name + "” klasörü oluşturuldu.", path: destination };
 }
 
+async function assertNoSymbolicLinks(source) {
+  const stat = await fs.lstat(source);
+  if (stat.isSymbolicLink()) throw new Error("Sembolik bağlantı içeren öğeler taşınamaz.");
+  if (!stat.isDirectory()) return;
+  const entries = await fs.readdir(source, { withFileTypes: true });
+  for (const entry of entries) {
+    const child = path.join(source, entry.name);
+    if (entry.isSymbolicLink()) throw new Error("Sembolik bağlantı içeren klasörler taşınamaz: " + child);
+    if (entry.isDirectory()) await assertNoSymbolicLinks(child);
+  }
+}
+
 export async function moveUserFile(sourceInput, destinationFolderInput, newName, sourceLocation = "") {
   const { path: source, stat: sourceStat } = await resolveUserItem(sourceInput, sourceLocation, { allowRoot: false });
-  if (sourceStat.isSymbolicLink()) throw new Error("Kısayol ve sembolik bağlantılar taşınamaz.");
-  const { path: destinationFolder, stat: destinationStat } = await resolveExistingUserPath(destinationFolderInput);
+  if (sourceStat.isSymbolicLink()) throw new Error("Sembolik bağlantılar taşınamaz.");
+  const { path: destinationFolder, stat: destinationStat } = await resolveUserFolder(destinationFolderInput);
   if (!destinationStat.isDirectory()) throw new Error("Hedef konum bir klasör olmalı.");
+  assertMutablePath(source);
+  assertMutablePath(destinationFolder);
   if (inside(source, destinationFolder)) throw new Error("Bir klasörü kendi içine veya alt klasörüne taşıyamazsın.");
+
   const targetName = newName ? String(newName).trim() : path.basename(source);
-  if (!targetName || targetName.length > 180 || /[<>:"/\\|?*]/.test(targetName) || targetName === "." || targetName === ".." || /[. ]$/.test(targetName)) throw new Error("Yeni dosya adı geçersiz.");
+  if (!targetName || targetName.length > 240 || /[<>:"/\\|?*]/.test(targetName) || targetName === "." || targetName === ".." || /[. ]$/.test(targetName)) {
+    throw new Error("Yeni dosya adı geçersiz.");
+  }
   const destination = path.join(destinationFolder, targetName);
   if (!inside(destinationFolder, destination)) throw new Error("Hedef klasör geçersiz.");
-  try { await fs.access(destination); throw new Error("Hedefte aynı isimde bir dosya zaten var."); } catch (error) {
+  try {
+    await fs.lstat(destination);
+    throw new Error("Hedefte aynı isimde bir dosya veya klasör zaten var.");
+  } catch (error) {
     if (error.message.includes("zaten var")) throw error;
     if (error.code !== "ENOENT") throw error;
   }
-  await fs.rename(source, destination);
+
+  await assertNoSymbolicLinks(source);
+  try {
+    await fs.rename(source, destination);
+  } catch (error) {
+    if (error.code !== "EXDEV") throw error;
+    const temporaryDestination = path.join(destinationFolder, "." + targetName + ".nova-moving-" + process.pid + "-" + Date.now());
+    try {
+      await fs.cp(source, temporaryDestination, {
+        recursive: true,
+        errorOnExist: true,
+        force: false,
+        dereference: false,
+        preserveTimestamps: true
+      });
+      await fs.rename(temporaryDestination, destination);
+    } catch (copyError) {
+      await fs.rm(temporaryDestination, { recursive: true, force: true }).catch(() => {});
+      throw copyError;
+    }
+    try {
+      await fs.rm(source, { recursive: true, force: false });
+    } catch (removeError) {
+      throw new Error("Dosya hedefe kopyalandı ancak kaynak konumdan kaldırılamadı. Veri kaybını önlemek için iki kopya da korundu. Kaynak: " + source + " | Hedef: " + destination + " | Ayrıntı: " + removeError.message);
+    }
+  }
   return { message: "“" + path.basename(source) + "” işlemi tamamlandı.", path: destination };
 }
