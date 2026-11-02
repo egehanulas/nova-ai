@@ -1042,9 +1042,8 @@ async function callOpenRouter(messages, extraInstruction = "") {
           ],
           temperature: generation.temperature,
           max_tokens: generation.maxOutputTokens,
-          ...( /NOVA WINDOWS MASAÜSTÜ KONTROL PLANLAYICISI/.test(extraInstruction)
-            ? { response_format: { type: "json_object" } }
-            : {}),
+          // JSON output is still checked by the desktop route; avoid forcing a mode
+          // that some models behind the free router do not support.
         }),
       }
     );
@@ -1054,10 +1053,18 @@ async function callOpenRouter(messages, extraInstruction = "") {
     }
 
     const data = await response.json();
-    const rawAnswer = data?.choices?.[0]?.message?.content;
+    const message = data?.choices?.[0]?.message;
+    const rawContent = message?.content;
+    const rawAnswer = typeof rawContent === "string"
+      ? rawContent
+      : Array.isArray(rawContent)
+        ? rawContent.filter((part) => typeof part?.text === "string").map((part) => part.text).join("\n")
+        : "";
 
-    if (typeof rawAnswer !== "string" || !rawAnswer.trim()) {
-      throw new Error("OpenRouter boş yanıt döndürdü.");
+    if (!rawAnswer.trim()) {
+      throw new Error(typeof message?.refusal === "string" && message.refusal.trim()
+        ? "OpenRouter yanıtı güvenlik nedeniyle reddetti."
+        : "OpenRouter metin yanıtı döndürmedi.");
     }
 
     const answer = cleanModelAnswer(rawAnswer);
