@@ -55,7 +55,7 @@ export function parseDesktopCommand(input) {
   if (/^(?:bilgisayar bilgileri|sistem bilgileri|bilgisayarımın özellikleri|pc özellikleri)$/.test(text)) return { intent: "computer-info" };
   if (/^(?:klasörler|klasörlerimi göster|dosyalarımı göster|hızlı erişim|sürücüleri göster|diskleri göster)$/.test(text)) return { intent: "list-folders" };
 
-  let browserMatch = command.browserMatch(/^(?:google\s+)?chrome(?:'da|’da|da)\s+(.+?)\s+(?:aç|git|gir)$/iu);
+  let browserMatch = command.match(/^(?:google\s+)?chrome(?:'da|’da|da)\s+(.+?)\s+(?:aç|git|gir)$/iu);
   if (browserMatch) {
     const target = browserMatch[1].trim();
     const url = /^(?:youtube|youtube\.com)$/iu.test(target) ? "https://www.youtube.com"
@@ -65,16 +65,16 @@ export function parseDesktopCommand(input) {
     return { intent: "open-url", app: "chrome", query: target };
   }
 
-  browserMatch = command.browserMatch(/^(?:youtube|youtube\.com)\s+(?:aç|gir)$/iu);
+  browserMatch = command.match(/^(?:youtube|youtube\.com)\s+(?:aç|gir)$/iu);
   if (browserMatch) return { intent: "open-url", url: "https://www.youtube.com" };
 
-  browserMatch = command.browserMatch(/^youtube(?:'da|’da|da)\s+(.+?)\s+ara$/iu);
+  browserMatch = command.match(/^youtube(?:'da|’da|da)\s+(.+?)\s+ara$/iu);
   if (browserMatch) return { intent: "open-url", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent(browserMatch[1].trim()) };
 
-  browserMatch = command.browserMatch(/^spotify(?:'da|’da|da)\s+(.+?)\s+(?:çal|cal|aç|ac|dinlet)$/iu);
+  browserMatch = command.match(/^spotify(?:'da|’da|da)\s+(.+?)\s+(?:çal|cal|aç|ac|dinlet)$/iu);
   if (browserMatch) return { intent: "spotify-search", query: browserMatch[1].trim() };
 
-  browserMatch = command.browserMatch(/^steam(?:'de|’de|de)\s+(.+?)\s+(?:aç|ac|başlat|baslat|oyna|çalıştır|calistir)$/iu);
+  browserMatch = command.match(/^steam(?:'de|’de|de)\s+(.+?)\s+(?:aç|ac|başlat|baslat|oyna|çalıştır|calistir)$/iu);
   if (browserMatch) return { intent: "launch-steam-game", game: browserMatch[1].trim() };
 
   const appText = text
