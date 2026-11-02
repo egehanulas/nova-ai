@@ -793,6 +793,14 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
       "Ekrandaki erişilebilir öğeleri okuyup adım adım tıklama ve metin yazma",
       "Rastgele terminal komutları yerine izinli ve doğrulanan masaüstü eylemleri"
     ],
+    "0.2.0-alpha.34": [
+      "Windows Ayarları ve Görev Yöneticisi için daha güvenilir doğrudan başlatma",
+      "Türkçe uygulama adlarında doğal ekleri tanıma ve YouTube/yt arama komutları",
+      "Google araştırma isteklerinde kaynakları inceleyip yanıtı NOVA içinde sunma",
+      "Dosyaları incele isteğinde erişilebilir sürücülerin üst düzey içeriğini listeleme",
+      "Mouse/fare yön komutları ve imleç hareketinin gerçek konumla doğrulanması",
+      "Uygulama başlatma hatalarında UTF-8 yapılandırılmış hata çıktısı"
+    ],
     "0.2.0-alpha.33": [
       "Windows Başlat menüsüne kayıtlı uygulamaları adlarıyla bulup açma",
       "Chrome ve Edge dahil uygulamalarda daha fazla sekme ve gezinme kısayolu",
