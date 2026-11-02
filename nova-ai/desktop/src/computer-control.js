@@ -29,7 +29,8 @@ export function validateComputerAction(action) {
   }
   if (action.type === "focus-control" &&
       (!["Edit", "Button", "List", "ComboBox", "Document"].includes(action.controlType) ||
-       (action.name != null && (typeof action.name !== "string" || action.name.length > 180)))) {
+       (action.name != null && (typeof action.name !== "string" || action.name.length > 180)) ||
+       (action.automationId != null && (typeof action.automationId !== "string" || action.automationId.length > 100)))) {
     throw new Error("Odaklanılacak denetim geçersiz.");
   }
   if (action.type === "press-key" && !ALLOWED_KEYS.has(String(action.key || "").toUpperCase())) {
