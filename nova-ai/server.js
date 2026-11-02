@@ -512,7 +512,7 @@ function getGenerationSettings(messages = [], extraInstruction = "") {
   const desktopIntentMode = /NOVA WINDOWS MASAÜSTÜ KONTROL PLANLAYICISI/.test(extraInstruction);
 
   if (desktopIntentMode) {
-    return { temperature: 0.1, maxOutputTokens: 700 };
+    return { temperature: 0.1, maxOutputTokens: 1200 };
   }
 
   return {
@@ -1110,7 +1110,51 @@ async function callGroq(messages, extraInstruction = "") {
           temperature: generation.temperature,
           max_tokens: generation.maxOutputTokens,
           ...( /NOVA WINDOWS MASAÜSTÜ KONTROL PLANLAYICISI/.test(extraInstruction)
-            ? { response_format: { type: "json_object" } }
+            ? {
+                response_format: {
+                  type: "json_schema",
+                  json_schema: {
+                    name: "nova_desktop_intent",
+                    strict: true,
+                    schema: {
+                      type: "object",
+                      properties: {
+                        intent: { type: "string", enum: ["computer-control"] },
+                        done: { type: "boolean" },
+                        message: { type: "string" },
+                        actions: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              type: { type: "string", enum: ["open-app", "open-url", "launch-steam-game", "spotify-search", "inspect-screen", "click-text", "focus-control", "type-text", "press-key", "click", "move-mouse", "scroll", "wait", "finish"] },
+                              app: { type: ["string", "null"] },
+                              url: { type: ["string", "null"] },
+                              game: { type: ["string", "null"] },
+                              query: { type: ["string", "null"] },
+                              text: { type: ["string", "null"] },
+                              controlType: { type: ["string", "null"], enum: ["Edit", "Button", "List", "ComboBox", "Document", null] },
+                              name: { type: ["string", "null"] },
+                              automationId: { type: ["string", "null"] },
+                              key: { type: ["string", "null"] },
+                              x: { type: ["number", "null"] },
+                              y: { type: ["number", "null"] },
+                              dx: { type: ["number", "null"] },
+                              dy: { type: ["number", "null"] },
+                              amount: { type: ["number", "null"] },
+                              ms: { type: ["number", "null"] }
+                            },
+                            required: ["type", "app", "url", "game", "query", "text", "controlType", "name", "automationId", "key", "x", "y", "dx", "dy", "amount", "ms"],
+                            additionalProperties: false
+                          }
+                        }
+                      },
+                      required: ["intent", "done", "message", "actions"],
+                      additionalProperties: false
+                    }
+                  }
+                }
+              }
             : {}),
         }),
       }
