@@ -84,7 +84,7 @@ test("desktop command parser routes common and arbitrary installed apps safely",
     intent: "open-installed-app", app: "Visual Studio Code"
   });
   assert.deepEqual(parseDesktopCommand("Görev Yöneticisi'ni aç"), {
-    intent: "open-installed-app", app: "Görev Yöneticisi"
+    intent: "open-installed-app", app: "Task Manager", label: "Görev Yöneticisi"
   });
 });
 
