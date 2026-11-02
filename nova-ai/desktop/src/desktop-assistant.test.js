@@ -11,6 +11,7 @@ import {
   resolveUserPath,
   searchUserFiles,
   openAllowedApp,
+  normalizeInstalledAppQuery,
   openUserPath,
   resolveUserItem,
   moveUserFile,
@@ -60,6 +61,14 @@ test("application launcher rejects anything outside the fixed allowlist", async 
   await assert.rejects(openAllowedApp("cmd.exe"), /izin verilen uygulamalar listesinde değil/);
 });
 
+
+test("installed application query validation rejects empty, oversized and multiline input", () => {
+  assert.equal(normalizeInstalledAppQuery("  WhatsApp  "), "WhatsApp");
+  assert.equal(normalizeInstalledAppQuery("Visual   Studio   Code"), "Visual Studio Code");
+  assert.throws(() => normalizeInstalledAppQuery(""), /uygulamanın adını/);
+  assert.throws(() => normalizeInstalledAppQuery("x".repeat(101)), /uygulamanın adını/);
+  assert.throws(() => normalizeInstalledAppQuery("Telegram\\nStart-Process powershell"), /uygulamanın adını/);
+});
 
 test("desktop updater retries transient failures with increasing delays and only one pending retry", () => {
   const timers = [];
