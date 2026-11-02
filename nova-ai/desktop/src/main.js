@@ -739,7 +739,7 @@ if (!handleSquirrelEvent()) {
     autoUpdater.quitAndInstall();
   });
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     const userFolders = {
       Desktop: app.getPath("desktop"),
       Documents: app.getPath("documents"),
