@@ -104,6 +104,10 @@ test("desktop parser handles Turkish Settings inflections, YouTube search, file 
   assert.deepEqual(parseDesktopCommand("yt de müzik aç"), {
     intent: "open-url", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent("müzik")
   });
+  assert.deepEqual(parseDesktopCommand("Google'da İstanbul hava durumu ara, sonuçları incele ve bana özetle"), {
+    intent: "computer-control", done: false,
+    actions: [{ type: "research-web", query: "İstanbul hava durumu" }]
+  });
   assert.deepEqual(parseDesktopCommand("dosyaları incele ve bana neler olduğunu söyle"), {
     intent: "list-folders"
   });
