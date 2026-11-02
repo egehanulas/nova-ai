@@ -412,7 +412,7 @@ export async function resolveUserFolder(input) {
     ? input.match(/^(Desktop|Documents|Downloads)[\\/](.+)$/i)
     : null;
   const driveFolderMatch = typeof input === "string"
-    ? input.match(/^([A-Z])\\s+(?:sürücüsündeki|diskindeki|sürücüsünde|diskinde)\\s+(.+)$/i)
+    ? input.match(/^([A-Z])\s+(?:sürücüsündeki|diskindeki|sürücüsünde|diskinde)\s+(.+)$/i)
     : null;
   if (!knownPath && userFolderRelativeMatch) {
     const key = userFolderRelativeMatch[1].toLowerCase() === "desktop" ? "Desktop"
