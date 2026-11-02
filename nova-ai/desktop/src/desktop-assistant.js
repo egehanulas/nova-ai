@@ -183,9 +183,9 @@ export async function listUserFolders() {
   return results;
 }
 
-export async function searchUserFiles(query, preferredLocation = "") {
-  if (typeof query !== "string" || !query.trim() || query.length > 240) {
-    throw new Error("Aramak için en fazla 240 karakterlik bir dosya veya klasör adı yaz.");
+export async function searchUserFiles(query, preferredLocation = "", { exactOnly = false } = {}) {
+  if (typeof query !== "string" || !query.trim() || query.length > 255) {
+    throw new Error("Aramak için en fazla 255 karakterlik bir dosya veya klasör adı yaz.");
   }
   const needle = query.trim().toLocaleLowerCase("tr-TR");
   const preferredKey = normalizeFolderKey(preferredLocation);
@@ -212,9 +212,10 @@ export async function searchUserFiles(query, preferredLocation = "") {
       for (const entry of batches[index]) {
         if (entry.isSymbolicLink()) continue;
         const fullPath = path.join(dir, entry.name);
-        if (entry.name.toLocaleLowerCase("tr-TR").includes(needle)) {
+        const normalizedName = entry.name.toLocaleLowerCase("tr-TR");
+        if (exactOnly ? normalizedName === needle : normalizedName.includes(needle)) {
           found.push({ name: entry.name, path: fullPath, type: entry.isDirectory() ? "folder" : "file" });
-          if (found.length >= SEARCH_MAX_RESULTS) {
+          if ((exactOnly && found.length >= 2) || (!exactOnly && found.length >= SEARCH_MAX_RESULTS)) {
             stop = true;
             break;
           }
@@ -277,10 +278,22 @@ export async function resolveUserItem(input, preferredLocation = "", { allowRoot
     return resolveExistingUserPath(candidate, { allowRoot });
   }
 
-  const matches = await searchUserFiles(candidate, preferredLocation);
-  const normalized = candidate.toLocaleLowerCase("tr-TR");
-  const exact = matches.filter((item) => item.name.toLocaleLowerCase("tr-TR") === normalized);
-  const selected = exact.length ? exact : matches;
+  const exact = await searchUserFiles(candidate, preferredLocation, { exactOnly: true });
+  if (exact.length > 1) {
+    throw new Error("Aynı isimde birden fazla öğe buldum. Lütfen tam konumunu belirt:\n" +
+      exact.slice(0, 8).map((item) => item.path).join("\n"));
+  }
+  if (exact.truncated) {
+    throw new Error("Dosya araması tamamlanamadı. Yanlış dosyayı açmamak için tam dosya yolunu belirt veya konumunu daralt.");
+  }
+
+  let selected = exact;
+  if (!selected.length) {
+    selected = await searchUserFiles(candidate, preferredLocation);
+    if (selected.truncated && selected.length < 2) {
+      throw new Error("Dosya araması tamamlanamadı. Yanlış dosyayı seçmemek için tam dosya yolunu belirt veya konumunu daralt.");
+    }
+  }
   if (!selected.length) {
     throw new Error("“" + candidate + "” adlı öğeyi bilgisayarındaki erişilebilir sürücülerde bulamadım. Dosya adını kontrol et veya tam yolunu belirt.");
   }
