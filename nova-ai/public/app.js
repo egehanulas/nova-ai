@@ -1883,7 +1883,10 @@
     if (!api?.executeCommand) {
       throw new Error("NOVA bilgisayar komut motoru yüklenemedi. Uygulamayı yeniden başlatıp tekrar dene.");
     }
-    const result = await api.executeCommand(String(rawCommand || ""));
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    const accessToken = data.session?.access_token || "";
+    const result = await api.executeCommand(String(rawCommand || ""), accessToken);
     if (!result || typeof result.message !== "string") {
       throw new Error("Komut sonucu doğrulanamadı. İşlem yapılmış gibi göstermiyorum.");
     }
