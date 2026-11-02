@@ -311,3 +311,35 @@ test("opening files never executes programs, scripts, installers, or Windows sho
     await fs.rm(base, { recursive: true, force: true });
   }
 });
+
+
+test("file search reports inaccessible folders and refuses incomplete exact resolution", async () => {
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-inaccessible-search-test-"));
+  const desktop = path.join(base, "Desktop");
+  const documents = path.join(base, "Documents");
+  const downloads = path.join(base, "Downloads");
+  const denied = path.join(base, "Denied");
+  await Promise.all([desktop, documents, downloads, denied].map((folder) => fs.mkdir(folder, { recursive: true })));
+  await fs.writeFile(path.join(denied, "hidden-needle.txt"), "hidden");
+  configureComputerFileAccess({
+    userFolders: { Desktop: desktop, Documents: documents, Downloads: downloads },
+    driveRoots: [base]
+  });
+  const originalReaddir = fs.readdir;
+  fs.readdir = async (target, ...args) => {
+    if (path.resolve(String(target)) === path.resolve(denied)) {
+      throw Object.assign(new Error("Access denied by test"), { code: "EACCES" });
+    }
+    return originalReaddir.call(fs, target, ...args);
+  };
+
+  try {
+    const results = await searchUserFiles("hidden-needle.txt");
+    assert.equal(results.length, 0);
+    assert.equal(results.inaccessibleDirectories, 1);
+    await assert.rejects(resolveUserItem("hidden-needle.txt"), /klasöre erişilemedi/);
+  } finally {
+    fs.readdir = originalReaddir;
+    await fs.rm(base, { recursive: true, force: true });
+  }
+});
