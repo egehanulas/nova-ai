@@ -13,8 +13,18 @@ let USER_FOLDERS = Object.fromEntries(ROOT_NAMES.map((name) => [name, path.join(
 let ROOTS = [...new Set(Object.values(USER_FOLDERS).map((value) => path.resolve(value)))];
 let ROOT_LABELS = new Map(ROOTS.map((root) => [root, path.basename(root)]));
 
+function normalizePath(input) {
+  let value = path.resolve(input);
+  if (process.platform === "win32") {
+    value = value.replace(/^\\\\\\?\\/i, "").replace(/^\\\\\?\\/i, "");
+  }
+  return path.normalize(value);
+}
+
 function inside(parent, target) {
-  const relative = path.relative(parent, target);
+  const normalizedParent = normalizePath(parent);
+  const normalizedTarget = normalizePath(target);
+  const relative = path.relative(normalizedParent, normalizedTarget);
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
@@ -90,7 +100,7 @@ export function getUserFolderPath(location) {
 
 export function resolveUserPath(input) {
   if (typeof input !== "string" || !input.trim() || input.length > 1000) throw new Error("Geçerli bir dosya yolu gir.");
-  const resolved = path.resolve(input.trim());
+  const resolved = normalizePath(input.trim());
   if (!ROOTS.some((root) => inside(root, resolved))) {
     throw new Error("Bu yol NOVA tarafından erişilebilen yerel sürücülerden birinin içinde değil.");
   }
@@ -146,7 +156,7 @@ async function resolveExistingUserPath(input, { allowRoot = true } = {}) {
 
   const stat = await fs.lstat(resolved);
   if (stat.isSymbolicLink()) throw new Error("Sembolik bağlantılar güvenlik nedeniyle kullanılamaz.");
-  const realPath = await fs.realpath(resolved);
+  const realPath = normalizePath(await fs.realpath(resolved));
   const canonicalRoots = await Promise.all(ROOTS.map(async (root) => {
     try { return await fs.realpath(root); } catch { return null; }
   }));
