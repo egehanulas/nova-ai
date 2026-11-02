@@ -16,11 +16,13 @@ let ROOT_LABELS = new Map(ROOTS.map((root) => [root, path.basename(root)]));
 function normalizePath(input) {
   let value = path.resolve(input);
   if (process.platform === "win32") {
-    value = value.replace(/^\\\\\\?\\/i, "").replace(/^\\\\\?\\/i, "");
+    const extendedPrefix = "\\\\?\\";
+    const ntPrefix = "\\??\\";
+    if (value.startsWith(extendedPrefix)) value = value.slice(extendedPrefix.length);
+    else if (value.startsWith(ntPrefix)) value = value.slice(ntPrefix.length);
   }
   return path.normalize(value);
 }
-
 function inside(parent, target) {
   const normalizedParent = normalizePath(parent);
   const normalizedTarget = normalizePath(target);
