@@ -1,6 +1,3 @@
-param(
-  [Parameter(Mandatory=$true)][string]$Payload
-)
 $ErrorActionPreference = "Stop"
 try {
   Add-Type -AssemblyName UIAutomationClient
@@ -16,7 +13,7 @@ public static class NovaDesktopInput {
   [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, int data, UIntPtr extraInfo);
 }
 "@
-  $action = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Payload)) | ConvertFrom-Json
+  $action = [Text.Encoding]::UTF8.GetString($env:NOVA_CONTROL_PAYLOAD) | ConvertFrom-Json
   $result = @{ success = $true }
   switch ([string]$action.type) {
     "inspect-screen" {
