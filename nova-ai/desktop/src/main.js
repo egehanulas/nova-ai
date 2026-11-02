@@ -421,7 +421,7 @@ function registerDesktopAssistantIpc() {
 
     switch (intent.intent) {
       case "help":
-        return { message: "Windows Başlat menüsüne kayıtlı uygulamaları açabilir, Chrome ve Edge üzerinde web sitelerinde gezinebilir, arama yapabilir, formları doldurabilir, sekmeleri yönetebilir, Spotify’da müzik arayabilir, Steam’de kurulu oyunları başlatabilir; ekrandaki erişilebilir öğelere tıklayıp mouse ve klavyeyi kullanabilirim. Dosya ve klasör arama, açma, taşıma ve düzenleme işlemlerini de desteklerim. Örnek: “Discord’u aç”, “Chrome’da YouTube aç”, “Steam’de Dying Light: The Beast aç”, “Spotify’da Blinding Lights çal”, “Oyunlar klasöründe 121.png dosyasını aç”." };
+        return { message: "Windows Başlat menüsüne kayıtlı uygulamaları açabilir, Chrome ve Edge ile web sitelerinde gezinebilir, YouTube'da arama yapıp belirli videoları açmayı deneyebilir, Spotify'da müzik arayabilir ve Steam'de kurulu oyunları başlatabilirim. Bilgisayarın yerel saatini, CPU/RAM ve pil durumunu, açık pencereleri ve etkin pencerenin erişilebilir denetimlerini raporlayabilirim. Fareyi yumuşak animasyonla hareket ettirebilir; dosya ve klasör arama, açma, taşıma ve düzenleme işlemlerini yapabilirim. Örnek: “Not Defteri'ni aç ve içine Merhaba yaz”, “YouTube'da Fenerbahçe videosunu aç”, “Açık pencereleri listele”, “CPU ve RAM kullanımını raporla”, “Steam'de Dying Light: The Beast aç”." };
       case "local-time": {
         const now = new Date();
         return { message: "Bilgisayarının yerel saati: " + now.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) +

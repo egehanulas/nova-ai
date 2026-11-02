@@ -107,6 +107,12 @@ test("desktop parser handles Turkish Settings inflections, YouTube search, file 
   assert.deepEqual(parseDesktopCommand("YT aç"), {
     intent: "open-url", url: "https://www.youtube.com"
   });
+  assert.deepEqual(parseDesktopCommand("YouTube'u aç"), {
+    intent: "open-url", url: "https://www.youtube.com"
+  });
+  assert.deepEqual(parseDesktopCommand("YT'yi aç"), {
+    intent: "open-url", url: "https://www.youtube.com"
+  });
   assert.deepEqual(parseDesktopCommand("YouTube'da Fenerbahçe'nin son videosunu aç"), {
     intent: "computer-control", done: false,
     actions: [
@@ -129,6 +135,8 @@ test("desktop parser handles Turkish Settings inflections, YouTube search, file 
   assert.deepEqual(parseDesktopCommand("Ekranımı analiz et"), { intent: "screen-summary" });
   assert.deepEqual(parseDesktopCommand("CPU ve RAM kullanımını raporla"), { intent: "computer-info" });
   assert.deepEqual(parseDesktopCommand("Pil, CPU ve RAM kullanımını raporla"), { intent: "computer-info" });
+  assert.deepEqual(parseDesktopCommand("RAM kullanımı"), { intent: "computer-info" });
+  assert.deepEqual(parseDesktopCommand("Batarya durumu"), { intent: "computer-info" });
   assert.deepEqual(parseDesktopCommand("Google'da İstanbul hava durumu ara, sonuçları incele ve bana özetle"), {
     intent: "computer-control", done: false,
     actions: [{ type: "research-web", query: "İstanbul hava durumu" }]
