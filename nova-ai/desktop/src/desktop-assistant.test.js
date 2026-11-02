@@ -108,7 +108,12 @@ test("desktop parser handles Turkish Settings inflections, YouTube search, file 
     intent: "open-url", url: "https://www.youtube.com"
   });
   assert.deepEqual(parseDesktopCommand("YouTube'da Fenerbahçe'nin son videosunu aç"), {
-    intent: "open-url", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent("Fenerbahçe'nin son")
+    intent: "computer-control", done: false,
+    actions: [
+      { type: "open-url", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent("Fenerbahçe'nin son video") },
+      { type: "wait", ms: 1600 },
+      { type: "inspect-screen" }
+    ]
   });
   assert.deepEqual(parseDesktopCommand("Not Defteri'ni aç ve içine NOVA test başarılı yaz"), {
     intent: "computer-control", done: true, message: "Not Defteri açıldı ve metin yazıldı.",
@@ -123,6 +128,7 @@ test("desktop parser handles Turkish Settings inflections, YouTube search, file 
   assert.deepEqual(parseDesktopCommand("Açık pencereleri listele"), { intent: "list-windows" });
   assert.deepEqual(parseDesktopCommand("Ekranımı analiz et"), { intent: "screen-summary" });
   assert.deepEqual(parseDesktopCommand("CPU ve RAM kullanımını raporla"), { intent: "computer-info" });
+  assert.deepEqual(parseDesktopCommand("Pil, CPU ve RAM kullanımını raporla"), { intent: "computer-info" });
   assert.deepEqual(parseDesktopCommand("Google'da İstanbul hava durumu ara, sonuçları incele ve bana özetle"), {
     intent: "computer-control", done: false,
     actions: [{ type: "research-web", query: "İstanbul hava durumu" }]
@@ -131,11 +137,11 @@ test("desktop parser handles Turkish Settings inflections, YouTube search, file 
     intent: "list-folders"
   });
   assert.deepEqual(parseDesktopCommand("mouse'u sağa hareket ettir"), {
-    intent: "computer-control", done: true, message: "Mouse hareket ettirildi.",
+    intent: "computer-control", done: true, message: "Mouse yumuşak biçimde hareket ettirildi.",
     actions: [{ type: "move-mouse", dx: 140, dy: 0, durationMs: 650, steps: 32 }, { type: "finish" }]
   });
   assert.deepEqual(parseDesktopCommand("fareyi sola hareket ettir"), {
-    intent: "computer-control", done: true, message: "Mouse hareket ettirildi.",
+    intent: "computer-control", done: true, message: "Mouse yumuşak biçimde hareket ettirildi.",
     actions: [{ type: "move-mouse", dx: -140, dy: 0, durationMs: 650, steps: 32 }, { type: "finish" }]
   });
 });

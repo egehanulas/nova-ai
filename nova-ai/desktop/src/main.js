@@ -838,6 +838,15 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
       "Ekrandaki erişilebilir öğeleri okuyup adım adım tıklama ve metin yazma",
       "Rastgele terminal komutları yerine izinli ve doğrulanan masaüstü eylemleri"
     ],
+    "0.2.0-alpha.35": [
+      "Türkçe doğal komutlar için yerel ve daha hızlı masaüstü komut tanıma",
+      "YouTube'da arama ve belirli videoları açmak için ekranı izleyen çok adımlı akış",
+      "Fare imlecinde yumuşak hızlanma ve yavaşlamayla animasyonlu hareket",
+      "Bilgisayarın yerel tarih ve saatini, CPU/RAM kullanımını ve pil durumunu okuma",
+      "Açık pencereleri listeleme ve etkin pencerenin erişilebilir içeriğini özetleme",
+      "Not Defteri'ni açıp istenen metni tek komutla yazma",
+      "Yapay zekâ planlama servisi geçici olarak çalışmadığında güvenli kısmi sonuç ve açıklama"
+    ],
     "0.2.0-alpha.34": [
       "Windows Ayarları ve Görev Yöneticisi için daha güvenilir doğrudan başlatma",
       "Türkçe uygulama adlarında doğal ekleri tanıma ve YouTube/yt arama komutları",
