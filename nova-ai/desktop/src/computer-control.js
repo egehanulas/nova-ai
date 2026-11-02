@@ -57,14 +57,14 @@ export function validateComputerAction(action) {
 }
 
 export function parseComputerControlOutput(stdout) {
-  const output = String(stdout || "");
-  const matches = [...output.matchAll(/NOVA_RESULT:(\{[^\r\n]*\})/g)];
-  if (!matches.length) throw new Error("Windows masaüstü kontrolünden geçerli sonuç alınamadı.");
-  try {
-    return JSON.parse(matches[matches.length - 1][1]);
-  } catch {
-    throw new Error("Windows masaüstü kontrolü bozuk sonuç döndürdü.");
+  const lines = String(stdout || "").split(/\r?\n/).reverse();
+  for (const line of lines) {
+    const marker = line.lastIndexOf("NOVA_RESULT:");
+    const candidate = (marker >= 0 ? line.slice(marker + "NOVA_RESULT:".length) : line).trim();
+    if (!candidate.startsWith("{") || !candidate.endsWith("}")) continue;
+    try { return JSON.parse(candidate); } catch {}
   }
+  throw new Error("Windows masaüstü kontrolünden geçerli sonuç alınamadı.");
 }
 
 export async function runComputerAction(action) {
