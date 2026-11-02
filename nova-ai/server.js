@@ -7,7 +7,7 @@ const rateLimit = require("express-rate-limit");
 const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 const { researchWeb, hasRelevantTopicEvidence } = require("./web-research");
-const { normalizeDesktopIntent } = require("./desktop-plan");
+const { normalizeDesktopIntent, enforceNoSend } = require("./desktop-plan");
 
 let helmet;
 
@@ -3388,6 +3388,7 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
       if (action.type === "launch-steam-game" && (typeof action.game !== "string" || !action.game.trim() || action.game.length > 120)) throw new Error("Steam oyun adı geçersiz.");
       if (action.type === "spotify-search" && (typeof action.query !== "string" || !action.query.trim() || action.query.length > 180)) throw new Error("Spotify araması geçersiz.");
     }
+    enforceNoSend(intent, command);
     return res.json({ success: true, intent: { ...intent, done: intent.done === true, message: typeof intent.message === "string" ? intent.message.slice(0, 500) : "" } });
   } catch (error) {
     console.error("[NOVA AI] Masaüstü komutu yorumlanamadı:", error.message);
