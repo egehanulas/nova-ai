@@ -22,7 +22,7 @@ import {
 } from "./desktop-assistant.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 import { parseDesktopCommand } from "./desktop-command.js";
-import { validateComputerAction, runComputerAction } from "./computer-control.js";
+import { validateComputerAction, runComputerAction, parseComputerControlOutput } from "./computer-control.js";
 
 test("user path resolver accepts configured user folders and rejects unrelated paths", () => {
   const home = os.homedir();
@@ -562,6 +562,14 @@ test("Steam game resolver finds a uniquely installed title in a library manifest
     else process.env.ProgramFiles = previousProgramFiles;
     await fs.rm(base, { recursive: true, force: true });
   }
+});
+
+test("PowerShell startup CLIXML progress does not corrupt desktop action results", () => {
+  const startupProgress = '<Objs Version="1.1.0.1"><Obj S="progress"><AV>Preparing modules for first use.</AV></Obj></Objs>';
+  const output = startupProgress + '\\r\\n{"success":true,"message":"Metin yazıldı."}\\r\\n';
+  assert.deepEqual(parseComputerControlOutput(output), { success: true, message: "Metin yazıldı." });
+  assert.deepEqual(parseComputerControlOutput('NOVA_RESULT:{"success":false,"error":"test"}'), { success: false, error: "test" });
+  assert.throws(() => parseComputerControlOutput(startupProgress), /geçerli sonuç/);
 });
 
 test("desktop screen inspection prioritizes editable controls and supports AutomationId targeting", async () => {
