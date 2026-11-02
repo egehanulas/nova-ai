@@ -81,7 +81,7 @@ export function parseDesktopCommand(input) {
   }
   if (folderName) return { intent: "create-folder", name: folderName, location: folderLocation };
 
-  match = command.match(/^(?:lütfen\s+)?(masaüstündeki|belgelerdeki|indirilenlerdeki)\s+(.+?)\s+(?:dosyasını|dosyayı|klasörünü|öğesini)\s+(.+?)\s+(?:taşı|tası|taşır\s+mısın|taşıyabilir\s+misin|aktar|götür|yerleştir|koy)(?:\s+lütfen)?$/i);
+  match = command.match(new RegExp("^(?:lütfen\\s+)?(" + LOCATION_TOKEN + ")\\s+(.+?)\\s+(?:dosyasını|dosyayı|klasörünü|öğesini)\\s+(.+?)\\s+(?:taşı|tası|taşır\\s+mısın|taşıyabilir\\s+misin|aktar|götür|yerleştir|koy)(?:\\s+lütfen)?$", "i"));
   if (match) return {
     intent: "move-file",
     source: cleanTarget(match[2]),
@@ -124,7 +124,7 @@ export function parseDesktopCommand(input) {
     location: driveOpenMatch[1].toUpperCase() + ":\\"
   };
 
-  const locatedOpenMatch = command.match(/^(?:lütfen\s+)?(masaüstündeki|masaüstünde|belgelerdeki|belgelerde|indirilenlerdeki|indirilenlerde)\s+(.+?)\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\s*(?:aç|göster|çalıştır)(?:\s+(?:lütfen|artık))?$/i);
+  const locatedOpenMatch = command.match(new RegExp("^(?:lütfen\\s+)?(" + LOCATION_TOKEN + ")\\s+(.+?)\\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\\s*(?:aç|göster|çalıştır)(?:\\s+(?:lütfen|artık))?$", "i"));
   const openMatch = locatedOpenMatch
     || command.match(/^(?:(?:lütfen)\s+)?(?:(?:bana|benim için)\s+)?(?:şunu\s+)?(?:aç|göster|çalıştır)\s*[:：]?\s*(.+)$/i)
     || command.match(/^(.+?)\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\s*(?:aç|göster|çalıştır)(?:\s+(?:lütfen|artık))?$/i);
@@ -144,7 +144,7 @@ export function parseDesktopCommand(input) {
     location: match[1].toUpperCase() + ":\\"
   };
 
-  match = command.match(/^(?:masaüstünde|masaüstündeki|belgelerde|belgelerdeki|indirilenlerde|indirilenlerdeki)\s+(.+)$/i);
+  match = command.match(new RegExp("^(" + LOCATION_TOKEN + ")\\s+(.+)$", "i"));
   if (match) return {
     intent: "search-files",
     query: cleanTarget(match[1]),
