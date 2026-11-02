@@ -81,7 +81,7 @@ export async function listUserFolders() {
   return results;
 }
 
-export async function searchUserFiles(query) {
+export async function searchUserFiles(query, preferredLocation = "") {
   if (typeof query !== "string" || !query.trim() || query.length > 120) throw new Error("Aramak için en fazla 120 karakterlik bir dosya adı yaz.");
   const needle = query.trim().toLocaleLowerCase("tr-TR"), found = [];
   async function walk(dir, depth) {
@@ -99,7 +99,8 @@ export async function searchUserFiles(query) {
     }
   }
   for (const root of ROOTS) await walk(root, 3);
-  return found;
+  const preferredRoot = rootForLocation(preferredLocation);
+  return preferredRoot ? found.filter((item) => inside(preferredRoot, path.resolve(item.path))) : found;
 }
 
 export async function openAllowedApp(appName) {
