@@ -345,12 +345,12 @@ function registerDesktopAssistantIpc() {
     const sensitiveCommand = rawCommand.toLocaleLowerCase("tr-TR");
     const approvalReason =
       /(?:hesap.{0,35}ayar|ayar.{0,35}hesap|account.{0,35}settings|settings.{0,35}account|güvenlik.{0,25}ayar|gizlilik.{0,25}ayar|şifre(?:mi|yi)?\s+değiştir|e.?posta\s+adresini\s+değiştir)/iu.test(sensitiveCommand) ? "Hesap ayarlarını değiştirme" :
-      /(?:yükle|kur|kaldır|uninstall|install)/iu.test(sensitiveCommand) ? "Program kurma veya kaldırma" : "";
+      "";
     const sensitiveActionReason = (action) => {
       const label = [action?.text, action?.name, action?.automationId].filter(Boolean).join(" ");
       const purchasePattern = /(?:satın\s*al|sipariş\s*ver|öde|checkout|buy\s*now|place\s+order|complete\s+purchase|confirm\s+purchase|pay\s*now)/iu;
       const deletePattern = /(?:sil|delete|remove|move\s+to\s+trash|çöp\s+kutusu)/iu;
-      if (action?.type === "launch-installer") return "Program kurulumu";
+      if (action?.type === "launch-installer" || /(?:install|yükle|kur)/iu.test(label)) return "Program kurulumu";
       if (purchasePattern.test(label)) return "Satın alma veya ödeme";
       if (deletePattern.test(label) || /(?:uninstall|kaldır)/iu.test(label)) return "Dosya veya program kaldırma";
       const latest = observations[observations.length - 1];
