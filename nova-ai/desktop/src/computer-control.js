@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -51,12 +52,18 @@ export async function runComputerAction(action) {
   validateComputerAction(action);
   if (process.platform !== "win32") throw new Error("Masaüstü kontrolü yalnızca Windows'ta kullanılabilir.");
   const payload = Buffer.from(JSON.stringify(action), "utf8").toString("base64");
+  const script = await fs.readFile(SCRIPT_PATH, "utf8");
+  const encodedScript = Buffer.from(script, "utf16le").toString("base64");
   const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
   return await new Promise((resolve, reject) => {
     const child = spawn(powershell, [
       "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-      "-STA", "-File", SCRIPT_PATH, "-Payload", payload
-    ], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+      "-STA", "-EncodedCommand", encodedScript
+    ], {
+      windowsHide: true,
+      env: { ...process.env, NOVA_CONTROL_PAYLOAD: payload },
+      stdio: ["ignore", "pipe", "pipe"]
+    });
     let stdout = "";
     let stderr = "";
     child.stdout.setEncoding("utf8");
