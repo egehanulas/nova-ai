@@ -125,7 +125,8 @@ export async function runComputerAction(action) {
   const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "nova-desktop-control-"));
   const tempScriptPath = path.join(tempDirectory, "computer-control.ps1");
   try {
-    await fs.writeFile(tempScriptPath, script, { encoding: "utf8", mode: 0o600 });
+    // Windows PowerShell 5.1 otherwise treats UTF-8 without a BOM as the active ANSI code page.
+    await fs.writeFile(tempScriptPath, "\uFEFF" + script, { encoding: "utf8", mode: 0o600 });
     const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
     return await new Promise((resolve, reject) => {
     const child = spawn(powershell, [
