@@ -366,7 +366,7 @@ function registerDesktopAssistantIpc() {
 
     switch (intent.intent) {
       case "help":
-        return { message: "Bilgisayarındaki sürücülerdeki dosya ve klasörleri arayabilir, açabilir, taşıyabilir ve yeniden adlandırabilirim. Örnek: “image.png dosyasını aç”, “D sürücüsündeki rapor.pdf dosyasını aç”, “Masaüstündeki video.mp4 dosyasını İndirilenler klasörüne taşı”. Sistem klasörleri genel aramada atlanır; tam konumlarını belirtirsen erişim izinleri dahilinde arayıp açabilirim. Bu alanlarda değişiklik yapılamaz. Taşıma, silme ve klasör oluşturma işlemlerinde onay isterim." };
+        return { message: "Uygulama açabilir, Chrome ve diğer tarayıcılarda site açabilir, Spotify’da şarkı arayabilir, Steam’de kurulu oyunları başlatabilir; ekrandaki öğelere tıklayıp mouse ve klavyeyi kullanabilirim. Dosya ve klasör arama/açma/taşıma işlemleri de yapabilirim. Örnek: “Discord’u aç”, “Chrome’da YouTube aç”, “Steam’de Dying Light: The Beast aç”, “Spotify’da Blinding Lights çal”, “Oyunlar klasöründe 121.png dosyasını aç”." };
       case "computer-info":
         return { message: JSON.stringify(getComputerInfo(), null, 2) };
       case "list-folders": {
