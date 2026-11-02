@@ -4,6 +4,8 @@ import os from "node:os";
 import fs from "node:fs/promises";
 import path from "node:path";
 import vm from "node:vm";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import {
   getComputerInfo,
   resolveUserPath,
@@ -15,10 +17,12 @@ import {
   configureUserFolderPaths,
   configureComputerFileAccess,
   resolveUserFolder,
-  isProtectedSystemPath
+  isProtectedSystemPath,
+  resolveSteamGame
 } from "./desktop-assistant.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 import { parseDesktopCommand } from "./desktop-command.js";
+import { validateComputerAction, runComputerAction } from "./computer-control.js";
 
 test("user path resolver accepts configured user folders and rejects unrelated paths", () => {
   const home = os.homedir();
@@ -492,4 +496,78 @@ test("desktop assistant HTML inline scripts remain syntactically valid", async (
   for (const [index, script] of scripts.entries()) {
     assert.doesNotThrow(() => new vm.Script(script, { filename: "assistant.html:inline-" + index }));
   }
+});
+
+test("desktop command parser supports browser, Spotify and installed Steam game requests", () => {
+  assert.deepEqual(parseDesktopCommand("Chrome'da YouTube aç"), {
+    intent: "open-url", app: "chrome", url: "https://www.youtube.com"
+  });
+  assert.deepEqual(parseDesktopCommand("YouTube aç"), {
+    intent: "open-url", url: "https://www.youtube.com"
+  });
+  assert.deepEqual(parseDesktopCommand("Spotify'da Blinding Lights çal"), {
+    intent: "computer-control", done: false,
+    actions: [
+      { type: "spotify-search", query: "Blinding Lights" },
+      { type: "wait", ms: 1800 },
+      { type: "inspect-screen" }
+    ]
+  });
+  assert.deepEqual(parseDesktopCommand("Chrome'dan YouTube aç"), {
+    intent: "open-url", app: "chrome", url: "https://www.youtube.com"
+  });
+  assert.deepEqual(parseDesktopCommand("Steam'de Dying Light: The Beast aç"), {
+    intent: "launch-steam-game", game: "Dying Light: The Beast"
+  });
+  assert.equal(parseDesktopCommand("Spotify'ı aç").app, "spotify");
+});
+
+test("computer control validates supported actions and rejects unsafe or malformed inputs", () => {
+  assert.equal(validateComputerAction({ type: "inspect-screen" }).type, "inspect-screen");
+  assert.equal(validateComputerAction({ type: "type-text", text: "Ben Nova" }).text, "Ben Nova");
+  assert.throws(() => validateComputerAction({ type: "run-command", command: "whoami" }), /Desteklenmeyen/);
+  assert.throws(() => validateComputerAction({ type: "press-key", key: "WIN+R" }), /İzin verilmeyen/);
+  assert.throws(() => validateComputerAction({ type: "click", x: -1, y: 30 }), /koordinat/);
+  assert.deepEqual(validateComputerAction({ type: "move-mouse", dx: 40, dy: -20 }), { type: "move-mouse", dx: 40, dy: -20 });
+  assert.throws(() => validateComputerAction({ type: "move-mouse", dx: 40000, dy: 0 }), /hareket koordinatları/);
+});
+
+test("Steam game resolver finds a uniquely installed title in a library manifest", async () => {
+  const base = await fs.mkdtemp(path.join(os.tmpdir(), "nova-steam-library-test-"));
+  const steamRoot = path.join(base, "Steam");
+  const steamApps = path.join(steamRoot, "steamapps");
+  await fs.mkdir(steamApps, { recursive: true });
+  await fs.writeFile(path.join(steamRoot, "steam.exe"), "");
+  await fs.writeFile(path.join(steamApps, "libraryfolders.vdf"), '"libraryfolders" { "0" { "path" "' + steamRoot.replace(/\\/g, "\\\\") + '" } }');
+  await fs.writeFile(path.join(steamApps, "appmanifest_123456.acf"), '"AppState" { "appid" "123456" "name" "NOVA Test Game" }');
+  const previousX86 = process.env["ProgramFiles(x86)"];
+  const previousProgramFiles = process.env.ProgramFiles;
+  process.env["ProgramFiles(x86)"] = base;
+  process.env.ProgramFiles = base;
+  try {
+    const game = await resolveSteamGame("NOVA Test Game");
+    assert.equal(game.name, "NOVA Test Game");
+    assert.equal(game.appId, "123456");
+    await assert.rejects(resolveSteamGame("missing game"), /kurulu bir oyun bulamadım/);
+  } finally {
+    if (previousX86 === undefined) delete process.env["ProgramFiles(x86)"];
+    else process.env["ProgramFiles(x86)"] = previousX86;
+    if (previousProgramFiles === undefined) delete process.env.ProgramFiles;
+    else process.env.ProgramFiles = previousProgramFiles;
+    await fs.rm(base, { recursive: true, force: true });
+  }
+});
+
+test("Windows PowerShell desktop automation script parses without syntax errors", { skip: process.platform !== "win32" }, () => {
+  const scriptPath = fileURLToPath(new URL("./computer-control.ps1", import.meta.url));
+  const command = "$tokens = $null; $errors = $null; [System.Management.Automation.Language.Parser]::ParseFile('" +
+    scriptPath.replace(/'/g, "''") +
+    "', [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count -gt 0) { $errors | Out-String; exit 1 }";
+  const result = spawnSync("powershell.exe", ["-NoLogo", "-NoProfile", "-Command", command], { encoding: "utf8" });
+  assert.equal(result.status, 0, (result.stdout || "") + (result.stderr || ""));
+});
+
+test("Windows desktop controller can load its automation runtime", { skip: process.platform !== "win32" }, async () => {
+  const result = await runComputerAction({ type: "wait", ms: 0 });
+  assert.equal(result.success, true);
 });

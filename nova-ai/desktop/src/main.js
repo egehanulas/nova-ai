@@ -15,8 +15,9 @@ import {
 import { URL, pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder } from "./desktop-assistant.js";
+import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder, launchSteamGame, searchSpotify, openSpotify } from "./desktop-assistant.js";
 import { parseDesktopCommand } from "./desktop-command.js";
+import { runComputerAction } from "./computer-control.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 
 const NOVA_URL = "https://nova-ai-xxid.onrender.com/";
@@ -331,25 +332,25 @@ function registerDesktopAssistantIpc() {
     const rawCommand = typeof payload.command === "string" ? payload.command : "";
     let intent = parseDesktopCommand(rawCommand);
     const accessToken = typeof payload.accessToken === "string" ? payload.accessToken : "";
+    const observations = [];
+    const requestInterpretation = async () => {
+      if (!accessToken || accessToken.length >= 5000) return null;
+      const response = await fetch(new URL("/api/desktop/interpret", NOVA_URL), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + accessToken
+        },
+        body: JSON.stringify({ command: rawCommand, observations: observations.slice(-6) }),
+        signal: AbortSignal.timeout(25000)
+      });
+      if (!response.ok) throw new Error("NOVA komut yorumlama servisi HTTP " + response.status);
+      const interpreted = await response.json();
+      return interpreted?.intent && typeof interpreted.intent === "object" ? interpreted.intent : null;
+    };
     if (intent.intent === "unknown" && accessToken && accessToken.length < 5000) {
       try {
-        const response = await fetch(new URL("/api/desktop/interpret", NOVA_URL), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + accessToken
-          },
-          body: JSON.stringify({ command: rawCommand }),
-          signal: AbortSignal.timeout(25000)
-        });
-        if (response.ok) {
-          const interpreted = await response.json();
-          if (interpreted?.intent && typeof interpreted.intent === "object") {
-            intent = interpreted.intent;
-          }
-        } else {
-          console.warn("NOVA AI intent interpretation unavailable:", response.status);
-        }
+        intent = await requestInterpretation() || intent;
       } catch (error) {
         console.warn("NOVA AI intent interpretation failed; local parser remains available:", error.message);
       }
@@ -365,7 +366,7 @@ function registerDesktopAssistantIpc() {
 
     switch (intent.intent) {
       case "help":
-        return { message: "Bilgisayarındaki sürücülerdeki dosya ve klasörleri arayabilir, açabilir, taşıyabilir ve yeniden adlandırabilirim. Örnek: “image.png dosyasını aç”, “D sürücüsündeki rapor.pdf dosyasını aç”, “Masaüstündeki video.mp4 dosyasını İndirilenler klasörüne taşı”. Sistem klasörleri genel aramada atlanır; tam konumlarını belirtirsen erişim izinleri dahilinde arayıp açabilirim. Bu alanlarda değişiklik yapılamaz. Taşıma, silme ve klasör oluşturma işlemlerinde onay isterim." };
+        return { message: "Uygulama açabilir, Chrome ve diğer tarayıcılarda site açabilir, Spotify’da şarkı arayabilir, Steam’de kurulu oyunları başlatabilir; ekrandaki öğelere tıklayıp mouse ve klavyeyi kullanabilirim. Dosya ve klasör arama/açma/taşıma işlemleri de yapabilirim. Örnek: “Discord’u aç”, “Chrome’da YouTube aç”, “Steam’de Dying Light: The Beast aç”, “Spotify’da Blinding Lights çal”, “Oyunlar klasöründe 121.png dosyasını aç”." };
       case "computer-info":
         return { message: JSON.stringify(getComputerInfo(), null, 2) };
       case "list-folders": {
@@ -374,7 +375,79 @@ function registerDesktopAssistantIpc() {
           folder.items.slice(0, 20).map((item) => (item.type === "folder" ? "📁 " : "📄 ") + item.name).join("\\n")).join("\\n\\n") };
       }
       case "open-app":
+        if (intent.app === "spotify") return await openSpotify();
         return await openAllowedApp(intent.app);
+      case "open-url": {
+        let targetUrl = typeof intent.url === "string" ? intent.url : "";
+        if (!targetUrl && typeof intent.query === "string" && intent.query.trim()) {
+          targetUrl = "https://www.google.com/search?q=" + encodeURIComponent(intent.query.trim());
+        }
+        let parsedUrl;
+        try { parsedUrl = new URL(targetUrl); } catch { throw new Error("Açılacak internet adresi geçersiz."); }
+        if (!["https:", "http:"].includes(parsedUrl.protocol)) throw new Error("Yalnızca güvenli web adresleri açılabilir.");
+        if (intent.app === "chrome") {
+          await openAllowedApp("chrome", [parsedUrl.href]);
+          return { message: "Google Chrome'da " + parsedUrl.hostname + " açılıyor." };
+        }
+        openExternal(parsedUrl.href);
+        return { message: parsedUrl.hostname + " varsayılan tarayıcıda açılıyor." };
+      }
+      case "spotify-search":
+        return await searchSpotify(intent.query);
+      case "launch-steam-game":
+        return await launchSteamGame(intent.game);
+      case "computer-control": {
+        let currentIntent = intent;
+        let completed = 0;
+        for (let round = 0; round < 6; round += 1) {
+          if (!Array.isArray(currentIntent.actions) || currentIntent.actions.length > 8) {
+            throw new Error("Masaüstü kontrol planı geçersiz veya çok uzun.");
+          }
+          let needsReplan = false;
+          for (const action of currentIntent.actions) {
+            if (!action || typeof action !== "object") throw new Error("Masaüstü kontrol adımı geçersiz.");
+            if (action.type === "finish") {
+              return { message: currentIntent.message || (completed ? "İstenen masaüstü işlemleri tamamlandı." : "Komutu güvenli biçimde tamamlayamadım; biraz daha açık anlatır mısın?"), steps: completed };
+            }
+            if (action.type === "inspect-screen") {
+              const result = await runComputerAction(action);
+              observations.push({ activeWindow: result.activeWindow || "", items: result.items || [] });
+              currentIntent = await requestInterpretation();
+              if (!currentIntent || currentIntent.intent !== "computer-control" || !Array.isArray(currentIntent.actions)) {
+                throw new Error("NOVA ekrandaki durumu yorumlayamadı; güvenli olması için işlem durduruldu.");
+              }
+              needsReplan = true;
+              break;
+            }
+            if (action.type === "open-app") {
+              if (action.app === "spotify") await openSpotify();
+              else await openAllowedApp(action.app);
+            } else if (action.type === "open-url") {
+              let parsedUrl;
+              try { parsedUrl = new URL(String(action.url || "")); } catch { throw new Error("Açılacak internet adresi geçersiz."); }
+              if (!["https:", "http:"].includes(parsedUrl.protocol)) throw new Error("Yalnızca HTTP ve HTTPS adresleri açılabilir.");
+              if (action.app === "chrome") await openAllowedApp("chrome", [parsedUrl.href]);
+              else if (action.app === "edge") await openAllowedApp("edge", [parsedUrl.href]);
+              else if (action.app === "firefox") await openAllowedApp("firefox", [parsedUrl.href]);
+              else openExternal(parsedUrl.href);
+            } else if (action.type === "launch-steam-game") {
+              await launchSteamGame(action.game);
+            } else if (action.type === "spotify-search") {
+              await searchSpotify(action.query);
+            } else {
+              await runComputerAction(action);
+            }
+            completed += 1;
+          }
+          if (!needsReplan) {
+            if (currentIntent.done === true) {
+              return { message: "İstenen masaüstü işlemleri tamamlandı.", steps: completed };
+            }
+            return { message: "Masaüstü adımları uygulandı; devam etmek için komutun kalan kısmını belirt.", steps: completed };
+          }
+        }
+        throw new Error("Masaüstü görevi güvenlik sınırına ulaştı; tamamlanmamış adımlar durduruldu.");
+      }
       case "search-files": {
         const found = await searchUserFiles(intent.query, intent.location || "");
         if (!found.length) {
@@ -575,6 +648,13 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
       "Bilgisayar bilgilerini görüntüleme ve kişisel klasörlerde dosya arama",
       "Not Defteri, Hesap Makinesi, Dosya Gezgini ve Steam'i açma",
       "Klasör oluşturma, dosya taşıma ve yeniden adlandırma işlemleri için güvenlik onayları"
+    ],
+    "0.2.0-alpha.28": [
+      "NOVA artık Windows masaüstünde mouse ve klavyeyi kullanabiliyor",
+      "Discord, Chrome, Spotify ve diğer desteklenen uygulamalar arasında işlem yapabiliyor",
+      "Steam kütüphanesindeki kurulu oyunları adlarıyla başlatabiliyor",
+      "Ekrandaki erişilebilir öğeleri okuyup adım adım tıklama ve metin yazma",
+      "Rastgele terminal komutları yerine izinli ve doğrulanan masaüstü eylemleri"
     ]
   };
   const suppliedNotes = Array.isArray(releaseNotes)

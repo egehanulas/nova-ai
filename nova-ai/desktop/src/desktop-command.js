@@ -1,5 +1,9 @@
 const APP_ALIASES = [
   { names: ["steam"], app: "steam", label: "Steam" },
+  { names: ["chrome", "google chrome"], app: "chrome", label: "Google Chrome" },
+  { names: ["edge", "microsoft edge"], app: "edge", label: "Microsoft Edge" },
+  { names: ["firefox"], app: "firefox", label: "Firefox" },
+  { names: ["spotify"], app: "spotify", label: "Spotify" },
   { names: ["discord"], app: "discord", label: "Discord" },
   { names: ["paint"], app: "paint", label: "Paint" },
   { names: ["not defteri", "notepad"], app: "notepad", label: "Not Defteri" },
@@ -50,6 +54,28 @@ export function parseDesktopCommand(input) {
   if (/^(?:yardım|komutlar|neler yapabilirsin|ne yapabilirsin)$/.test(text)) return { intent: "help" };
   if (/^(?:bilgisayar bilgileri|sistem bilgileri|bilgisayarımın özellikleri|pc özellikleri)$/.test(text)) return { intent: "computer-info" };
   if (/^(?:klasörler|klasörlerimi göster|dosyalarımı göster|hızlı erişim|sürücüleri göster|diskleri göster)$/.test(text)) return { intent: "list-folders" };
+
+  let browserMatch = command.match(/^(?:google\s+)?chrome(?:'da|'dan|'de|'den|’da|’dan|da|dan|de|den)\s+(.+?)\s+(?:aç|git|gir)$/iu);
+  if (browserMatch) {
+    const target = browserMatch[1].trim();
+    const url = /^(?:youtube|youtube\.com)$/iu.test(target) ? "https://www.youtube.com"
+      : /^https?:\/\//i.test(target) ? target
+      : "";
+    if (url) return { intent: "open-url", app: "chrome", url };
+    return { intent: "open-url", app: "chrome", query: target };
+  }
+
+  browserMatch = command.match(/^(?:youtube|youtube\.com)\s+(?:aç|gir)$/iu);
+  if (browserMatch) return { intent: "open-url", url: "https://www.youtube.com" };
+
+  browserMatch = command.match(/^youtube(?:'da|’da|da)\s+(.+?)\s+ara$/iu);
+  if (browserMatch) return { intent: "open-url", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent(browserMatch[1].trim()) };
+
+  browserMatch = command.match(/^spotify(?:'da|’da|da)\s+(.+?)\s+(?:çal|cal|aç|ac|dinlet)$/iu);
+  if (browserMatch) return { intent: "computer-control", done: false, actions: [{ type: "spotify-search", query: browserMatch[1].trim() }, { type: "wait", ms: 1800 }, { type: "inspect-screen" }] };
+
+  browserMatch = command.match(/^steam(?:'de|’de|de)\s+(.+?)\s+(?:aç|ac|başlat|baslat|oyna|çalıştır|calistir)$/iu);
+  if (browserMatch) return { intent: "launch-steam-game", game: browserMatch[1].trim() };
 
   const appText = text
     .replace(/^(?:lütfen\s+)?(?:(?:bana|benim için)\s+)?/i, "")
