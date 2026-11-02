@@ -28,7 +28,19 @@ NOVA AI web uygulamasını Windows masaüstü penceresinde çalıştıran Electr
 - Yardım > Güncellemeleri denetle bölümünden güncellemeyi elle kontrol et.
 - Yardım > NOVA AI Hakkında bölümünden kurulu sürümü gör.
 
-## Bilgisayar Asistanı (Windows masaüstü)\n\n- Dosya > Bilgisayar Asistanı menüsünden açılır.\n- Not Defteri, Hesap Makinesi, Dosya Gezgini ve Steam için sabit izin listesi kullanır.\n- Bilgisayar bilgilerini gösterir; Masaüstü, Belgeler ve İndirilenler içinde sınırlı dosya araması yapar.\n- Yalnızca bu üç kullanıcı klasörü içinde yeni klasör oluşturabilir ve dosya/klasör taşıyıp yeniden adlandırabilir.\n- Klasör oluşturma ve taşıma öncesinde Windows onay penceresi gösterilir.\n- Dosya silme, program kaldırma, komut satırı çalıştırma veya genel sistem ayarı değiştirme yeteneği yoktur.\n- Web sitesi bu IPC köprüsüne sahip değildir; özellik yerel Electron penceresi ve doğrulanmış IPC göndericisiyle sınırlıdır.\n\n## Geliştirme
+## Bilgisayar Asistanı (Windows masaüstü)
+
+- Dosya > Bilgisayar Asistanı menüsünden açılır.
+- Not Defteri, Hesap Makinesi, Dosya Gezgini, Paint, Steam ve Discord sabit uygulama izin listesiyle başlatılır.
+- Bilgisayar bilgilerini gösterir ve erişilebilir yerel sürücülerde dosya/klasör arar.
+- Kullanıcı tarafından erişilebilen yerel sürücülerde dosya açma, klasör oluşturma, taşıma ve yeniden adlandırma işlemleri desteklenir.
+- Windows ve uygulama sistem dizinleri arama/açma için erişilebilir olabilir; bu alanlarda değişiklik yapılamaz.
+- Çalıştırılabilir dosyalar, betikler, kurulum paketleri ve Windows kısayolları genel dosya açma komutuyla çalıştırılamaz.
+- Taşıma ve Geri Dönüşüm Kutusu işlemleri Windows onayı ister. Klasör oluşturma için masaüstü penceresindeki yerel onay penceresi kullanılır.
+- Arama sınırına ulaşılırsa veya erişim izni olmayan klasörler bulunursa sonuçların kısmi olabileceği kullanıcıya bildirilir.
+- Web sitesi bu IPC köprüsüne sahip değildir; özellik yerel Electron penceresi ve doğrulanmış üst-seviye IPC göndericisiyle sınırlıdır.
+
+## Geliştirme
 
 Bu klasörde:
 
