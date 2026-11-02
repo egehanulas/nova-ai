@@ -64,7 +64,6 @@ export function parseComputerControlOutput(stdout) {
     const payload = output.slice(sentinel + "NOVA_RESULT:".length).trim();
     try { return JSON.parse(payload); } catch {}
   }
-  let parsed = null;
   for (let start = output.indexOf("{"); start >= 0; start = output.indexOf("{", start + 1)) {
     let depth = 0;
     let inString = false;
@@ -80,12 +79,11 @@ export function parseComputerControlOutput(stdout) {
       if (character === '"') inString = true;
       else if (character === "{") depth++;
       else if (character === "}" && --depth === 0) {
-        try { parsed = JSON.parse(output.slice(start, index + 1)); } catch {}
+        try { return JSON.parse(output.slice(start, index + 1)); } catch {}
         break;
       }
     }
   }
-  if (parsed) return parsed;
   throw new Error("Windows masaüstü kontrolünden geçerli sonuç alınamadı.");
 }
 
