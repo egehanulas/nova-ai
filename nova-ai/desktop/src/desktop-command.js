@@ -69,8 +69,8 @@ export function parseDesktopCommand(input) {
   match = raw.match(/^(?:yeniden adlandır|adını değiştir)\s+(.+?)\s*(?:->|→| olarak | diye )\s*(.+)$/i);
   if (match) return { intent: "rename-file", source: cleanTarget(match[1]), newName: cleanTarget(match[2]) };
 
-  match = text.match(/^(?:sil|çöp kutusuna taşı|geri dönüşüm kutusuna taşı)\\s+(.+)$/i)
-    || raw.match(/^(.+?)\\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\\s*(?:sil|çöp kutusuna taşı|geri dönüşüm kutusuna taşı)$/i);
+  match = text.match(/^(?:sil|çöp kutusuna taşı|geri dönüşüm kutusuna taşı)\s+(.+)$/i)
+    || raw.match(/^(.+?)\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\s*(?:sil|çöp kutusuna taşı|geri dönüşüm kutusuna taşı)$/i);
   if (match) return { intent: "trash-file", target: cleanTarget(match[1]) };
 
   const searchMatch = raw.match(/^(?:dosya\s+ara|ara|bul|dosyayı\s+bul|dosya\s+bul)\s+(.+)$/i);
