@@ -115,22 +115,22 @@ export async function openAllowedApp(appName) {
 export async function openUserPath(input) {
   if (typeof input !== "string" || !input.trim()) throw new Error("Açılacak dosya veya klasörün adını yaz.");
   let candidate = input.trim().replace(/^["“]|["”]$/g, "");
-  if (!path.isAbsolute(candidate) && !candidate.includes("/") && !candidate.includes("\\\\")) {
+  if (!path.isAbsolute(candidate) && !candidate.includes("/") && !candidate.includes("\\")) {
     const matches = await searchUserFiles(candidate);
     const exact = matches.filter((item) => item.name.toLocaleLowerCase("tr-TR") === candidate.toLocaleLowerCase("tr-TR"));
     const selected = exact.length ? exact : matches;
     if (!selected.length) throw new Error("“" + candidate + "” adlı öğeyi Masaüstü, Belgeler veya İndirilenler içinde bulamadım. Önce dosya adını aratabilirsin.");
     if (selected.length > 1) {
-      throw new Error("Aynı isimde birden fazla öğe buldum. Hangisini açayım?\\n" +
-        selected.slice(0, 5).map((item) => item.path).join("\\n"));
+      throw new Error("Aynı isimde birden fazla öğe buldum. Hangisini açayım?\n" +
+        selected.slice(0, 5).map((item) => item.path).join("\n"));
     }
     candidate = selected[0].path;
   } else {
     candidate = candidate
-      .replace(/^~(?=[\\\\/])/, HOME)
-      .replace(/^(?:masaüstü|masaustu|desktop)(?=[\\\\/])/i, path.join(HOME, "Desktop"))
-      .replace(/^(?:belgeler|documents)(?=[\\\\/])/i, path.join(HOME, "Documents"))
-      .replace(/^(?:indirilenler|downloads)(?=[\\\\/])/i, path.join(HOME, "Downloads"));
+      .replace(/^~(?=[\\/])/, HOME)
+      .replace(/^(?:masaüstü|masaustu|desktop)(?=[\\/])/i, path.join(HOME, "Desktop"))
+      .replace(/^(?:belgeler|documents)(?=[\\/])/i, path.join(HOME, "Documents"))
+      .replace(/^(?:indirilenler|downloads)(?=[\\/])/i, path.join(HOME, "Downloads"));
   }
   const { path: safePath } = await resolveExistingUserPath(candidate);
   return { path: safePath, message: "“" + path.basename(safePath) + "” açılmaya hazır." };
