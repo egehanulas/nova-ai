@@ -385,9 +385,9 @@ export async function openInstalledApp(appName) {
     '  $selected = $matches[0]',
     '}',
     '$appId = [string]$selected.AppID',
-    'if ($appId -match "^[A-Za-z0-9_.!+ -]+$" -and $appId -notmatch "[:\\/]") {',
+    'if ($appId -match "^[A-Za-z0-9_.!+ -]+$" -and $appId -notmatch "[:\\\\/]") {',
     '  Start-Process -FilePath "$env:WINDIR\\explorer.exe" -ArgumentList @("shell:AppsFolder\\$appId")',
-    '} elseif ($appId -match "^[A-Za-z]:\\" -and $appId -match "\\Start Menu\\Programs\\" -and (Test-Path -LiteralPath $appId)) {',
+    '} elseif ($appId -match "^[A-Za-z]:\\\\" -and $appId -match "\\\\Start Menu\\\\Programs\\\\" -and (Test-Path -LiteralPath $appId)) {',
     '  Start-Process -FilePath $appId',
     '} else { throw "Uygulamanın Başlat menüsü kaydı güvenli biçimde açılamadı." }',
     '[pscustomobject]@{ success = $true; name = [string]$selected.Name } | ConvertTo-Json -Compress'
