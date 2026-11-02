@@ -1,6 +1,6 @@
 # NOVA AI
 
-**Web/API sürümü:** 0.2.0-alpha.9 · **Windows masaüstü:** 0.2.0-alpha.20 · **Kanal:** Alfa
+**Web/API sürümü:** 0.2.0-alpha.10 · **Windows masaüstü:** 0.2.0-alpha.20 · **Kanal:** Alfa
 
 NOVA AI; Türkçe sohbet, kalıcı kullanıcı hafızası, canlı web araştırması, yapılandırılmış hava durumu/futbol sorguları ve Unreal Engine 5.8 bilgi tabanı için geliştirilmiş kişisel asistandır.
 
