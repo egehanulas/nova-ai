@@ -5,6 +5,11 @@ import { parseComputerControlOutput, validateComputerAction } from "./computer-c
 test("validates absolute and relative mouse movement actions", () => {
   assert.doesNotThrow(() => validateComputerAction({ type: "move-mouse", x: 300, y: 250 }));
   assert.doesNotThrow(() => validateComputerAction({ type: "move-mouse", dx: -140, dy: 60 }));
+  assert.doesNotThrow(() => validateComputerAction({ type: "move-mouse", dx: 20, dy: 30, durationMs: 650, steps: 32 }));
+  assert.throws(() => validateComputerAction({ type: "move-mouse", dx: 20, dy: 30, durationMs: 99 }), /animasyon süresi/);
+  assert.throws(() => validateComputerAction({ type: "move-mouse", dx: 20, dy: 30, steps: 121 }), /adım sayısı/);
+  assert.doesNotThrow(() => validateComputerAction({ type: "system-info" }));
+  assert.doesNotThrow(() => validateComputerAction({ type: "list-windows" }));
   assert.throws(() => validateComputerAction({ type: "move-mouse", x: -1, y: 20 }), /Mouse hareket koordinatları/);
   assert.throws(() => validateComputerAction({ type: "move-mouse", dx: 10001, dy: 0 }), /Mouse hareket koordinatları/);
 });

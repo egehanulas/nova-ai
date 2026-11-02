@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const SCRIPT_PATH = fileURLToPath(new URL("./computer-control.ps1", import.meta.url));
 const ALLOWED_TYPES = new Set([
-  "inspect-screen", "click-text", "focus-control", "type-text", "press-key",
+  "inspect-screen", "list-windows", "system-info", "click-text", "focus-control", "type-text", "press-key",
   "click", "move-mouse", "scroll", "wait"
 ]);
 const ALLOWED_KEYS = new Set([
@@ -48,6 +48,12 @@ export function validateComputerAction(action) {
     const relative = [action.dx, action.dy].every(Number.isInteger) &&
       Math.abs(action.dx) <= 10000 && Math.abs(action.dy) <= 10000;
     if (!absolute && !relative) throw new Error("Mouse hareket koordinatları geçersiz.");
+    if (action.durationMs != null && (!Number.isInteger(action.durationMs) || action.durationMs < 100 || action.durationMs > 5000)) {
+      throw new Error("Fare animasyon süresi 100-5000 ms arasında olmalı.");
+    }
+    if (action.steps != null && (!Number.isInteger(action.steps) || action.steps < 4 || action.steps > 120)) {
+      throw new Error("Fare animasyon adım sayısı 4-120 arasında olmalı.");
+    }
   }
   if (action.type === "scroll" && (!Number.isInteger(action.amount) || action.amount < -1200 || action.amount > 1200)) {
     throw new Error("Kaydırma miktarı geçersiz.");

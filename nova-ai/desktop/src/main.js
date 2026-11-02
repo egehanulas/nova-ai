@@ -421,12 +421,50 @@ function registerDesktopAssistantIpc() {
     switch (intent.intent) {
       case "help":
         return { message: "Windows Başlat menüsüne kayıtlı uygulamaları açabilir, Chrome ve Edge üzerinde web sitelerinde gezinebilir, arama yapabilir, formları doldurabilir, sekmeleri yönetebilir, Spotify’da müzik arayabilir, Steam’de kurulu oyunları başlatabilir; ekrandaki erişilebilir öğelere tıklayıp mouse ve klavyeyi kullanabilirim. Dosya ve klasör arama, açma, taşıma ve düzenleme işlemlerini de desteklerim. Örnek: “Discord’u aç”, “Chrome’da YouTube aç”, “Steam’de Dying Light: The Beast aç”, “Spotify’da Blinding Lights çal”, “Oyunlar klasöründe 121.png dosyasını aç”." };
-      case "computer-info":
-        return { message: JSON.stringify(getComputerInfo(), null, 2) };
+      case "local-time": {
+        const now = new Date();
+        return { message: "Bilgisayarının yerel saati: " + now.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) +
+          "\nTarih: " + now.toLocaleDateString("tr-TR", { dateStyle: "full" }) };
+      }
+      case "computer-info": {
+        try {
+          const info = await runComputerAction({ type: "system-info" });
+          const battery = info.battery?.available ? info.battery.chargePercent + "%" : (info.battery?.message || "Bilgi alınamadı");
+          return { message: [
+            "Bilgisayar: " + (info.computer || os.hostname()),
+            "Yerel saat: " + (info.localTime ? new Date(info.localTime).toLocaleString("tr-TR") : "Okunamadı"),
+            "CPU kullanımı: " + (info.cpuUsagePercent == null ? "Ölçülemedi" : info.cpuUsagePercent + "%"),
+            "RAM: " + info.ramUsedGb + " / " + info.ramTotalGb + " GB (" + info.ramUsagePercent + "%)",
+            "Pil: " + battery
+          ].join("\n") };
+        } catch (error) {
+          const fallback = getComputerInfo();
+          return { message: "Gelişmiş CPU/RAM/pil ölçümü alınamadı: " + error.message +
+            "\nTemel sistem bilgisi: " + fallback.computer + " | " + fallback.platform +
+            " | " + fallback.processor + " | " + Math.round(fallback.memoryTotal / 1073741824) + " GB RAM" };
+        }
+      }
+      case "list-windows": {
+        const result = await runComputerAction({ type: "list-windows" });
+        const windows = Array.isArray(result.windows) ? result.windows : [];
+        return { message: windows.length
+          ? "Açık pencereler (" + windows.length + "):\n" + windows.map((item, index) => (index + 1) + ". " + item.title + " [" + item.process + "]").join("\n")
+          : "Başlık bilgisi okunabilen açık uygulama penceresi bulunamadı." };
+      }
+      case "screen-summary": {
+        const result = await runComputerAction({ type: "inspect-screen" });
+        const items = Array.isArray(result.items) ? result.items : [];
+        return { message: "Önde olan pencere: " + (result.activeWindow || "Bilinmiyor") +
+          (items.length ? "\nErişilebilir ekrandaki öğeler:\n" + items.slice(0, 30).map((item, index) =>
+            (index + 1) + ". " + (item.name || item.controlType || "Adsız öğe") + " (" + item.controlType + ")").join("\n")
+            : "\nBu pencereden erişilebilir metin veya denetim alınamadı.") +
+          "\nNot: Bu rapor Windows erişilebilirlik bilgilerine dayanır; görsel piksellerin tam görüntü analizi değildir." };
+      }
       case "list-folders": {
         const all = await folders();
-        return { message: all.map((folder) => folder.name + " (" + folder.items.length + " öğe)\\n" +
-          folder.items.slice(0, 20).map((item) => (item.type === "folder" ? "📁 " : "📄 ") + item.name).join("\\n")).join("\\n\\n") };
+        const lines = all.map((folder) => folder.name + " — " + folder.items.length + " öğe\n" +
+          folder.items.slice(0, 30).map((item) => (item.type === "folder" ? "📁 " : "📄 ") + item.name).join("\n"));
+        return { message: lines.join("\n\n") || "Erişilebilir sürücü veya kullanıcı klasörü bulunamadı." };
       }
       case "open-app": {
         reportProgress("running", intent.app + " uygulaması açılıyor.");
@@ -523,7 +561,13 @@ function registerDesktopAssistantIpc() {
               }
               observations.push({ activeWindow: result.activeWindow || "", items: result.items || [] });
               reportProgress("planning", "Ekran okundu; NOVA sonraki adımı belirliyor.", completed, 0);
-              currentIntent = await requestInterpretation();
+              try {
+                currentIntent = await requestInterpretation();
+              } catch (error) {
+                reportProgress("partial", "Ekran okundu; sonraki adımı planlama servisi şu anda yanıt vermiyor.", completed, 0);
+                return { message: "Ekran bilgilerini aldım ancak sonraki adımı planlayamadım. Komut yorumlama servisi geçici olarak HTTP hatası verdi (" +
+                  error.message + "). Şu ana kadar yapılan işlemler geri alınmadı; yeni bir işlem başlatmadım.", steps: completed, partial: true };
+              }
               if (!currentIntent || currentIntent.intent !== "computer-control" || !Array.isArray(currentIntent.actions)) {
                 throw new Error("NOVA ekrandaki durumu yorumlayamadı; güvenli olması için işlem durduruldu.");
               }
