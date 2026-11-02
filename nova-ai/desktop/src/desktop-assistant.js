@@ -323,7 +323,13 @@ export async function openUserPath(input, preferredLocation = "") {
 export async function resolveUserFolder(input) {
   const knownPath = getUserFolderPath(input);
   let candidate = knownPath || input;
-  if (!knownPath && typeof input === "string" && !path.isAbsolute(input) && !input.includes("/") && !input.includes("\\")) {
+  const driveFolderMatch = typeof input === "string"
+    ? input.match(/^([A-Z])\s+(?:sürücüsündeki|diskindeki|sürücüsünde|diskinde)\s+(.+)$/i)
+    : null;
+  if (!knownPath && driveFolderMatch) {
+    const relativeFolder = driveFolderMatch[2].replace(/\s+klasörü?$/i, "").trim();
+    candidate = path.join(driveFolderMatch[1].toUpperCase() + ":\\", relativeFolder);
+  } else if (!knownPath && typeof input === "string" && !path.isAbsolute(input) && !input.includes("/") && !input.includes("\\")) {
     candidate = (await resolveUserItem(input)).path;
   }
   const resolved = await resolveExistingUserPath(candidate);
