@@ -420,6 +420,12 @@ export async function launchSteamGame(gameName) {
   return { message: "Steam üzerinden “" + game.name + "” başlatılıyor.", game: game.name, appId: game.appId };
 }
 
+export async function openSpotify() {
+  if (process.platform !== "win32") throw new Error("Spotify masaüstü bağlantısı yalnızca Windows'ta açılabilir.");
+  await launchDetached("explorer.exe", ["spotify:"]);
+  return { message: "Spotify açılıyor." };
+}
+
 export async function searchSpotify(query) {
   const value = String(query || "").trim();
   if (!value || value.length > 180) throw new Error("Spotify'da aranacak şarkı veya sanatçı adını belirt.");
