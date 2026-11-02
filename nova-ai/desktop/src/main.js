@@ -324,7 +324,7 @@ function registerDesktopAssistantIpc() {
 
   ipcMain.handle("nova-desktop:computer-info", (event) => { requireTrustedWindows(event); return getComputerInfo(); });
   ipcMain.handle("nova-desktop:list-folders", (event) => { requireTrustedWindows(event); return listUserFolders(); });
-  ipcMain.handle("nova-desktop:search-files", (event, query) => { requireTrustedWindows(event); return searchUserFiles(query); });
+  ipcMain.handle("nova-desktop:search-files", async (event, query) => { requireTrustedWindows(event); const items = await searchUserFiles(query); return { items, truncated: Boolean(items.truncated), inaccessibleDirectories: items.inaccessibleDirectories || 0 }; });
   ipcMain.handle("nova-desktop:execute-command", async (event, payload = {}) => {
     requireTrustedWindows(event);
     const rawCommand = typeof payload.command === "string" ? payload.command : "";
