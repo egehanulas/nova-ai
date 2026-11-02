@@ -1,12 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import os from "node:os";
+import fs from "node:fs/promises";
 import path from "node:path";
 import {
   getComputerInfo,
   resolveUserPath,
   searchUserFiles,
-  openAllowedApp
+  openAllowedApp,
+  openUserPath,
+  configureUserFolderPaths
 } from "./desktop-assistant.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 import { parseDesktopCommand } from "./desktop-command.js";
@@ -141,4 +144,24 @@ test("Turkish desktop intent parser recognizes apps, search and destructive acti
     intent: "trash-file", target: "1.jpg"
   });
   assert.equal(parseDesktopCommand("sil 1.jpg").intent, "trash-file");
+});
+
+
+test("opening a file by its bare filename resolves the exact item in known folders", async () => {
+  const base = await fs.mkdtemp(path.join(os.tmpdir(), "nova-desktop-path-test-"));
+  const desktop = path.join(base, "desktop");
+  const documents = path.join(base, "documents");
+  const downloads = path.join(base, "downloads");
+  await Promise.all([desktop, documents, downloads].map((folder) => fs.mkdir(folder)));
+  await fs.writeFile(path.join(desktop, "1.jpg"), "test-image-placeholder");
+  configureUserFolderPaths({ Desktop: desktop, Documents: documents, Downloads: downloads });
+
+  try {
+    const result = await openUserPath("1.jpg");
+    assert.equal(result.path, path.join(desktop, "1.jpg"));
+    await fs.writeFile(path.join(documents, "1.jpg"), "duplicate");
+    await assert.rejects(openUserPath("1.jpg"), /birden fazla öğe/);
+  } finally {
+    await fs.rm(base, { recursive: true, force: true });
+  }
 });
