@@ -197,18 +197,19 @@ export async function searchUserFiles(query, preferredLocation = "") {
   let visited = 0;
   let stop = false;
 
-  async function worker() {
-    while (!stop) {
-      if (found.length >= SEARCH_MAX_RESULTS || visited >= SEARCH_MAX_DIRECTORIES || Date.now() - startedAt >= SEARCH_MAX_DURATION_MS) {
-        stop = true;
-        break;
-      }
-      const dir = queue.shift();
-      if (!dir) break;
-      visited += 1;
-      let entries;
-      try { entries = await fs.readdir(dir, { withFileTypes: true }); } catch { continue; }
-      for (const entry of entries) {
+  while (queue.length && !stop) {
+    if (found.length >= SEARCH_MAX_RESULTS || visited >= SEARCH_MAX_DIRECTORIES || Date.now() - startedAt >= SEARCH_MAX_DURATION_MS) {
+      stop = true;
+      break;
+    }
+    const batch = queue.splice(0, SEARCH_WORKERS);
+    visited += batch.length;
+    const batches = await Promise.all(batch.map(async (dir) => {
+      try { return await fs.readdir(dir, { withFileTypes: true }); } catch { return []; }
+    }));
+    for (let index = 0; index < batches.length && !stop; index += 1) {
+      const dir = batch[index];
+      for (const entry of batches[index]) {
         if (entry.isSymbolicLink()) continue;
         const fullPath = path.join(dir, entry.name);
         if (entry.name.toLocaleLowerCase("tr-TR").includes(needle)) {
@@ -223,7 +224,6 @@ export async function searchUserFiles(query, preferredLocation = "") {
     }
   }
 
-  await Promise.all(Array.from({ length: SEARCH_WORKERS }, () => worker()));
   found.sort((a, b) => {
     const aExact = a.name.toLocaleLowerCase("tr-TR") === needle ? 0 : 1;
     const bExact = b.name.toLocaleLowerCase("tr-TR") === needle ? 0 : 1;
