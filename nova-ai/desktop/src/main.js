@@ -407,7 +407,7 @@ function registerDesktopAssistantIpc() {
           for (const action of currentIntent.actions) {
             if (!action || typeof action !== "object") throw new Error("Masaüstü kontrol adımı geçersiz.");
             if (action.type === "finish") {
-              return { message: "İstenen masaüstü işlemleri tamamlandı.", steps: completed };
+              return { message: currentIntent.message || (completed ? "İstenen masaüstü işlemleri tamamlandı." : "Komutu güvenli biçimde tamamlayamadım; biraz daha açık anlatır mısın?"), steps: completed };
             }
             if (action.type === "inspect-screen") {
               const result = await runComputerAction(action);
