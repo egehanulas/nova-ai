@@ -525,6 +525,12 @@ test("desktop command parser supports browser, Spotify and installed Steam game 
 test("computer control validates supported actions and rejects unsafe or malformed inputs", () => {
   assert.equal(validateComputerAction({ type: "inspect-screen" }).type, "inspect-screen");
   assert.equal(validateComputerAction({ type: "type-text", text: "Ben Nova" }).text, "Ben Nova");
+  assert.deepEqual(validateComputerAction({
+    type: "focus-control", controlType: "Edit", automationId: "ChannelTextArea"
+  }), { type: "focus-control", controlType: "Edit", automationId: "ChannelTextArea" });
+  assert.throws(() => validateComputerAction({
+    type: "focus-control", controlType: "Edit", automationId: "x".repeat(101)
+  }), /Odaklanılacak/);
   assert.throws(() => validateComputerAction({ type: "run-command", command: "whoami" }), /Desteklenmeyen/);
   assert.throws(() => validateComputerAction({ type: "press-key", key: "WIN+R" }), /İzin verilmeyen/);
   assert.throws(() => validateComputerAction({ type: "click", x: -1, y: 30 }), /koordinat/);
@@ -556,6 +562,13 @@ test("Steam game resolver finds a uniquely installed title in a library manifest
     else process.env.ProgramFiles = previousProgramFiles;
     await fs.rm(base, { recursive: true, force: true });
   }
+});
+
+test("desktop screen inspection prioritizes editable controls and supports AutomationId targeting", async () => {
+  const script = await fs.readFile(new URL("./computer-control.ps1", import.meta.url), "utf8");
+  assert.match(script, /\$inputControls\s*=\s*@\(\)/);
+  assert.match(script, /\$items\s*=\s*@\(\$inputControls\s*\+\s*\$controls\s*\+\s*\$texts/);
+  assert.match(script, /\$current\.AutomationId\s*-eq\s*\[string\]\$action\.automationId/);
 });
 
 test("Windows PowerShell desktop automation script parses without syntax errors", { skip: process.platform !== "win32" }, () => {
