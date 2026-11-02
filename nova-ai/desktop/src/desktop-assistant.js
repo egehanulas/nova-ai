@@ -366,7 +366,7 @@ export async function openUserPath(input, preferredLocation = "") {
 }
 
 function folderLookupCandidates(input) {
-  const raw = String(input || "").trim().replace(/\\s+klasör(?:ü|üne)?$/i, "").trim();
+  const raw = String(input || "").trim().replace(/\s+klasör(?:ü|üne)?$/i, "").trim();
   const candidates = [raw];
   const apostropheSuffix = raw.replace(/['’](?:a|e|ı|i|u|ü)$/i, "");
   if (apostropheSuffix && apostropheSuffix !== raw) candidates.push(apostropheSuffix);
