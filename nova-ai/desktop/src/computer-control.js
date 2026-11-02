@@ -35,9 +35,16 @@ export function validateComputerAction(action) {
   if (action.type === "press-key" && !ALLOWED_KEYS.has(String(action.key || "").toUpperCase())) {
     throw new Error("İzin verilmeyen klavye kısayolu.");
   }
-  if (["click", "move-mouse"].includes(action.type) &&
+  if (action.type === "click" &&
       (![action.x, action.y].every(Number.isInteger) || action.x < 0 || action.y < 0 || action.x > 10000 || action.y > 10000)) {
     throw new Error("Mouse koordinatları geçersiz.");
+  }
+  if (action.type === "move-mouse") {
+    const absolute = [action.x, action.y].every(Number.isInteger) &&
+      action.x >= 0 && action.y >= 0 && action.x <= 10000 && action.y <= 10000;
+    const relative = [action.dx, action.dy].every(Number.isInteger) &&
+      Math.abs(action.dx) <= 10000 && Math.abs(action.dy) <= 10000;
+    if (!absolute && !relative) throw new Error("Mouse hareket koordinatları geçersiz.");
   }
   if (action.type === "scroll" && (!Number.isInteger(action.amount) || action.amount < -1200 || action.amount > 1200)) {
     throw new Error("Kaydırma miktarı geçersiz.");
