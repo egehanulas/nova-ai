@@ -135,6 +135,15 @@ test("Turkish desktop intent parser understands natural file-open phrasing", () 
   assert.deepEqual(parseDesktopCommand("Masaüstündeki image.png dosyasını İndirilenler klasörüne taşı"), {
     intent: "move-file", source: "image.png", sourceLocation: "Desktop", destination: "Downloads"
   });
+  assert.deepEqual(parseDesktopCommand("Masaüstündeki 121.png dosyasını İndirilenlere tası"), {
+    intent: "move-file", source: "121.png", sourceLocation: "Desktop", destination: "Downloads"
+  });
+  assert.deepEqual(parseDesktopCommand("Masaüstündeki 121.png dosyasını Oyunlara taşı"), {
+    intent: "move-file", source: "121.png", sourceLocation: "Desktop", destination: "Oyunlara"
+  });
+  assert.deepEqual(parseDesktopCommand("Masaüstündeki 121.png dosyasını İndirilenlere aktar"), {
+    intent: "move-file", source: "121.png", sourceLocation: "Desktop", destination: "Downloads"
+  });
   assert.deepEqual(parseDesktopCommand("D sürücüsündeki rapor.pdf dosyasını aç"), {
     intent: "open-path", target: "rapor.pdf", location: "D:\\"
   });
@@ -203,6 +212,8 @@ test("moving a file by natural-language source name resolves its explicitly name
   await fs.writeFile(path.join(desktop, "1.jpg"), "desktop-image");
   await fs.mkdir(path.join(documents, "Euro Truck Simulator 2"), { recursive: true });
   await fs.writeFile(path.join(documents, "Euro Truck Simulator 2", "1.jpg"), "other-image");
+  await fs.mkdir(path.join(desktop, "Oyunlar"), { recursive: true });
+  await fs.writeFile(path.join(desktop, "to-move.txt"), "custom-folder-target");
   configureUserFolderPaths({ Desktop: desktop, Documents: documents, Downloads: downloads });
 
   try {
@@ -213,6 +224,9 @@ test("moving a file by natural-language source name resolves its explicitly name
     const moved = await moveUserFile("1.jpg dosyasını", downloads, "", "Desktop");
     assert.equal(moved.path, await fs.realpath(path.join(downloads, "1.jpg")));
     assert.equal(await fs.readFile(path.join(downloads, "1.jpg"), "utf8"), "desktop-image");
+    const customFolderMove = await moveUserFile("to-move.txt", "Oyunlara", "", "Desktop");
+    assert.equal(customFolderMove.path, path.join(desktop, "Oyunlar", "to-move.txt"));
+    assert.equal(await fs.readFile(customFolderMove.path, "utf8"), "custom-folder-target");
     await assert.rejects(resolveUserItem("1.jpg"), /birden fazla öğe/);
   } finally {
     await fs.rm(base, { recursive: true, force: true });
