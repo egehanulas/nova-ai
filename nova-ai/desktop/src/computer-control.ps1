@@ -111,7 +111,9 @@ public static class NovaDesktopInput {
           $current = $element.Current
           $type = $current.ControlType.ProgrammaticName.Replace("ControlType.", "")
           if (-not $current.IsOffscreen -and $current.IsEnabled -and $type -eq $controlType -and $current.IsKeyboardFocusable) {
-            if (-not $action.name -or [string]$current.Name -eq [string]$action.name) { $matches += $element }
+            $nameMatches = (-not $action.name) -or ([string]$current.Name -eq [string]$action.name)
+            $idMatches = (-not $action.automationId) -or ([string]$current.AutomationId -eq [string]$action.automationId)
+            if ($nameMatches -and $idMatches) { $matches += $element }
           }
         } catch {}
       }
