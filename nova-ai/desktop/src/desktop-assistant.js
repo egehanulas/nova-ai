@@ -360,6 +360,63 @@ export async function openAllowedApp(appName, extraArgs = []) {
   return { message: selected.label + " uygulaması başarıyla başlatıldı." };
 }
 
+export function normalizeInstalledAppQuery(value) {
+  const query = String(value || "").trim().replace(/\s+/g, " ");
+  if (!query || query.length > 100 || /[\0\r\n]/.test(query)) {
+    throw new Error("Açılacak uygulamanın adını 1-100 karakter arasında belirt.");
+  }
+  return query;
+}
+
+export async function openInstalledApp(appName) {
+  const query = normalizeInstalledAppQuery(appName);
+  if (process.platform !== "win32") throw new Error("Yüklü uygulama keşfi yalnızca Windows üzerinde kullanılabilir.");
+  const script = [
+    '$ErrorActionPreference = "Stop"',
+    '$ProgressPreference = "SilentlyContinue"',
+    '$query = [string]$env:NOVA_APP_QUERY',
+    '$apps = @(Get-StartApps)',
+    '$exact = @($apps | Where-Object { [string]$_.Name -ieq $query })',
+    'if ($exact.Count -gt 1) { throw "Bu isimde birden fazla uygulama bulundu." }',
+    'if ($exact.Count -eq 1) { $selected = $exact[0] } else {',
+    '  $matches = @($apps | Where-Object { ([string]$_.Name).IndexOf($query, [StringComparison]::OrdinalIgnoreCase) -ge 0 })',
+    '  if ($matches.Count -eq 0) { throw "Başlat menüsünde belirtilen uygulama bulunamadı." }',
+    '  if ($matches.Count -gt 1) { throw ("Birden fazla uygulama eşleşti: " + ((@($matches | Select-Object -First 8 -ExpandProperty Name)) -join ", ")) }',
+    '  $selected = $matches[0]',
+    '}',
+    '$appId = [string]$selected.AppID',
+    'if ($appId -match "^[A-Za-z0-9_.!+ -]+$" -and $appId -notmatch "[:\\\\/]") {',
+    '  Start-Process -FilePath "$env:WINDIR\\explorer.exe" -ArgumentList @("shell:AppsFolder\\$appId")',
+    '} elseif ($appId -match "^[A-Za-z]:\\\\" -and $appId -match "\\\\Start Menu\\\\Programs\\\\" -and (Test-Path -LiteralPath $appId)) {',
+    '  Start-Process -FilePath $appId',
+    '} else { throw "Uygulamanın Başlat menüsü kaydı güvenli biçimde açılamadı." }',
+    '[pscustomobject]@{ success = $true; name = [string]$selected.Name } | ConvertTo-Json -Compress'
+  ].join("\n");
+  const encodedScript = Buffer.from(script, "utf16le").toString("base64");
+  const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  return await new Promise((resolve, reject) => {
+    const child = spawn(powershell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encodedScript], {
+      windowsHide: true, env: { ...process.env, NOVA_APP_QUERY: query }, stdio: ["ignore", "pipe", "pipe"]
+    });
+    let stdout = ""; let stderr = ""; let settled = false; let timeout;
+    const finish = (callback, value) => { if (settled) return; settled = true; if (timeout) clearTimeout(timeout); callback(value); };
+    child.stdout.setEncoding("utf8"); child.stderr.setEncoding("utf8");
+    child.stdout.on("data", chunk => { stdout = (stdout + chunk).slice(-12000); });
+    child.stderr.on("data", chunk => { stderr = (stderr + chunk).slice(-4000); });
+    child.once("error", error => finish(reject, new Error("Uygulama araması başlatılamadı: " + error.message)));
+    child.once("close", code => {
+      if (settled) return;
+      const lines = stdout.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      let result = null;
+      for (let index = lines.length - 1; index >= 0; index -= 1) { try { result = JSON.parse(lines[index]); break; } catch {} }
+      if (code !== 0 || !result?.success) { finish(reject, new Error(result?.error || stderr.trim() || "Uygulama başlatılamadı. Başlat menüsündeki uygulama adını kontrol et.")); return; }
+      finish(resolve, { message: result.name + " uygulaması açılıyor.", app: result.name });
+    });
+    timeout = setTimeout(() => { try { child.kill(); } catch {} finish(reject, new Error("Uygulama araması 20 saniyede tamamlanamadı; işlem durduruldu.")); }, 20000);
+    timeout.unref?.();
+  });
+}
+
 function readSteamQuotedValue(text, key) {
   const match = String(text).match(new RegExp('"' + key + '"\\s+"([^"]+)"', "i"));
   return match ? match[1].replace(/\\\\/g, "\\") : "";
