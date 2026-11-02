@@ -211,6 +211,7 @@ function fetchPinnedUrl(url, signal) {
         "User-Agent": USER_AGENT,
         "Accept": "text/html,application/xhtml+xml;q=0.9,text/plain;q=0.8,*/*;q=0.5",
         "Accept-Language": "en-US,en;q=0.9,tr;q=0.8",
+        "Accept-Encoding": "identity",
       },
     }, (incoming) => {
       const headers = new Headers();
