@@ -106,8 +106,8 @@ export function parseDesktopCommand(input) {
   };
 
   const genericAppMatch = command.match(/^(?:lütfen\s+)?(.+?)(?:\s+uygulamasını)?\s+(?:aç|başlat|çalıştır)$/iu);
-  if (genericAppMatch && !/(?:dosyasını|dosyayı|dosya|klasörünü|klasörü|klasör|öğesini)|\.[a-z0-9]{2,6}(?:[\'’](?:yi|yı|yu|yü|i|ı|u|ü))?$/iu.test(genericAppMatch[1])) {
-    return { intent: "open-installed-app", app: cleanTarget(genericAppMatch[1]).replace(/[\'’](?:ni|nı|nu|nü|yi|yı|yu|yü|i|ı|u|ü)$/iu, "") };
+  if (genericAppMatch && !/(?:dosyasını|dosyayı|dosya|klasörünü|klasörü|klasör|öğesini)|\.[a-z0-9]{2,6}(?:['’](?:yi|yı|yu|yü|i|ı|u|ü))?$/iu.test(genericAppMatch[1])) {
+    return { intent: "open-installed-app", app: cleanTarget(genericAppMatch[1]).replace(/['’](?:ni|nı|nu|nü|yi|yı|yu|yü|i|ı|u|ü)$/iu, "") };
   }
 
   const createText = command.toLocaleLowerCase("tr-TR").replace(/\s+/g, " ").trim();
