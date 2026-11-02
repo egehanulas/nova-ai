@@ -28,13 +28,13 @@ function locationFrom(text) {
 
 function normalizeDestination(value) {
   const cleaned = cleanTarget(value).replace(/\s+klasör(?:ü|üne)?$/i, "").trim();
-  const prefix = cleaned.match(new RegExp("^(" + LOCATION_TOKEN + ")\\s+(.+)$", "i"));
+  const prefix = cleaned.match(new RegExp("^(" + LOCATION_TOKEN + ")\\s+(.+)$", "iu"));
   if (prefix) {
     const key = locationFrom(prefix[1]);
     const subfolder = cleanTarget(prefix[2]).replace(/\s+klasör(?:ü|üne)?$/i, "").trim();
     return subfolder ? key + "/" + subfolder : key;
   }
-  const rootOnly = cleaned.match(new RegExp("^" + LOCATION_TOKEN + "$", "i"));
+  const rootOnly = cleaned.match(new RegExp("^" + LOCATION_TOKEN + "$", "iu"));
   return rootOnly ? locationFrom(cleaned) : cleaned;
 }
 
@@ -81,7 +81,7 @@ export function parseDesktopCommand(input) {
   }
   if (folderName) return { intent: "create-folder", name: folderName, location: folderLocation };
 
-  match = command.match(new RegExp("^(?:lütfen\\s+)?(" + LOCATION_TOKEN + ")\\s+(.+?)\\s+(?:dosyasını|dosyayı|klasörünü|öğesini)\\s+(.+?)\\s+(?:taşı|tası|taşır\\s+mısın|taşıyabilir\\s+misin|aktar|götür|yerleştir|koy)(?:\\s+lütfen)?$", "i"));
+  match = command.match(new RegExp("^(?:lütfen\\s+)?(" + LOCATION_TOKEN + ")\\s+(.+?)\\s+(?:dosyasını|dosyayı|klasörünü|öğesini)\\s+(.+?)\\s+(?:taşı|tası|taşır\\s+mısın|taşıyabilir\\s+misin|aktar|götür|yerleştir|koy)(?:\\s+lütfen)?$", "iu"));
   if (match) return {
     intent: "move-file",
     source: cleanTarget(match[2]),
@@ -124,7 +124,7 @@ export function parseDesktopCommand(input) {
     location: driveOpenMatch[1].toUpperCase() + ":\\"
   };
 
-  const locatedOpenMatch = command.match(new RegExp("^(?:lütfen\\s+)?(" + LOCATION_TOKEN + ")\\s+(.+?)\\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\\s*(?:aç|göster|çalıştır)(?:\\s+(?:lütfen|artık))?$", "i"));
+  const locatedOpenMatch = command.match(new RegExp("^(?:lütfen\\s+)?(" + LOCATION_TOKEN + ")\\s+(.+?)\\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\\s*(?:aç|göster|çalıştır)(?:\\s+(?:lütfen|artık))?$", "iu"));
   const openMatch = locatedOpenMatch
     || command.match(/^(?:(?:lütfen)\s+)?(?:(?:bana|benim için)\s+)?(?:şunu\s+)?(?:aç|göster|çalıştır)\s*[:：]?\s*(.+)$/i)
     || command.match(/^(.+?)\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\s*(?:aç|göster|çalıştır)(?:\s+(?:lütfen|artık))?$/i);
@@ -144,7 +144,7 @@ export function parseDesktopCommand(input) {
     location: match[1].toUpperCase() + ":\\"
   };
 
-  match = command.match(new RegExp("^(" + LOCATION_TOKEN + ")\\s+(.+)$", "i"));
+  match = command.match(new RegExp("^(" + LOCATION_TOKEN + ")\\s+(.+)$", "iu"));
   if (match) return {
     intent: "search-files",
     query: cleanTarget(match[2]),
