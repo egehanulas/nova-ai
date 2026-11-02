@@ -379,7 +379,18 @@ export async function openInstalledApp(appName) {
     '$ErrorActionPreference = "Stop"',
     '$ProgressPreference = "SilentlyContinue"',
     '$query = [string]$env:NOVA_APP_QUERY',
-    '$apps = @(Get-StartApps)',
+    'try {',
+    '  if ($query -ieq "Settings" -or $query -ieq "Windows Settings") {',
+    '    Start-Process -FilePath "$env:WINDIR\\explorer.exe" -ArgumentList @("ms-settings:")',
+    '    [pscustomobject]@{ success = $true; name = "Windows Ayarları" } | ConvertTo-Json -Compress',
+    '    exit 0',
+    '  }',
+    '  if ($query -ieq "Task Manager") {',
+    '    Start-Process -FilePath "$env:WINDIR\\System32\\Taskmgr.exe"',
+    '    [pscustomobject]@{ success = $true; name = "Görev Yöneticisi" } | ConvertTo-Json -Compress',
+    '    exit 0',
+    '  }',
+    '  $apps = @(Get-StartApps)',
     '$exact = @($apps | Where-Object { [string]$_.Name -ieq $query })',
     'if ($exact.Count -gt 1) { throw "Bu isimde birden fazla uygulama bulundu." }',
     'if ($exact.Count -eq 1) { $selected = $exact[0] } else {',
@@ -394,7 +405,11 @@ export async function openInstalledApp(appName) {
     '} elseif ($appId -match "^[A-Za-z]:\\\\" -and $appId -match "\\\\Start Menu\\\\Programs\\\\" -and (Test-Path -LiteralPath $appId)) {',
     '  Start-Process -FilePath $appId',
     '} else { throw "Uygulamanın Başlat menüsü kaydı güvenli biçimde açılamadı." }',
-    '[pscustomobject]@{ success = $true; name = [string]$selected.Name } | ConvertTo-Json -Compress'
+    '  [pscustomobject]@{ success = $true; name = [string]$selected.Name } | ConvertTo-Json -Compress',
+    '} catch {',
+    '  [Console]::Out.WriteLine((@{ success = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress))',
+    '  exit 1',
+    '}'
   ].join("\n");
   const encodedScript = Buffer.from(script, "utf16le").toString("base64");
   const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
