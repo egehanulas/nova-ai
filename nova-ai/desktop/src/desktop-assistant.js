@@ -69,7 +69,10 @@ export function configureComputerFileAccess({ userFolders = {}, driveRoots = [] 
     throw new Error("Windows kullanıcı klasör yolları geçersiz.");
   }
   USER_FOLDERS = Object.fromEntries(entries.map(([name, value]) => [name, path.resolve(value)]));
-  const roots = [...driveRoots, ...Object.values(USER_FOLDERS).map((value) => path.parse(value).root || value)]
+  const userFolderRoots = Object.values(USER_FOLDERS).map((value) =>
+    process.platform === "win32" ? (path.parse(value).root || value) : value
+  );
+  const roots = [...driveRoots, ...userFolderRoots]
     .filter((value) => typeof value === "string" && path.isAbsolute(value))
     .map((value) => path.resolve(value));
   ROOTS = [...new Set(roots.length ? roots : Object.values(USER_FOLDERS).map((value) => path.resolve(value)))];
