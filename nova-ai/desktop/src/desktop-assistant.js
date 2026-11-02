@@ -33,7 +33,7 @@ function inside(parent, target) {
 function normalizeFolderKey(value) {
   const raw = String(value || "").trim();
   if (!raw || path.isAbsolute(raw)) return "";
-  const normalized = raw.toLocaleLowerCase("tr-TR").replace(/\\s+(?:klasörü|klasörüne)$/i, "").trim();
+  const normalized = raw.toLocaleLowerCase("tr-TR").replace(" klasörü", "").replace(" klasörüne", "").trim();
   if (/^(?:masaüstü|masaustu|masaüstüne|masaüstünde|masaüstündeki|desktop)$/.test(normalized)) return "Desktop";
   if (/^(?:belgeler|belgelere|belgelerde|belgelerdeki|documents)$/.test(normalized)) return "Documents";
   if (/^(?:indirilenler|indirilenlere|indirilenlerde|indirilenlerdeki|downloads)$/.test(normalized)) return "Downloads";
