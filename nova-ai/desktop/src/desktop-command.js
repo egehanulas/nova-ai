@@ -27,11 +27,11 @@ function locationFrom(text) {
 }
 
 function normalizeDestination(value) {
-  const cleaned = cleanTarget(value).replace(/\\s+klasör(?:ü|üne)?$/i, "").trim();
+  const cleaned = cleanTarget(value).replace(/\s+klasör(?:ü|üne)?$/i, "").trim();
   const prefix = cleaned.match(new RegExp("^(" + LOCATION_TOKEN + ")\\s+(.+)$", "i"));
   if (prefix) {
     const key = locationFrom(prefix[1]);
-    const subfolder = cleanTarget(prefix[2]).replace(/\\s+klasör(?:ü|üne)?$/i, "").trim();
+    const subfolder = cleanTarget(prefix[2]).replace(/\s+klasör(?:ü|üne)?$/i, "").trim();
     return subfolder ? key + "/" + subfolder : key;
   }
   const rootOnly = cleaned.match(new RegExp("^" + LOCATION_TOKEN + "$", "i"));
