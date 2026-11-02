@@ -15,7 +15,8 @@ import {
   configureUserFolderPaths,
   configureComputerFileAccess,
   resolveUserFolder,
-  isProtectedSystemPath
+  isProtectedSystemPath,
+  resolveSteamGame
 } from "./desktop-assistant.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 import { parseDesktopCommand } from "./desktop-command.js";
@@ -517,4 +518,30 @@ test("computer control validates supported actions and rejects unsafe or malform
   assert.throws(() => validateComputerAction({ type: "run-command", command: "whoami" }), /Desteklenmeyen/);
   assert.throws(() => validateComputerAction({ type: "press-key", key: "WIN+R" }), /izin verilmeyen/);
   assert.throws(() => validateComputerAction({ type: "click", x: -1, y: 30 }), /koordinat/);
+});
+
+test("Steam game resolver finds a uniquely installed title in a library manifest", async () => {
+  const base = await fs.mkdtemp(path.join(os.tmpdir(), "nova-steam-library-test-"));
+  const steamRoot = path.join(base, "Steam");
+  const steamApps = path.join(steamRoot, "steamapps");
+  await fs.mkdir(steamApps, { recursive: true });
+  await fs.writeFile(path.join(steamRoot, "steam.exe"), "");
+  await fs.writeFile(path.join(steamApps, "libraryfolders.vdf"), '"libraryfolders" { "0" { "path" "' + steamRoot.replace(/\\/g, "\\\\") + '" } }');
+  await fs.writeFile(path.join(steamApps, "appmanifest_123456.acf"), '"AppState" { "appid" "123456" "name" "NOVA Test Game" }');
+  const previousX86 = process.env["ProgramFiles(x86)"];
+  const previousProgramFiles = process.env.ProgramFiles;
+  process.env["ProgramFiles(x86)"] = base;
+  process.env.ProgramFiles = base;
+  try {
+    const game = await resolveSteamGame("NOVA Test Game");
+    assert.equal(game.name, "NOVA Test Game");
+    assert.equal(game.appId, "123456");
+    await assert.rejects(resolveSteamGame("missing game"), /kurulu bir oyun bulamadım/);
+  } finally {
+    if (previousX86 === undefined) delete process.env["ProgramFiles(x86)"];
+    else process.env["ProgramFiles(x86)"] = previousX86;
+    if (previousProgramFiles === undefined) delete process.env.ProgramFiles;
+    else process.env.ProgramFiles = previousProgramFiles;
+    await fs.rm(base, { recursive: true, force: true });
+  }
 });
