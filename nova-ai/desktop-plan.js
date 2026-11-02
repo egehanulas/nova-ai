@@ -41,7 +41,7 @@ function enforceNoSend(intent, command) {
 function enforceMessageSend(intent, command) {
   const text = String(command || "");
   const noSend = /mesaj[ıi]\s+(?:(?:kesinlikle|sakın|asla)\s+)?gönderme/iu.test(text);
-  const sendRequested = !noSend && /(?:yaz(?:ıp|ıp)?\\s+ve\\s+)?(?:gönder|yolla)|mesaj\\s+at/iu.test(text);
+  const sendRequested = !noSend && /(?:\bgönder\b|\byolla\b|mesaj\s+at\b)/iu.test(text);
   if (!sendRequested || !intent || !Array.isArray(intent.actions)) return intent;
 
   const textIndex = intent.actions.findIndex((action) => action?.type === "type-text");
