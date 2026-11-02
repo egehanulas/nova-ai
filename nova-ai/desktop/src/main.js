@@ -344,9 +344,29 @@ function registerDesktopAssistantIpc() {
     };
     const sensitiveCommand = rawCommand.toLocaleLowerCase("tr-TR");
     const approvalReason =
-      /(?:satın\s*al|sipariş\s*ver|ödeme\s*yap|ödemeyi\s*tamamla|checkout|buy\s*now|purchase|pay\s*now)/iu.test(sensitiveCommand) ? "Satın alma veya ödeme" :
-      /(?:hesap\s+ayar|account\s+settings|güvenlik\s+ayar|şifre(?:mi|yi)?\s+değiştir|e.?posta\s+adresini\s+değiştir)/iu.test(sensitiveCommand) ? "Hesap ayarlarını değiştirme" :
+      /(?:hesap.{0,35}ayar|ayar.{0,35}hesap|account.{0,35}settings|settings.{0,35}account|güvenlik.{0,25}ayar|gizlilik.{0,25}ayar|şifre(?:mi|yi)?\s+değiştir|e.?posta\s+adresini\s+değiştir)/iu.test(sensitiveCommand) ? "Hesap ayarlarını değiştirme" :
       /(?:yükle|kur|kaldır|uninstall|install)/iu.test(sensitiveCommand) ? "Program kurma veya kaldırma" : "";
+    const sensitiveActionReason = (action) => {
+      const label = [action?.text, action?.name, action?.automationId].filter(Boolean).join(" ");
+      const purchasePattern = /(?:satın\s*al|sipariş\s*ver|öde|checkout|buy\s*now|place\s+order|complete\s+purchase|confirm\s+purchase|pay\s*now)/iu;
+      const deletePattern = /(?:sil|delete|remove|move\s+to\s+trash|çöp\s+kutusu)/iu;
+      if (purchasePattern.test(label)) return "Satın alma veya ödeme";
+      if (deletePattern.test(label)) return "Dosya silme veya kaldırma";
+      const latest = observations[observations.length - 1];
+      const items = Array.isArray(latest?.items) ? latest.items : [];
+      const matches = items.filter(item => {
+        const name = String(item?.name || "");
+        if (!purchasePattern.test(name) && !deletePattern.test(name)) return false;
+        if (action?.type === "click" && action.x != null && action.y != null) {
+          const b = item.bounds;
+          return b && action.x >= b.x && action.x <= b.x + b.width && action.y >= b.y && action.y <= b.y + b.height;
+        }
+        return action?.type === "press-key" && String(action.key || "").toUpperCase() === "ENTER" && Boolean(item.focusable);
+      });
+      if (matches.some(item => purchasePattern.test(String(item.name || "")))) return "Satın alma veya ödeme";
+      if (matches.length) return "Dosya silme veya kaldırma";
+      return "";
+    };
     if (approvalReason) {
       const approval = await dialog.showMessageBox(parent, {
         type: "warning",
@@ -473,6 +493,23 @@ function registerDesktopAssistantIpc() {
               action.type === "press-key" ? "Klavye işlemi uygulanıyor." :
               action.type === "wait" ? "Uygulamanın yanıt vermesi bekleniyor." : "Masaüstü işlemi uygulanıyor.";
             reportProgress("running", actionLabel, completed + 1, 0);
+            const actionApprovalReason = sensitiveActionReason(action);
+            if (actionApprovalReason) {
+              const approval = await dialog.showMessageBox(parent, {
+                type: "warning",
+                title: "NOVA işlem onayı",
+                message: actionApprovalReason + " işlemi yapılmak üzere.",
+                detail: "Komut: " + rawCommand + "\\nHedef: " + (action.text || action.name || action.type),
+                buttons: ["Onayla", "Vazgeç"],
+                defaultId: 1,
+                cancelId: 1,
+                noLink: true
+              });
+              if (approval.response !== 0) {
+                reportProgress("cancelled", actionApprovalReason + " işlemi onaylanmadı.", completed, 0);
+                return { message: actionApprovalReason + " işlemi onay verilmediği için yapılmadı.", steps: completed };
+              }
+            }
             if (action.type === "inspect-screen") {
               let result;
               try {
