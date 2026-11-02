@@ -104,6 +104,39 @@ test("desktop parser handles Turkish Settings inflections, YouTube search, file 
   assert.deepEqual(parseDesktopCommand("yt de müzik aç"), {
     intent: "open-url", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent("müzik")
   });
+  assert.deepEqual(parseDesktopCommand("YT aç"), {
+    intent: "open-url", url: "https://www.youtube.com"
+  });
+  assert.deepEqual(parseDesktopCommand("YouTube'u aç"), {
+    intent: "open-url", url: "https://www.youtube.com"
+  });
+  assert.deepEqual(parseDesktopCommand("YT'yi aç"), {
+    intent: "open-url", url: "https://www.youtube.com"
+  });
+  assert.deepEqual(parseDesktopCommand("YouTube'da Fenerbahçe'nin son videosunu aç"), {
+    intent: "computer-control", done: false,
+    actions: [
+      { type: "open-url", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent("Fenerbahçe'nin son video") },
+      { type: "wait", ms: 1600 },
+      { type: "inspect-screen" }
+    ]
+  });
+  assert.deepEqual(parseDesktopCommand("Not Defteri'ni aç ve içine NOVA test başarılı yaz"), {
+    intent: "computer-control", done: true, message: "Not Defteri açıldı ve metin yazıldı.",
+    actions: [
+      { type: "open-app", app: "notepad" },
+      { type: "wait", ms: 900 },
+      { type: "type-text", text: "NOVA test başarılı" },
+      { type: "finish" }
+    ]
+  });
+  assert.deepEqual(parseDesktopCommand("Saat kaç ve bugün hangi tarih"), { intent: "local-time" });
+  assert.deepEqual(parseDesktopCommand("Açık pencereleri listele"), { intent: "list-windows" });
+  assert.deepEqual(parseDesktopCommand("Ekranımı analiz et"), { intent: "screen-summary" });
+  assert.deepEqual(parseDesktopCommand("CPU ve RAM kullanımını raporla"), { intent: "computer-info" });
+  assert.deepEqual(parseDesktopCommand("Pil, CPU ve RAM kullanımını raporla"), { intent: "computer-info" });
+  assert.deepEqual(parseDesktopCommand("RAM kullanımı"), { intent: "computer-info" });
+  assert.deepEqual(parseDesktopCommand("Batarya durumu"), { intent: "computer-info" });
   assert.deepEqual(parseDesktopCommand("Google'da İstanbul hava durumu ara, sonuçları incele ve bana özetle"), {
     intent: "computer-control", done: false,
     actions: [{ type: "research-web", query: "İstanbul hava durumu" }]
@@ -112,12 +145,12 @@ test("desktop parser handles Turkish Settings inflections, YouTube search, file 
     intent: "list-folders"
   });
   assert.deepEqual(parseDesktopCommand("mouse'u sağa hareket ettir"), {
-    intent: "computer-control", done: true, message: "Mouse hareket ettirildi.",
-    actions: [{ type: "move-mouse", dx: 140, dy: 0 }, { type: "finish" }]
+    intent: "computer-control", done: true, message: "Mouse yumuşak biçimde hareket ettirildi.",
+    actions: [{ type: "move-mouse", dx: 140, dy: 0, durationMs: 650, steps: 32 }, { type: "finish" }]
   });
   assert.deepEqual(parseDesktopCommand("fareyi sola hareket ettir"), {
-    intent: "computer-control", done: true, message: "Mouse hareket ettirildi.",
-    actions: [{ type: "move-mouse", dx: -140, dy: 0 }, { type: "finish" }]
+    intent: "computer-control", done: true, message: "Mouse yumuşak biçimde hareket ettirildi.",
+    actions: [{ type: "move-mouse", dx: -140, dy: 0, durationMs: 650, steps: 32 }, { type: "finish" }]
   });
 });
 
@@ -669,7 +702,17 @@ test("Windows PowerShell desktop automation script parses without syntax errors"
   assert.equal(result.status, 0, (result.stdout || "") + (result.stderr || ""));
 });
 
-test("Windows desktop controller can load its automation runtime", { skip: process.platform !== "win32" }, async () => {
+test("Windows desktop controller can load its automation runtime and read system/window data", { skip: process.platform !== "win32" }, async () => {
   const result = await runComputerAction({ type: "wait", ms: 0 });
   assert.equal(result.success, true);
+
+  const system = await runComputerAction({ type: "system-info" });
+  assert.equal(system.success, true);
+  assert.ok(system.localTime);
+  assert.ok(Number.isFinite(system.ramTotalGb) && system.ramTotalGb > 0);
+  assert.ok(system.battery && typeof system.battery.available === "boolean");
+
+  const windows = await runComputerAction({ type: "list-windows" });
+  assert.equal(windows.success, true);
+  assert.ok(Array.isArray(windows.windows));
 });

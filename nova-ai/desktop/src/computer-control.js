@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT_PATH = fileURLToPath(new URL("./computer-control.ps1", import.meta.url));
 const ALLOWED_TYPES = new Set([
-  "inspect-screen", "click-text", "focus-control", "type-text", "press-key",
+  "inspect-screen", "list-windows", "system-info", "click-text", "focus-control", "type-text", "press-key",
   "click", "move-mouse", "scroll", "wait"
 ]);
 const ALLOWED_KEYS = new Set([
@@ -48,6 +49,12 @@ export function validateComputerAction(action) {
     const relative = [action.dx, action.dy].every(Number.isInteger) &&
       Math.abs(action.dx) <= 10000 && Math.abs(action.dy) <= 10000;
     if (!absolute && !relative) throw new Error("Mouse hareket koordinatları geçersiz.");
+    if (action.durationMs != null && (!Number.isInteger(action.durationMs) || action.durationMs < 100 || action.durationMs > 5000)) {
+      throw new Error("Fare animasyon süresi 100-5000 ms arasında olmalı.");
+    }
+    if (action.steps != null && (!Number.isInteger(action.steps) || action.steps < 4 || action.steps > 120)) {
+      throw new Error("Fare animasyon adım sayısı 4-120 arasında olmalı.");
+    }
   }
   if (action.type === "scroll" && (!Number.isInteger(action.amount) || action.amount < -1200 || action.amount > 1200)) {
     throw new Error("Kaydırma miktarı geçersiz.");
@@ -111,13 +118,20 @@ export async function runComputerAction(action) {
   validateComputerAction(action);
   if (process.platform !== "win32") throw new Error("Masaüstü kontrolü yalnızca Windows'ta kullanılabilir.");
   const payload = Buffer.from(JSON.stringify(action), "utf8").toString("base64");
+  // Electron ASAR paths are readable through Node, but PowerShell cannot open a
+  // script inside app.asar. Copy the bundled, trusted script to a private temp
+  // directory and invoke it by file path to avoid Windows command-line limits.
   const script = await fs.readFile(SCRIPT_PATH, "utf8");
-  const encodedScript = Buffer.from(script, "utf16le").toString("base64");
-  const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
-  return await new Promise((resolve, reject) => {
+  const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "nova-desktop-control-"));
+  const tempScriptPath = path.join(tempDirectory, "computer-control.ps1");
+  try {
+    // Windows PowerShell 5.1 otherwise treats UTF-8 without a BOM as the active ANSI code page.
+    await fs.writeFile(tempScriptPath, "\uFEFF" + script, { encoding: "utf8", mode: 0o600 });
+    const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+    return await new Promise((resolve, reject) => {
     const child = spawn(powershell, [
       "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-      "-STA", "-EncodedCommand", encodedScript
+      "-STA", "-File", tempScriptPath
     ], {
       windowsHide: true,
       env: { ...process.env, NOVA_CONTROL_PAYLOAD: payload },
@@ -161,5 +175,8 @@ export async function runComputerAction(action) {
       finish(reject, new Error("Windows masaüstü işlemi 45 saniyede tamamlanamadı; takılan işlem sonlandırıldı."));
     }, 45_000);
     timeout.unref?.();
-  });
+    });
+  } finally {
+    await fs.rm(tempDirectory, { recursive: true, force: true }).catch(() => {});
+  }
 }

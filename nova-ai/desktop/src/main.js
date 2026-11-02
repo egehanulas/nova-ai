@@ -14,6 +14,7 @@ import {
 } from "electron";
 import { URL, pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder, launchSteamGame, searchSpotify, openSpotify, openInstalledApp, launchDownloadedInstaller } from "./desktop-assistant.js";
 import { parseDesktopCommand } from "./desktop-command.js";
@@ -420,13 +421,51 @@ function registerDesktopAssistantIpc() {
 
     switch (intent.intent) {
       case "help":
-        return { message: "Windows Başlat menüsüne kayıtlı uygulamaları açabilir, Chrome ve Edge üzerinde web sitelerinde gezinebilir, arama yapabilir, formları doldurabilir, sekmeleri yönetebilir, Spotify’da müzik arayabilir, Steam’de kurulu oyunları başlatabilir; ekrandaki erişilebilir öğelere tıklayıp mouse ve klavyeyi kullanabilirim. Dosya ve klasör arama, açma, taşıma ve düzenleme işlemlerini de desteklerim. Örnek: “Discord’u aç”, “Chrome’da YouTube aç”, “Steam’de Dying Light: The Beast aç”, “Spotify’da Blinding Lights çal”, “Oyunlar klasöründe 121.png dosyasını aç”." };
-      case "computer-info":
-        return { message: JSON.stringify(getComputerInfo(), null, 2) };
+        return { message: "Windows Başlat menüsüne kayıtlı uygulamaları açabilir, Chrome ve Edge ile web sitelerinde gezinebilir, YouTube'da arama yapıp belirli videoları açmayı deneyebilir, Spotify'da müzik arayabilir ve Steam'de kurulu oyunları başlatabilirim. Bilgisayarın yerel saatini, CPU/RAM ve pil durumunu, açık pencereleri ve etkin pencerenin erişilebilir denetimlerini raporlayabilirim. Fareyi yumuşak animasyonla hareket ettirebilir; dosya ve klasör arama, açma, taşıma ve düzenleme işlemlerini yapabilirim. Örnek: “Not Defteri'ni aç ve içine Merhaba yaz”, “YouTube'da Fenerbahçe videosunu aç”, “Açık pencereleri listele”, “CPU ve RAM kullanımını raporla”, “Steam'de Dying Light: The Beast aç”." };
+      case "local-time": {
+        const now = new Date();
+        return { message: "Bilgisayarının yerel saati: " + now.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) +
+          "\nTarih: " + now.toLocaleDateString("tr-TR", { dateStyle: "full" }) };
+      }
+      case "computer-info": {
+        try {
+          const info = await runComputerAction({ type: "system-info" });
+          const battery = info.battery?.available ? info.battery.chargePercent + "%" : (info.battery?.message || "Bilgi alınamadı");
+          return { message: [
+            "Bilgisayar: " + (info.computer || os.hostname()),
+            "Yerel saat: " + (info.localTime ? new Date(info.localTime).toLocaleString("tr-TR") : "Okunamadı"),
+            "CPU kullanımı: " + (info.cpuUsagePercent == null ? "Ölçülemedi" : info.cpuUsagePercent + "%"),
+            "RAM: " + info.ramUsedGb + " / " + info.ramTotalGb + " GB (" + info.ramUsagePercent + "%)",
+            "Pil: " + battery
+          ].join("\n") };
+        } catch (error) {
+          const fallback = getComputerInfo();
+          return { message: "Gelişmiş CPU/RAM/pil ölçümü alınamadı: " + error.message +
+            "\nTemel sistem bilgisi: " + fallback.computer + " | " + fallback.platform +
+            " | " + fallback.processor + " | " + Math.round(fallback.memoryTotal / 1073741824) + " GB RAM" };
+        }
+      }
+      case "list-windows": {
+        const result = await runComputerAction({ type: "list-windows" });
+        const windows = Array.isArray(result.windows) ? result.windows : [];
+        return { message: windows.length
+          ? "Açık pencereler (" + windows.length + "):\n" + windows.map((item, index) => (index + 1) + ". " + item.title + " [" + item.process + "]").join("\n")
+          : "Başlık bilgisi okunabilen açık uygulama penceresi bulunamadı." };
+      }
+      case "screen-summary": {
+        const result = await runComputerAction({ type: "inspect-screen" });
+        const items = Array.isArray(result.items) ? result.items : [];
+        return { message: "Önde olan pencere: " + (result.activeWindow || "Bilinmiyor") +
+          (items.length ? "\nErişilebilir ekrandaki öğeler:\n" + items.slice(0, 30).map((item, index) =>
+            (index + 1) + ". " + (item.name || item.controlType || "Adsız öğe") + " (" + item.controlType + ")").join("\n")
+            : "\nBu pencereden erişilebilir metin veya denetim alınamadı.") +
+          "\nNot: Bu rapor Windows erişilebilirlik bilgilerine dayanır; görsel piksellerin tam görüntü analizi değildir." };
+      }
       case "list-folders": {
         const all = await folders();
-        return { message: all.map((folder) => folder.name + " (" + folder.items.length + " öğe)\\n" +
-          folder.items.slice(0, 20).map((item) => (item.type === "folder" ? "📁 " : "📄 ") + item.name).join("\\n")).join("\\n\\n") };
+        const lines = all.map((folder) => folder.name + " — " + folder.items.length + " öğe\n" +
+          folder.items.slice(0, 30).map((item) => (item.type === "folder" ? "📁 " : "📄 ") + item.name).join("\n"));
+        return { message: lines.join("\n\n") || "Erişilebilir sürücü veya kullanıcı klasörü bulunamadı." };
       }
       case "open-app": {
         reportProgress("running", intent.app + " uygulaması açılıyor.");
@@ -523,7 +562,13 @@ function registerDesktopAssistantIpc() {
               }
               observations.push({ activeWindow: result.activeWindow || "", items: result.items || [] });
               reportProgress("planning", "Ekran okundu; NOVA sonraki adımı belirliyor.", completed, 0);
-              currentIntent = await requestInterpretation();
+              try {
+                currentIntent = await requestInterpretation();
+              } catch (error) {
+                reportProgress("partial", "Ekran okundu; sonraki adımı planlama servisi şu anda yanıt vermiyor.", completed, 0);
+                return { message: "Ekran bilgilerini aldım ancak sonraki adımı planlayamadım. Komut yorumlama servisi geçici olarak HTTP hatası verdi (" +
+                  error.message + "). Şu ana kadar yapılan işlemler geri alınmadı; yeni bir işlem başlatmadım.", steps: completed, partial: true };
+              }
               if (!currentIntent || currentIntent.intent !== "computer-control" || !Array.isArray(currentIntent.actions)) {
                 throw new Error("NOVA ekrandaki durumu yorumlayamadı; güvenli olması için işlem durduruldu.");
               }
@@ -792,6 +837,15 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
       "Steam kütüphanesindeki kurulu oyunları adlarıyla başlatabiliyor",
       "Ekrandaki erişilebilir öğeleri okuyup adım adım tıklama ve metin yazma",
       "Rastgele terminal komutları yerine izinli ve doğrulanan masaüstü eylemleri"
+    ],
+    "0.2.0-alpha.35": [
+      "Türkçe doğal komutlar için yerel ve daha hızlı masaüstü komut tanıma",
+      "YouTube'da arama ve belirli videoları açmak için ekranı izleyen çok adımlı akış",
+      "Fare imlecinde yumuşak hızlanma ve yavaşlamayla animasyonlu hareket",
+      "Bilgisayarın yerel tarih ve saatini, CPU/RAM kullanımını ve pil durumunu okuma",
+      "Açık pencereleri listeleme ve etkin pencerenin erişilebilir içeriğini özetleme",
+      "Not Defteri'ni açıp istenen metni tek komutla yazma",
+      "Yapay zekâ planlama servisi geçici olarak çalışmadığında güvenli kısmi sonuç ve açıklama"
     ],
     "0.2.0-alpha.34": [
       "Windows Ayarları ve Görev Yöneticisi için daha güvenilir doğrudan başlatma",

@@ -65,6 +65,16 @@ Windows Squirrel güncelleme dosyaları GitHub Releases üzerinden dağıtılır
 
 Otomatik güncellemeler yalnızca paketlenmiş Windows uygulamasında çalışır. İlk kurulum yine Setup.exe ile yapılır. Actions derleme artefaktı tek başına otomatik güncelleme kaynağı değildir; güncellemenin çalışması için aynı sürümün GitHub Release'inde Setup.exe, `.nupkg` ve `RELEASES` dosyaları bulunmalıdır.
 
+## Alpha 35 masaüstü ajanı
+
+- Sık kullanılan Windows işlemleri için yerel Türkçe komutlar: yerel tarih/saat, açık pencereler, erişilebilir ekran özeti, CPU/RAM ve pil bilgisi.
+- Not Defteri gibi izinli uygulamaları açıp tek komutta metin yazma.
+- YouTube ana sayfasını açma, arama yapma ve belirli video isteklerinde ekranı inceleyerek devam adımını planlama.
+- Fare hareketi hedefe anında sıçramak yerine sınırlı süreli yumuşak hızlanma/yavaşlama animasyonuyla yapılır.
+- Yapay zekâ planlayıcısı erişilemezse salt-okunur ekran incelemesinden sonra görev durumu açıklanır; işlem sessizce tamamlandı diye işaretlenmez.
+- Masaüstü sesli sohbet, cihaz üzerinde Whisper ile konuşma tanıma ve yerel Türkçe seslendirme akışını korur.
+- Ekran özeti Windows UI Automation erişilebilirlik ağacından üretilir; görsel piksel/nesne tanıma olarak sunulmaz.
+
 ## Alpha 33 masaüstü ajanı
 
 - Windows Başlat menüsüne kayıtlı uygulamaları güvenli ad eşleştirmesiyle açabilir; birden fazla eşleşmede daha belirgin ad ister.

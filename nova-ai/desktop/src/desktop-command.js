@@ -56,9 +56,12 @@ export function parseDesktopCommand(input) {
     .trim();
 
   if (/^(?:yardım|komutlar|neler yapabilirsin|ne yapabilirsin)$/.test(text)) return { intent: "help" };
+  if (/^(?:(?:şu an )?saat kaç(?: ve bugün hangi tarih)?|bugün hangi tarih|tarih ve saat|yerel saat|bilgisayarın saatini söyle|bilgisayarımın saatini söyle)$/iu.test(text)) return { intent: "local-time" };
+  if (/^(?:açık pencereleri(?: listele| göster)?|hangi pencereler açık|açık uygulamaları(?: listele| göster)?|önde hangi pencere var)$/iu.test(text)) return { intent: "list-windows" };
+  if (/^(?:ekranımı analiz et|ekranı analiz et|ekranda ne var|ekranımda ne görüyorsun|açık ekranı anlat|ekranı incele)$/iu.test(text)) return { intent: "screen-summary" };
+  if (/^(?:bilgisayar bilgileri|sistem bilgileri|bilgisayarımın özellikleri|pc özellikleri|bilgisayarımın pil durumu|pil durumunu kontrol et|pil durumu|batarya durumu|cpu kullanımı|ram kullanımı|sistem performansı|bilgisayarımın performansı|pil[, ]+cpu ve ram kullanımını(?: kontrol et| raporla)?|cpu ve ram kullanımını(?: kontrol et| raporla)?|işlemci ve ram kullanımını(?: kontrol et| raporla)?|sistem kaynaklarını(?: kontrol et| raporla)?|bilgisayar performansını raporla)$/iu.test(text)) return { intent: "computer-info" };
   if (/^(?:(?:masaüstündeki|bilgisayardaki|erişilebilir sürücülerdeki)\s+)?dosyalar(?:ı|ımı|imi)?\s+incele(?:\s+ve\s+.*)?$/iu.test(command)) return { intent: "list-folders" };
-  if (/^(?:bilgisayar bilgileri|sistem bilgileri|bilgisayarımın özellikleri|pc özellikleri)$/.test(text)) return { intent: "computer-info" };
-  if (/^(?:klasörler|klasörlerimi göster|dosyalarımı göster|hızlı erişim|sürücüleri göster|diskleri göster)$/.test(text)) return { intent: "list-folders" };
+  if (/^(?:klasörler|klasörlerimi göster|dosyalarımı göster|hızlı erişim|sürücüleri göster|diskleri göster)$/iu.test(text)) return { intent: "list-folders" };
 
   let browserMatch = command.match(/^(?:google\s+)?chrome(?:'da|'dan|'de|'den|’da|’dan|da|dan|de|den)\s+(.+?)\s+(?:aç|git|gir)$/iu);
   if (browserMatch) {
@@ -70,11 +73,19 @@ export function parseDesktopCommand(input) {
     return { intent: "open-url", app: "chrome", query: target };
   }
 
-  browserMatch = command.match(/^(?:youtube|youtube\.com)\s+(?:aç|gir)$/iu);
+  browserMatch = command.match(/^(?:(?:youtube|youtube\.com)(?:['’](?:u|yu))?|yt(?:['’](?:yi|yı))?)\s+(?:aç|gir)$/iu);
   if (browserMatch) return { intent: "open-url", url: "https://www.youtube.com" };
 
-  browserMatch = command.match(/^(?:youtube|yt)\s*(?:'da|’da|da|'de|’de|de)\s+(.+?)\s+(?:ara|aç|ac|çal|cal|oynat)$/iu);
-  if (browserMatch) return { intent: "open-url", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent(browserMatch[1].trim()) };
+  browserMatch = command.match(/^(?:youtube|youtube\.com|yt)(?:\s*['’]?(?:da|de))?\s+(.+?)\s+(?:(video(?:su|sunu)?)\s+)?(ara|aç|ac|çal|cal|oynat)$/iu);
+  if (browserMatch) {
+    const query = browserMatch[1].trim() + (browserMatch[2] ? " video" : "");
+    const url = "https://www.youtube.com/results?search_query=" + encodeURIComponent(query);
+    if (browserMatch[2] && /^(?:aç|ac|oynat)$/iu.test(browserMatch[3])) return {
+      intent: "computer-control", done: false,
+      actions: [{ type: "open-url", url }, { type: "wait", ms: 1600 }, { type: "inspect-screen" }]
+    };
+    return { intent: "open-url", url };
+  }
 
   const explicitResearchRequest =
     /(?:google(?:['’]da|da|de)?|internette|web(?:['’]de|de)|hava durumu|güncel bilgi)/iu.test(command) &&
@@ -92,11 +103,25 @@ export function parseDesktopCommand(input) {
   browserMatch = command.match(/^steam(?:'de|’de|de)\s+(.+?)\s+(?:aç|ac|başlat|baslat|oyna|çalıştır|calistir)$/iu);
   if (browserMatch) return { intent: "launch-steam-game", game: browserMatch[1].trim() };
 
+  const notepadWriteMatch = command.match(/^(?:not defteri|notepad)(?:['’](?:ni|nı|nu|nü))?\s+aç\s+ve\s+(?:içine|içerisine)\s+["“]?([\s\S]+?)["”]?\s+yaz$/iu);
+  if (notepadWriteMatch) {
+    const value = notepadWriteMatch[1].trim().replace(/^[“"]|[”"]$/g, "");
+    if (value && value.length <= 4000) return {
+      intent: "computer-control", done: true, message: "Not Defteri açıldı ve metin yazıldı.",
+      actions: [
+        { type: "open-app", app: "notepad" },
+        { type: "wait", ms: 900 },
+        { type: "type-text", text: value },
+        { type: "finish" }
+      ]
+    };
+  }
+
   const mouseDirection = command.match(/^(?:mouse|fare)(?:['’](?:u|ı|i)|yı|yi|yu|yü|u|ı|i|ü)?\s+(sağa|sola|yukarı|aşağı)\s+(?:hareket ettir|oynat|götür)$/iu);
   if (mouseDirection) {
     const direction = mouseDirection[1].toLocaleLowerCase("tr-TR");
     const delta = direction === "sağa" ? { dx: 140, dy: 0 } : direction === "sola" ? { dx: -140, dy: 0 } : direction === "yukarı" ? { dx: 0, dy: -140 } : { dx: 0, dy: 140 };
-    return { intent: "computer-control", done: true, message: "Mouse hareket ettirildi.", actions: [{ type: "move-mouse", ...delta }, { type: "finish" }] };
+    return { intent: "computer-control", done: true, message: "Mouse yumuşak biçimde hareket ettirildi.", actions: [{ type: "move-mouse", ...delta, durationMs: 650, steps: 32 }, { type: "finish" }] };
   }
 
   const appText = text

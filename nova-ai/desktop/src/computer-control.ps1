@@ -19,6 +19,36 @@ public static class NovaDesktopInput {
   $action = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:NOVA_CONTROL_PAYLOAD)) | ConvertFrom-Json
   $result = @{ success = $true }
   switch ([string]$action.type) {
+    "system-info" {
+      $osInfo = Get-CimInstance Win32_OperatingSystem
+      $processors = @(Get-CimInstance Win32_Processor)
+      $battery = Get-CimInstance Win32_Battery | Select-Object -First 1
+      $cpuLoad = ($processors | Measure-Object -Property LoadPercentage -Average).Average
+      $totalKb = [double]$osInfo.TotalVisibleMemorySize
+      $freeKb = [double]$osInfo.FreePhysicalMemory
+      $usedPercent = if ($totalKb -gt 0) { [Math]::Round((($totalKb - $freeKb) / $totalKb) * 100, 1) } else { $null }
+      $result.computer = $env:COMPUTERNAME
+      $result.localTime = (Get-Date).ToString("o")
+      $result.cpuUsagePercent = if ($null -ne $cpuLoad) { [Math]::Round([double]$cpuLoad, 1) } else { $null }
+      $result.ramTotalGb = [Math]::Round(($totalKb / 1MB), 2)
+      $result.ramUsedGb = [Math]::Round((($totalKb - $freeKb) / 1MB), 2)
+      $result.ramUsagePercent = $usedPercent
+      $result.battery = if ($battery) {
+        @{ available = $true; chargePercent = [int]$battery.EstimatedChargeRemaining; status = [string]$battery.BatteryStatus }
+      } else { @{ available = $false; message = "Pil bulunamadı; masaüstü bilgisayar olabilir." } }
+      $result.message = "Sistem kaynakları ve yerel saat okundu."
+    }
+    "list-windows" {
+      $windows = @(Get-Process -ErrorAction SilentlyContinue |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_.MainWindowTitle) } |
+        Sort-Object MainWindowTitle |
+        Select-Object -First 40 @{Name="title";Expression={[string]$_.MainWindowTitle}},
+          @{Name="process";Expression={[string]$_.ProcessName}},
+          @{Name="id";Expression={[int]$_.Id}})
+      $result.windows = $windows
+      $result.count = $windows.Count
+      $result.message = "Açık uygulama pencereleri listelendi."
+    }
     "inspect-screen" {
       $handle = [NovaDesktopInput]::GetForegroundWindow()
       $windowTitle = New-Object System.Text.StringBuilder 512
@@ -174,11 +204,23 @@ public static class NovaDesktopInput {
       }
       $bounds = [Windows.Forms.Screen]::PrimaryScreen.Bounds
       if ($x -lt 0 -or $y -lt 0 -or $x -ge $bounds.Width -or $y -ge $bounds.Height) { throw "Mouse koordinatı ekran sınırlarının dışında." }
-      if (-not [NovaDesktopInput]::SetCursorPos($x, $y)) { throw "Windows fare konumunu değiştiremedi." }
+      $start = New-Object NovaDesktopInput+POINT
+      [NovaDesktopInput]::GetCursorPos([ref]$start) | Out-Null
+      $duration = if ($null -ne $action.durationMs) { [int]$action.durationMs } else { 650 }
+      $steps = if ($null -ne $action.steps) { [int]$action.steps } else { 32 }
+      if ($duration -lt 100 -or $duration -gt 5000 -or $steps -lt 4 -or $steps -gt 120) { throw "Fare animasyon parametreleri geçersiz." }
+      for ($step = 1; $step -le $steps; $step++) {
+        $t = [double]$step / [double]$steps
+        $eased = (1 - [Math]::Cos([Math]::PI * $t)) / 2
+        $nextX = [int][Math]::Round($start.X + (($x - $start.X) * $eased))
+        $nextY = [int][Math]::Round($start.Y + (($y - $start.Y) * $eased))
+        if (-not [NovaDesktopInput]::SetCursorPos($nextX, $nextY)) { throw "Windows fare konumunu değiştiremedi." }
+        Start-Sleep -Milliseconds ([Math]::Max(1, [int]($duration / $steps)))
+      }
       $actualPoint = New-Object NovaDesktopInput+POINT
       [NovaDesktopInput]::GetCursorPos([ref]$actualPoint) | Out-Null
       if ($actualPoint.X -ne $x -or $actualPoint.Y -ne $y) { throw "Fare konumu doğrulanamadı; hareket tamamlanmadı." }
-      $result.message = "Mouse hareket ettirildi ve konumu doğrulandı."
+      $result.message = "Fare yumuşak animasyonla hareket ettirildi ve hedef konum doğrulandı."
     }
     "scroll" {
       $amount = [int]$action.amount
