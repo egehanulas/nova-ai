@@ -403,7 +403,10 @@ function registerDesktopAssistantIpc() {
         return await moveUserFile(sourcePath, destination, intent.newName || "");
       }
       case "trash-file": {
-        const safePath = await resolveUserFileForTrash(intent.target);
+        const resolvedTarget = path.isAbsolute(intent.target)
+          ? intent.target
+          : (await openUserPath(intent.target)).path;
+        const safePath = await resolveUserFileForTrash(resolvedTarget);
         const answer = await dialog.showMessageBox(parent, {
           type: "warning", title: "Geri Dönüşüm Kutusu",
           message: "Bu öğe Geri Dönüşüm Kutusu'na taşınsın mı?",
