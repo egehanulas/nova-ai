@@ -147,8 +147,8 @@ export function parseDesktopCommand(input) {
   match = command.match(new RegExp("^(" + LOCATION_TOKEN + ")\\s+(.+)$", "i"));
   if (match) return {
     intent: "search-files",
-    query: cleanTarget(match[1]),
-    location: locationFrom(command.slice(0, command.indexOf(match[1])))
+    query: cleanTarget(match[2]),
+    location: locationFrom(match[1])
   };
 
   return { intent: "unknown" };
