@@ -346,7 +346,7 @@ function registerDesktopAssistantIpc() {
     const approvalReason =
       /(?:satın\s*al|sipariş\s*ver|ödeme\s*yap|ödemeyi\s*tamamla|checkout|buy\s*now|purchase|pay\s*now)/iu.test(sensitiveCommand) ? "Satın alma veya ödeme" :
       /(?:hesap\s+ayar|account\s+settings|güvenlik\s+ayar|şifre(?:mi|yi)?\s+değiştir|e.?posta\s+adresini\s+değiştir)/iu.test(sensitiveCommand) ? "Hesap ayarlarını değiştirme" :
-      /(?:program|uygulama|application|software).{0,35}(?:yükle|kur|kaldır|uninstall|install)/iu.test(sensitiveCommand) ? "Program kurma veya kaldırma" : "";
+      /(?:yükle|kur|kaldır|uninstall|install)/iu.test(sensitiveCommand) ? "Program kurma veya kaldırma" : "";
     if (approvalReason) {
       const approval = await dialog.showMessageBox(parent, {
         type: "warning",
@@ -398,7 +398,7 @@ function registerDesktopAssistantIpc() {
 
     switch (intent.intent) {
       case "help":
-        return { message: "Uygulama açabilir, Chrome ve diğer tarayıcılarda site açabilir, Spotify’da şarkı arayabilir, Steam’de kurulu oyunları başlatabilir; ekrandaki öğelere tıklayıp mouse ve klavyeyi kullanabilirim. Dosya ve klasör arama/açma/taşıma işlemleri de yapabilirim. Örnek: “Discord’u aç”, “Chrome’da YouTube aç”, “Steam’de Dying Light: The Beast aç”, “Spotify’da Blinding Lights çal”, “Oyunlar klasöründe 121.png dosyasını aç”." };
+        return { message: "Windows Başlat menüsüne kayıtlı uygulamaları açabilir, Chrome ve Edge üzerinde web sitelerinde gezinebilir, arama yapabilir, formları doldurabilir, sekmeleri yönetebilir, Spotify’da müzik arayabilir, Steam’de kurulu oyunları başlatabilir; ekrandaki erişilebilir öğelere tıklayıp mouse ve klavyeyi kullanabilirim. Dosya ve klasör arama, açma, taşıma ve düzenleme işlemlerini de desteklerim. Örnek: “Discord’u aç”, “Chrome’da YouTube aç”, “Steam’de Dying Light: The Beast aç”, “Spotify’da Blinding Lights çal”, “Oyunlar klasöründe 121.png dosyasını aç”." };
       case "computer-info":
         return { message: JSON.stringify(getComputerInfo(), null, 2) };
       case "list-folders": {
