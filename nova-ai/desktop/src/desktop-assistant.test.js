@@ -88,6 +88,25 @@ test("desktop command parser routes common and arbitrary installed apps safely",
   });
 });
 
+test("desktop parser handles Turkish Settings inflections, YouTube search, file overview and mouse motion", () => {
+  assert.deepEqual(parseDesktopCommand("Windows ayarlarını aç"), {
+    intent: "open-installed-app", app: "Settings", label: "Windows Ayarları"
+  });
+  assert.deepEqual(parseDesktopCommand("Windows aylarını aç"), {
+    intent: "open-installed-app", app: "Settings", label: "Windows Ayarları"
+  });
+  assert.deepEqual(parseDesktopCommand("yt de müzik aç"), {
+    intent: "open-url", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent("müzik")
+  });
+  assert.deepEqual(parseDesktopCommand("dosyaları incele ve bana neler olduğunu söyle"), {
+    intent: "list-folders"
+  });
+  assert.deepEqual(parseDesktopCommand("mouse'u sağa hareket ettir"), {
+    intent: "computer-control", done: true, message: "Mouse hareket ettirildi.",
+    actions: [{ type: "move-mouse", dx: 140, dy: 0 }, { type: "finish" }]
+  });
+});
+
 test("desktop browser shortcut allowlist includes tab restore and navigation keys", () => {
   for (const key of ["CTRL+SHIFT+T", "CTRL+SHIFT+TAB", "CTRL+PAGEUP", "CTRL+PAGEDOWN", "F5", "F11"]) {
     assert.doesNotThrow(() => validateComputerAction({ type: "press-key", key }));
