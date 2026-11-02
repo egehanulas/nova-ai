@@ -21,3 +21,11 @@ test("uses the final JSON result after PowerShell startup noise", () => {
 test("rejects output without a valid result", () => {
   assert.throws(() => parseComputerControlOutput("PowerShell failed"), /geçerli sonuç alınamadı/);
 });
+
+test("keeps the complete outer result when nested objects contain braces", () => {
+  const output = '#< CLIXML <Objs/>{"success":true,"items":[{"name":"Mesaj","bounds":{"x":1,"y":2}}]}';
+  assert.deepEqual(parseComputerControlOutput(output), {
+    success: true,
+    items: [{ name: "Mesaj", bounds: { x: 1, y: 2 } }]
+  });
+});
