@@ -132,6 +132,12 @@ test("Turkish desktop intent parser understands natural file-open phrasing", () 
   assert.deepEqual(parseDesktopCommand("Masaüstündeki image.png dosyasını aç"), {
     intent: "open-path", target: "image.png", location: "Desktop"
   });
+  assert.deepEqual(parseDesktopCommand("Oyunlar klasöründe 121.png dosyasını aç"), {
+    intent: "open-path", target: "121.png", location: "Oyunlar"
+  });
+  assert.deepEqual(parseDesktopCommand("Oyunlar klasöründe 121.png dosyasını bul ve aç"), {
+    intent: "open-path", target: "121.png", location: "Oyunlar"
+  });
   assert.deepEqual(parseDesktopCommand("Masaüstündeki image.png dosyasını İndirilenler klasörüne taşı"), {
     intent: "move-file", source: "image.png", sourceLocation: "Desktop", destination: "Downloads"
   });
@@ -282,6 +288,8 @@ test("searching a named folder ignores inaccessible unrelated folders outside th
     const results = await searchUserFiles("121.png", "Oyunlar");
     assert.deepEqual(results.map((item) => item.path), [target]);
     assert.equal(results.inaccessibleDirectories, 0);
+    const opened = await openUserPath("121.png", "Oyunlar");
+    assert.equal(opened.path, await fs.realpath(target));
   } finally {
     fs.readdir = originalReaddir;
     await fs.rm(base, { recursive: true, force: true });

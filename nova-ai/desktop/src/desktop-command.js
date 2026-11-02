@@ -114,6 +114,20 @@ export function parseDesktopCommand(input) {
     || command.match(/^(.+?)\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\s*(?:sil|çöp kutusuna taşı|geri dönüşüm kutusuna taşı)$/i);
   if (match) return { intent: "trash-file", target: cleanTarget(match[1]) };
 
+  const folderFindAndOpenMatch = command.match(/^(?:lütfen\s+)?(.+?)\s+klasör(?:ünde|unde)\s+(.+?)\s+(?:(?:dosyasını|dosyayı|dosya)\s+)?(?:bul|ara)\s+ve\s+(?:aç|göster|çalıştır)(?:\s+lütfen)?$/iu);
+  if (folderFindAndOpenMatch) return {
+    intent: "open-path",
+    target: cleanTarget(folderFindAndOpenMatch[2]),
+    location: cleanTarget(folderFindAndOpenMatch[1])
+  };
+
+  const folderOpenMatch = command.match(/^(?:lütfen\s+)?(.+?)\s+klasör(?:ünde|unde)\s+(.+?)\s+(?:(?:dosyasını|dosyayı|dosya)\s+)?(?:aç|göster|çalıştır)(?:\s+(?:lütfen|artık))?$/iu);
+  if (folderOpenMatch) return {
+    intent: "open-path",
+    target: cleanTarget(folderOpenMatch[2]),
+    location: cleanTarget(folderOpenMatch[1])
+  };
+
   const folderSearchMatch = command.match(/^(?:lütfen\s+)?(.+?)\s+klasör(?:ündeki|ünde|undaki|unde)\s+(.+?)\s+(?:(?:dosyasını|dosyayı|dosya)\s+)?(?:bul|ara)(?:\s+lütfen)?$/iu);
   if (folderSearchMatch) return {
     intent: "search-files",
