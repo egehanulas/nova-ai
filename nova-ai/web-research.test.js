@@ -181,7 +181,7 @@ test("page connection uses validated DNS answers without resolving the hostname 
     const request = {
       once() { return this; },
       end() {
-        const incoming = Readable.from(["pinned"]);
+        const incoming = Readable.from([Buffer.from("pinned")]);
         incoming.statusCode = 200;
         incoming.statusMessage = "OK";
         incoming.headers = { "content-type": "text/plain" };
