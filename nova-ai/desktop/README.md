@@ -34,7 +34,7 @@ NOVA AI web uygulamasını Windows masaüstü penceresinde çalıştıran Electr
 - Not Defteri, Hesap Makinesi, Dosya Gezgini, Paint, Steam ve Discord sabit uygulama izin listesiyle başlatılır.
 - Bilgisayar bilgilerini gösterir ve erişilebilir yerel sürücülerde dosya/klasör arar.
 - Kullanıcı tarafından erişilebilen yerel sürücülerde dosya açma, klasör oluşturma, taşıma ve yeniden adlandırma işlemleri desteklenir.
-- Windows ve uygulama sistem dizinleri arama/açma için erişilebilir olabilir; bu alanlarda değişiklik yapılamaz.
+- Windows ve uygulama sistem dizinleri genel aramada atlanır; tam konum belirtilirse erişim izinleri dahilinde aranıp açılabilir, ancak bu alanlarda değişiklik yapılamaz.
 - Çalıştırılabilir dosyalar, betikler, kurulum paketleri ve Windows kısayolları genel dosya açma komutuyla çalıştırılamaz.
 - Taşıma ve Geri Dönüşüm Kutusu işlemleri Windows onayı ister. Klasör oluşturma için masaüstü penceresindeki yerel onay penceresi kullanılır.
 - Arama sınırına ulaşılırsa veya erişim izni olmayan klasörler bulunursa sonuçların kısmi olabileceği kullanıcıya bildirilir.
