@@ -39,6 +39,7 @@ NOVA AI web uygulamasını Windows masaüstü penceresinde çalıştıran Electr
 - Taşıma ve Geri Dönüşüm Kutusu işlemleri Windows onayı ister. Klasör oluşturma için masaüstü penceresindeki yerel onay penceresi kullanılır.
 - Arama sınırına ulaşılırsa veya erişim izni olmayan klasörler bulunursa sonuçların kısmi olabileceği kullanıcıya bildirilir.
 - Web sitesi bu IPC köprüsüne sahip değildir; özellik yerel Electron penceresi ve doğrulanmış üst-seviye IPC göndericisiyle sınırlıdır.
+- Masaüstü sesli girişte tarayıcı SpeechRecognition/Web Speech servisi kullanılmaz; Whisper modeli ilk kullanımda internetten indirilir, konuşma çözümleme cihazda yapılır. Bu, Windows'un yerleşik Dikte motoruyla aynı şey değildir.
 
 ## Geliştirme
 
