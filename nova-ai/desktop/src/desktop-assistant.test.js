@@ -116,7 +116,7 @@ test("desktop updater retry can be cancelled or reset without leaving a pending 
 
 test("Turkish desktop intent parser understands natural file-open phrasing", () => {
   assert.deepEqual(parseDesktopCommand("Masaüstündeki 1.jpg dosyasını aç"), {
-    intent: "open-path", target: "1.jpg"
+    intent: "open-path", target: "1.jpg", location: "Desktop"
   });
   assert.deepEqual(parseDesktopCommand("1.jpg'yi aç"), {
     intent: "open-path", target: "1.jpg"
