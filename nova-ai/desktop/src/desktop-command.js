@@ -56,7 +56,7 @@ export function parseDesktopCommand(input) {
     .trim();
 
   if (/^(?:yardım|komutlar|neler yapabilirsin|ne yapabilirsin)$/.test(text)) return { intent: "help" };
-  if (/^(?:saat kaç|şu an saat kaç|bugün hangi tarih|tarih ve saat|yerel saat|bilgisayarın saatini söyle|bilgisayarımın saatini söyle)$/iu.test(text)) return { intent: "local-time" };
+  if (/^(?:(?:şu an )?saat kaç(?: ve bugün hangi tarih)?|bugün hangi tarih|tarih ve saat|yerel saat|bilgisayarın saatini söyle|bilgisayarımın saatini söyle)$/iu.test(text)) return { intent: "local-time" };
   if (/^(?:açık pencereleri(?: listele| göster)?|hangi pencereler açık|açık uygulamaları(?: listele| göster)?|önde hangi pencere var)$/iu.test(text)) return { intent: "list-windows" };
   if (/^(?:ekranımı analiz et|ekranı analiz et|ekranda ne var|ekranımda ne görüyorsun|açık ekranı anlat|ekranı incele)$/iu.test(text)) return { intent: "screen-summary" };
   if (/^(?:bilgisayar bilgileri|sistem bilgileri|bilgisayarımın özellikleri|pc özellikleri|bilgisayarımın pil durumu|pil durumunu kontrol et|cpu ve ram kullanımını(?: kontrol et| raporla)?|işlemci ve ram kullanımını(?: kontrol et| raporla)?|sistem kaynaklarını(?: kontrol et| raporla)?|bilgisayar performansını raporla)$/iu.test(text)) return { intent: "computer-info" };
@@ -78,7 +78,7 @@ export function parseDesktopCommand(input) {
 
   browserMatch = command.match(/^(?:youtube|youtube\.com|yt)(?:['’]?(?:da|de))?\s+(.+?)\s+(?:video(?:su|sunu)?\s+)?(?:ara|aç|ac|çal|cal|oynat)$/iu);
   if (browserMatch) {
-    const query = browserMatch[1].trim().replace(/\s+(?:son|en son)$/iu, "").trim();
+    const query = browserMatch[1].trim();
     return { intent: "open-url", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent(query) };
   }
 

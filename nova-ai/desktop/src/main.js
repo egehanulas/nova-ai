@@ -14,6 +14,7 @@ import {
 } from "electron";
 import { URL, pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder, launchSteamGame, searchSpotify, openSpotify, openInstalledApp, launchDownloadedInstaller } from "./desktop-assistant.js";
 import { parseDesktopCommand } from "./desktop-command.js";
