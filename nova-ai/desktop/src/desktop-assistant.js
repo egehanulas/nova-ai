@@ -309,27 +309,18 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
   return found;
 }
 
-export async function openAllowedApp(appName) {
-  const apps = {
-    notepad: { label: "Not Defteri", command: "notepad.exe", args: [] },
-    calculator: { label: "Hesap Makinesi", command: "calc.exe", args: [] },
-    explorer: { label: "Dosya Gezgini", command: "explorer.exe", args: [HOME] },
-    paint: { label: "Paint", command: "mspaint.exe", args: [] },
-    steam: { label: "Steam", command: path.join(process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Steam", "steam.exe"), args: [] },
-    discord: { label: "Discord", command: path.join(process.env.LOCALAPPDATA || path.join(HOME, "AppData", "Local"), "Discord", "Update.exe"), args: ["--processStart", "Discord.exe"] }
-  };
-  const selected = apps[appName];
-  if (!selected) throw new Error("Bu uygulama güvenlik nedeniyle izin verilen uygulamalar listesinde değil.");
-  if (appName === "steam" || appName === "discord") {
-    try { await fs.access(selected.command); } catch { throw new Error(selected.label + " bu bilgisayarda bulunamadı veya varsayılan konumunda kurulu değil."); }
-  }
-  const child = spawn(selected.command, selected.args, { detached: true, stdio: "ignore", windowsHide: true });
-  await new Promise((resolve, reject) => {
+function findInstalledExecutable(candidates) {
+  return candidates.find((candidate) => candidate && path.isAbsolute(candidate));
+}
+
+function launchDetached(command, args = []) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { detached: true, stdio: "ignore", windowsHide: true });
     let settled = false;
     child.once("error", (error) => {
       if (settled) return;
       settled = true;
-      reject(new Error(selected.label + " başlatılamadı: " + error.message));
+      reject(error);
     });
     child.once("spawn", () => {
       if (settled) return;
@@ -338,7 +329,105 @@ export async function openAllowedApp(appName) {
       resolve();
     });
   });
+}
+
+export async function openAllowedApp(appName, extraArgs = []) {
+  const localAppData = process.env.LOCALAPPDATA || path.join(HOME, "AppData", "Local");
+  const programFiles = process.env.ProgramFiles || "C:\\Program Files";
+  const programFilesX86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
+  const apps = {
+    notepad: { label: "Not Defteri", candidates: ["notepad.exe"], args: [] },
+    calculator: { label: "Hesap Makinesi", candidates: ["calc.exe"], args: [] },
+    explorer: { label: "Dosya Gezgini", candidates: ["explorer.exe"], args: [HOME] },
+    paint: { label: "Paint", candidates: ["mspaint.exe"], args: [] },
+    steam: { label: "Steam", candidates: [path.join(programFilesX86, "Steam", "steam.exe"), path.join(programFiles, "Steam", "steam.exe")], args: [] },
+    discord: { label: "Discord", candidates: [path.join(localAppData, "Discord", "Update.exe")], args: ["--processStart", "Discord.exe"] },
+    chrome: { label: "Google Chrome", candidates: [path.join(programFiles, "Google", "Chrome", "Application", "chrome.exe"), path.join(programFilesX86, "Google", "Chrome", "Application", "chrome.exe"), path.join(localAppData, "Google", "Chrome", "Application", "chrome.exe")], args: [] },
+    edge: { label: "Microsoft Edge", candidates: [path.join(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe"), path.join(programFiles, "Microsoft", "Edge", "Application", "msedge.exe")], args: [] },
+    firefox: { label: "Firefox", candidates: [path.join(programFiles, "Mozilla Firefox", "firefox.exe"), path.join(programFilesX86, "Mozilla Firefox", "firefox.exe")], args: [] }
+  };
+  const selected = apps[appName];
+  if (!selected) throw new Error("Bu uygulama güvenlik nedeniyle izin verilen uygulamalar listesinde değil.");
+  const command = findInstalledExecutable(selected.candidates);
+  if (!command) throw new Error(selected.label + " bu bilgisayarda bulunamadı veya varsayılan konumunda kurulu değil.");
+  try {
+    await fs.access(command);
+  } catch {
+    if (!["notepad", "calculator", "explorer", "paint"].includes(appName)) {
+      throw new Error(selected.label + " bu bilgisayarda bulunamadı veya varsayılan konumunda kurulu değil.");
+    }
+  }
+  try {
+    await launchDetached(command, [...selected.args, ...extraArgs]);
+  } catch (error) {
+    throw new Error(selected.label + " başlatılamadı: " + error.message);
+  }
   return { message: selected.label + " uygulaması başarıyla başlatıldı." };
+}
+
+function readSteamQuotedValue(text, key) {
+  const match = String(text).match(new RegExp('"' + key + '"\\s+"([^"]+)"', "i"));
+  return match ? match[1].replace(/\\\\/g, "\\") : "";
+}
+
+export async function resolveSteamGame(gameName) {
+  const requested = String(gameName || "").trim();
+  if (!requested || requested.length > 120) throw new Error("Steam oyun adını belirt.");
+  const programFilesX86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
+  const programFiles = process.env.ProgramFiles || "C:\\Program Files";
+  const candidates = [
+    path.join(programFilesX86, "Steam"),
+    path.join(programFiles, "Steam"),
+    path.join(process.env.LOCALAPPDATA || "", "Programs", "Steam")
+  ];
+  let steamRoot = "";
+  for (const candidate of candidates) {
+    try { await fs.access(path.join(candidate, "steam.exe")); steamRoot = candidate; break; } catch {}
+  }
+  if (!steamRoot) throw new Error("Steam bu bilgisayarda bulunamadı.");
+  const libraries = [steamRoot];
+  try {
+    const libraryText = await fs.readFile(path.join(steamRoot, "steamapps", "libraryfolders.vdf"), "utf8");
+    for (const match of libraryText.matchAll(/"path"\s+"([^"]+)"/gi)) {
+      const library = match[1].replace(/\\\\/g, "\\");
+      if (path.isAbsolute(library) && !libraries.some((item) => item.toLowerCase() === library.toLowerCase())) libraries.push(library);
+    }
+  } catch {}
+  const installed = [];
+  for (const library of libraries) {
+    let files = [];
+    try { files = await fs.readdir(path.join(library, "steamapps")); } catch { continue; }
+    for (const file of files.filter((name) => /^appmanifest_\d+\.acf$/i.test(name))) {
+      try {
+        const content = await fs.readFile(path.join(library, "steamapps", file), "utf8");
+        const name = readSteamQuotedValue(content, "name");
+        const appId = readSteamQuotedValue(content, "appid") || file.match(/\d+/)?.[0];
+        if (name && appId) installed.push({ name, appId });
+      } catch {}
+    }
+  }
+  const needle = requested.toLocaleLowerCase("tr-TR");
+  const exact = installed.filter((game) => game.name.toLocaleLowerCase("tr-TR") === needle);
+  const matches = exact.length ? exact : installed.filter((game) => game.name.toLocaleLowerCase("tr-TR").includes(needle));
+  if (matches.length === 0) throw new Error("Steam kütüphanende “" + requested + "” adlı kurulu bir oyun bulamadım.");
+  if (matches.length > 1) throw new Error("Birden fazla oyun eşleşti: " + matches.slice(0, 8).map((game) => game.name).join(", ") + ". Oyunun tam adını söyle.");
+  return { ...matches[0], steamRoot, steamExe: path.join(steamRoot, "steam.exe") };
+}
+
+export async function launchSteamGame(gameName) {
+  const game = await resolveSteamGame(gameName);
+  await launchDetached(game.steamExe, ["steam://rungameid/" + game.appId]);
+  return { message: "Steam üzerinden “" + game.name + "” başlatılıyor.", game: game.name, appId: game.appId };
+}
+
+export async function searchSpotify(query) {
+  const value = String(query || "").trim();
+  if (!value || value.length > 180) throw new Error("Spotify'da aranacak şarkı veya sanatçı adını belirt.");
+  const uri = "spotify:search:" + encodeURIComponent(value);
+  const explorer = process.platform === "win32" ? "explorer.exe" : "";
+  if (!explorer) throw new Error("Spotify bağlantıları yalnızca Windows'ta açılabilir.");
+  await launchDetached(explorer, [uri]);
+  return { message: "Spotify'da “" + value + "” aranıyor." };
 }
 
 function cleanFileReference(input) {
