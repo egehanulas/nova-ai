@@ -3397,7 +3397,17 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
     return res.json({ success: true, intent: { ...intent, done: intent.done === true, message: typeof intent.message === "string" ? intent.message.slice(0, 500) : "" } });
   } catch (error) {
     console.error("[NOVA AI] Masaüstü komutu yorumlanamadı:", error.message);
-    return res.status(503).json({ success: false, error: "Masaüstü komutu güvenli bir eylem planına dönüştürülemedi." });
+    return res.json({
+      success: true,
+      partial: true,
+      errorCode: "AI_PROVIDERS_UNAVAILABLE",
+      intent: {
+        intent: "computer-control",
+        done: true,
+        message: "NOVA'nın yapay zekâ planlama sağlayıcıları şu anda yanıt vermiyor. Temel yerel komutlar çalışmaya devam edebilir; bu karmaşık görev için yeni bir işlem başlatmadım.",
+        actions: [{ type: "finish" }]
+      }
+    });
   }
 }));
 
