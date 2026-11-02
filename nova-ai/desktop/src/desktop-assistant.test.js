@@ -195,7 +195,8 @@ test("Turkish desktop intent parser recognizes apps, search and destructive acti
 test("Discord recent-conversation requests route to computer control, not file search", () => {
   const first = parseDesktopCommand("Discord'da en son konuştuğum kişiyi bul ve sohbetini aç.");
   const second = parseDesktopCommand(`Discord'da en son konuştuğum kişinin sohbetini aç. Mesaj yazma alanını bul ve içine "NOVA TEST 123" yaz. Mesajı kesinlikle gönderme. Yazdıktan sonra işlemin tamamlandığını bildir.`);
-  for (const intent of [first, second]) {
+  const third = parseDesktopCommand(`Discord'da en son konuştuğum kişiye "Merhaba" yaz ve gönder.`);
+  for (const intent of [first, second, third]) {
     assert.equal(intent.intent, "computer-control");
     assert.deepEqual(intent.actions, [
       { type: "open-app", app: "discord" },
