@@ -528,6 +528,8 @@ test("computer control validates supported actions and rejects unsafe or malform
   assert.throws(() => validateComputerAction({ type: "run-command", command: "whoami" }), /Desteklenmeyen/);
   assert.throws(() => validateComputerAction({ type: "press-key", key: "WIN+R" }), /İzin verilmeyen/);
   assert.throws(() => validateComputerAction({ type: "click", x: -1, y: 30 }), /koordinat/);
+  assert.deepEqual(validateComputerAction({ type: "move-mouse", dx: 40, dy: -20 }), { type: "move-mouse", dx: 40, dy: -20 });
+  assert.throws(() => validateComputerAction({ type: "move-mouse", dx: 40000, dy: 0 }), /hareket koordinatları/);
 });
 
 test("Steam game resolver finds a uniquely installed title in a library manifest", async () => {
