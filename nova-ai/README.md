@@ -22,7 +22,7 @@ NOVA AI; Türkçe sohbet, kalıcı kullanıcı hafızası, canlı web araştırm
 
 ## Kurulum
 
-1. Node.js 20 veya üzeri kur.
+1. Node.js 22 veya üzeri kur.
 2. Bu klasörde `npm install` çalıştır.
 3. `.env.example` dosyasını `.env` olarak kopyala.
 4. En az bir sohbet sağlayıcısının API anahtarını ve Supabase bağlantı bilgilerini yerel `.env` dosyasına ekle.
