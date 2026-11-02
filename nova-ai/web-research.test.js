@@ -10,6 +10,7 @@ const {
   parseDuckDuckGoHtml,
   isPrivateAddress,
   validatePublicUrl,
+  fetchPinnedUrl,
   readLimitedBody,
   getSeedSources,
   hasRelevantTopicEvidence,
@@ -162,5 +163,47 @@ test("URL validation retains the exact public DNS answers used for the connectio
     assert.deepEqual(url.resolvedAddresses, answers);
   } finally {
     dns.lookup = originalLookup;
+  }
+});
+
+
+test("page connection uses validated DNS answers without resolving the hostname again", async () => {
+  const dns = require("node:dns").promises;
+  const https = require("node:https");
+  const { Readable } = require("node:stream");
+  const originalLookup = dns.lookup;
+  const originalRequest = https.request;
+  const approved = [{ address: "8.8.8.8", family: 4 }];
+  let connectionLookup;
+  dns.lookup = async () => approved;
+  https.request = (_url, options, callback) => {
+    connectionLookup = options.lookup;
+    const request = {
+      once() { return this; },
+      end() {
+        const incoming = Readable.from(["pinned"]);
+        incoming.statusCode = 200;
+        incoming.statusMessage = "OK";
+        incoming.headers = { "content-type": "text/plain" };
+        callback(incoming);
+      },
+    };
+    return request;
+  };
+  try {
+    const url = await validatePublicUrl("https://pinned.example/article");
+    dns.lookup = async () => [{ address: "127.0.0.1", family: 4 }];
+    const response = await fetchPinnedUrl(url);
+    const connected = await new Promise((resolve, reject) => {
+      connectionLookup("pinned.example", {}, (error, address, family) => {
+        if (error) reject(error);
+        else resolve({ address, family });
+      });
+    });
+    assert.deepEqual(connected, approved[0]);
+    assert.equal(await response.text(), "pinned");
+  } finally {
+    dns.lookup = originalLookup;
+    https.request = originalRequest;
   }
 });
