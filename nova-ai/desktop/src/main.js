@@ -383,18 +383,24 @@ function registerDesktopAssistantIpc() {
       }
       case "move-file":
       case "rename-file": {
+        const sourcePath = path.isAbsolute(intent.source)
+          ? intent.source
+          : (await openUserPath(intent.source)).path;
+        const destinationText = intent.destination || "";
         const destination = intent.intent === "rename-file"
-          ? path.dirname(intent.source)
-          : await findFolder(intent.destination);
+          ? path.dirname(sourcePath)
+          : (path.isAbsolute(destinationText) || destinationText.includes("/") || destinationText.includes("\\")
+            ? destinationText
+            : await findFolder(destinationText));
         const answer = await dialog.showMessageBox(parent, {
           type: "warning", title: "Dosya işlemi onayı",
           message: intent.intent === "rename-file" ? "Öğe yeniden adlandırılsın mı?" : "Öğe taşınsın mı?",
-          detail: intent.source + "\\n→ " + destination +
-            (intent.newName ? "\\nYeni ad: " + intent.newName : ""),
+          detail: sourcePath + "\n→ " + destination +
+            (intent.newName ? "\nYeni ad: " + intent.newName : ""),
           buttons: ["Devam et", "Vazgeç"], defaultId: 1, cancelId: 1
         });
         if (answer.response !== 0) return { message: "İşlem iptal edildi." };
-        return await moveUserFile(intent.source, destination, intent.newName || "");
+        return await moveUserFile(sourcePath, destination, intent.newName || "");
       }
       case "trash-file": {
         const safePath = await resolveUserFileForTrash(intent.target);
