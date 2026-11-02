@@ -361,8 +361,12 @@ export async function openAllowedApp(appName, extraArgs = []) {
 }
 
 export function normalizeInstalledAppQuery(value) {
-  const query = String(value || "").trim().replace(/\s+/g, " ");
-  if (!query || query.length > 100 || /[\0\r\n]/.test(query)) {
+  const raw = String(value || "");
+  if (/[\0\r\n]/.test(raw)) {
+    throw new Error("Açılacak uygulamanın adını 1-100 karakter arasında belirt.");
+  }
+  const query = raw.trim().replace(/\s+/g, " ");
+  if (!query || query.length > 100) {
     throw new Error("Açılacak uygulamanın adını 1-100 karakter arasında belirt.");
   }
   return query;
