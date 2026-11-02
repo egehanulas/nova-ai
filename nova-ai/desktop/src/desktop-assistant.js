@@ -4,7 +4,13 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 
 const HOME = os.homedir();
-const ROOTS = ["Desktop", "Documents", "Downloads"].map((name) => path.join(HOME, name));
+const ROOT_NAMES = ["Desktop", "Documents", "Downloads"];
+const ROOTS = [...new Set(ROOT_NAMES.flatMap((name) => {
+  const candidates = [path.join(HOME, name)];
+  const oneDrive = process.env.OneDrive || process.env.OneDriveCommercial || process.env.OneDriveConsumer;
+  if (oneDrive) candidates.push(path.join(oneDrive, name));
+  return candidates;
+}))];
 
 function inside(parent, target) {
   const relative = path.relative(parent, target);
@@ -107,8 +113,27 @@ export async function openAllowedApp(appName) {
 }
 
 export async function openUserPath(input) {
-  const { path: safePath } = await resolveExistingUserPath(input);
-  return { path: safePath, message: "Öğe açılmaya hazır." };
+  if (typeof input !== "string" || !input.trim()) throw new Error("Açılacak dosya veya klasörün adını yaz.");
+  let candidate = input.trim().replace(/^["“]|["”]$/g, "");
+  if (!path.isAbsolute(candidate) && !candidate.includes("/") && !candidate.includes("\\\\")) {
+    const matches = await searchUserFiles(candidate);
+    const exact = matches.filter((item) => item.name.toLocaleLowerCase("tr-TR") === candidate.toLocaleLowerCase("tr-TR"));
+    const selected = exact.length ? exact : matches;
+    if (!selected.length) throw new Error("“" + candidate + "” adlı öğeyi Masaüstü, Belgeler veya İndirilenler içinde bulamadım. Önce dosya adını aratabilirsin.");
+    if (selected.length > 1) {
+      throw new Error("Aynı isimde birden fazla öğe buldum. Hangisini açayım?\\n" +
+        selected.slice(0, 5).map((item) => item.path).join("\\n"));
+    }
+    candidate = selected[0].path;
+  } else {
+    candidate = candidate
+      .replace(/^~(?=[\\\\/])/, HOME)
+      .replace(/^(?:masaüstü|masaustu|desktop)(?=[\\\\/])/i, path.join(HOME, "Desktop"))
+      .replace(/^(?:belgeler|documents)(?=[\\\\/])/i, path.join(HOME, "Documents"))
+      .replace(/^(?:indirilenler|downloads)(?=[\\\\/])/i, path.join(HOME, "Downloads"));
+  }
+  const { path: safePath } = await resolveExistingUserPath(candidate);
+  return { path: safePath, message: "“" + path.basename(safePath) + "” açılmaya hazır." };
 }
 
 export async function resolveUserFileForTrash(input) {
