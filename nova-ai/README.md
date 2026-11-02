@@ -72,6 +72,6 @@ Supabase SQL Editor'de sırasıyla `003`, `004` ve `006` migration dosyalarını
 - Sohbet, web araştırması, hafıza, ses ve görsel üretimi harici servislerin erişimine, kota ve API anahtarlarına bağlıdır.
 - NOVA Desktop, barındırılan web uygulamasını açan çevrimiçi Electron istemcisidir; yerel dosya arama/açma/taşıma, Windows Başlat menüsüne kayıtlı uygulamaları açma ve erişilebilir pencerelerde UI Automation ile çok adımlı kontrol Windows masaüstü IPC katmanında çalışır. Uygulama ve site otomasyonu, erişilebilir arayüz denetimlerine bağlıdır; her özel uygulama/oyun ekranı aynı düzeyde otomatikleştirilemeyebilir. Çevrimdışı sohbet henüz yoktur.
 - Masaüstü otomatik güncellemesi GitHub Releases/Squirrel.Windows üzerinden dağıtılır; güncelleme indirildiğinde kurulum kullanıcı onayıyla yapılır.
-- Discord mesajı gönderme, genel fare/klavye kontrolü ve geniş kapsamlı uygulama otomasyonu henüz desteklenmez. Dosya işlemleri ve izinli uygulama başlatma mevcut masaüstü kapsamıdır.
+- NOVA Desktop, erişilebilir uygulama pencerelerinde fare/klavye kontrolü ve çok adımlı görev otomasyonu sunar; Discord mesajları kullanıcı komutuyla gönderilebilir. UI Automation kapsamı uygulamaya ve siteye göre değişebilir.
 - /health endpoint'i sürüm ve kanal bilgisini verir; gizli anahtar değerlerini açığa çıkarmaz.
 - Sürüm numaraları nova-ai/package.json, nova-ai/package-lock.json ve nova-ai/desktop/package.json dosyalarında birlikte tutulur. npm run check bu eşleşmeyi test eder.
