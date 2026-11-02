@@ -16,17 +16,26 @@ function cleanTarget(value) {
     .trim();
 }
 
+const LOCATION_TOKEN = "(?:masaüstü|masaustu|desktop|belgeler|documents|indirilenler|downloads)(?:\\s+klasör)?(?:ndeki|nde|ne|deki|de|e|ündeki|ünde|üne)?";
+
 function locationFrom(text) {
   const value = String(text || "").toLocaleLowerCase("tr-TR");
-  if (/masaüst/.test(value)) return "Desktop";
-  if (/belge/.test(value)) return "Documents";
-  if (/indirilen|download/.test(value)) return "Downloads";
+  if (/masaüstü|masaustu|desktop/.test(value)) return "Desktop";
+  if (/belgeler|documents/.test(value)) return "Documents";
+  if (/indirilenler|download/.test(value)) return "Downloads";
   return "";
 }
 
 function normalizeDestination(value) {
-  const cleaned = cleanTarget(value).replace(/\s+klasörüne$/i, "").trim();
-  return locationFrom(cleaned) || cleaned;
+  const cleaned = cleanTarget(value).replace(/\\s+klasör(?:ü|üne)?$/i, "").trim();
+  const prefix = cleaned.match(new RegExp("^(" + LOCATION_TOKEN + ")\\s+(.+)$", "i"));
+  if (prefix) {
+    const key = locationFrom(prefix[1]);
+    const subfolder = cleanTarget(prefix[2]).replace(/\\s+klasör(?:ü|üne)?$/i, "").trim();
+    return subfolder ? key + "/" + subfolder : key;
+  }
+  const rootOnly = cleaned.match(new RegExp("^" + LOCATION_TOKEN + "$", "i"));
+  return rootOnly ? locationFrom(cleaned) : cleaned;
 }
 
 export function parseDesktopCommand(input) {
