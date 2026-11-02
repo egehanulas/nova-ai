@@ -5,12 +5,22 @@ import { spawn } from "node:child_process";
 
 const HOME = os.homedir();
 const ROOT_NAMES = ["Desktop", "Documents", "Downloads"];
-const ROOTS = [...new Set(ROOT_NAMES.flatMap((name) => {
+let ROOTS = [...new Set(ROOT_NAMES.flatMap((name) => {
   const candidates = [path.join(HOME, name)];
   const oneDrive = process.env.OneDrive || process.env.OneDriveCommercial || process.env.OneDriveConsumer;
   if (oneDrive) candidates.push(path.join(oneDrive, name));
   return candidates;
 }))];
+let ROOT_LABELS = new Map(ROOTS.map((root) => [root, path.basename(root)]));
+
+export function configureUserFolderPaths(paths = {}) {
+  const entries = ROOT_NAMES.map((name) => [name, paths[name]]);
+  if (entries.some(([, value]) => typeof value !== "string" || !path.isAbsolute(value))) {
+    throw new Error("Windows kullanıcı klasör yolları geçersiz.");
+  }
+  ROOTS = entries.map(([, value]) => path.resolve(value));
+  ROOT_LABELS = new Map(entries.map(([name, value]) => [path.resolve(value), name]));
+}
 
 function inside(parent, target) {
   const relative = path.relative(parent, target);
@@ -63,10 +73,10 @@ export async function listUserFolders() {
   for (const root of ROOTS) {
     try {
       const entries = await fs.readdir(root, { withFileTypes: true });
-      results.push({ name: path.basename(root), path: root, items: entries.slice(0, 100).map((entry) => ({
+      results.push({ name: ROOT_LABELS.get(root) || path.basename(root), path: root, items: entries.slice(0, 100).map((entry) => ({
         name: entry.name, type: entry.isDirectory() ? "folder" : "file", path: path.join(root, entry.name)
       })) });
-    } catch { results.push({ name: path.basename(root), path: root, items: [] }); }
+    } catch { results.push({ name: ROOT_LABELS.get(root) || path.basename(root), path: root, items: [] }); }
   }
   return results;
 }
