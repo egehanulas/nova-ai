@@ -92,7 +92,7 @@ export function parseDesktopCommand(input) {
   browserMatch = command.match(/^steam(?:'de|’de|de)\s+(.+?)\s+(?:aç|ac|başlat|baslat|oyna|çalıştır|calistir)$/iu);
   if (browserMatch) return { intent: "launch-steam-game", game: browserMatch[1].trim() };
 
-  const mouseDirection = command.match(/^(?:mouse|fare)(?:['’](?:u|ı|i)|u|ı|i)?\s+(sağa|sola|yukarı|aşağı)\s+(?:hareket ettir|oynat|götür)$/iu);
+  const mouseDirection = command.match(/^(?:mouse|fare)(?:['’](?:u|ı|i)|yı|yi|yu|yü|u|ı|i|ü)?\s+(sağa|sola|yukarı|aşağı)\s+(?:hareket ettir|oynat|götür)$/iu);
   if (mouseDirection) {
     const direction = mouseDirection[1].toLocaleLowerCase("tr-TR");
     const delta = direction === "sağa" ? { dx: 140, dy: 0 } : direction === "sola" ? { dx: -140, dy: 0 } : direction === "yukarı" ? { dx: 0, dy: -140 } : { dx: 0, dy: 140 };
