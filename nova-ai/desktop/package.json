@@ -9,7 +9,7 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "test": "node --test src/desktop-assistant.test.js"
+    "test": "node --check src/main.js && node --check src/preload.cjs && node --check src/desktop-command.js && node --test src/desktop-assistant.test.js"
   },
   "devDependencies": {
     "@electron-forge/cli": "^8.0.1",
