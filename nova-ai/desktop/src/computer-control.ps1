@@ -11,6 +11,8 @@ using System;
 using System.Runtime.InteropServices;
 public static class NovaDesktopInput {
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int count);
   [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, int data, UIntPtr extraInfo);
 }
 "@
@@ -18,7 +20,10 @@ public static class NovaDesktopInput {
   $result = @{ success = $true }
   switch ([string]$action.type) {
     "inspect-screen" {
-      $root = [System.Windows.Automation.AutomationElement]::RootElement
+      $handle = [NovaDesktopInput]::GetForegroundWindow()
+      $windowTitle = New-Object System.Text.StringBuilder 512
+      [NovaDesktopInput]::GetWindowText($handle, $windowTitle, $windowTitle.Capacity) | Out-Null
+      $root = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
       $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
       $items = @()
       $limit = [Math]::Min($all.Count, 2500)
@@ -41,13 +46,14 @@ public static class NovaDesktopInput {
           }
         } catch {}
       }
+      $result.activeWindow = $windowTitle.ToString()
       $result.items = $items
-      $result.message = "Ekrandaki erişilebilir denetimler listelendi."
+      $result.message = "Etkin penceredeki erişilebilir denetimler listelendi."
     }
     "click-text" {
       $needle = [string]$action.text
       if (-not $needle -or $needle.Length -gt 180) { throw "Tıklanacak metin geçersiz." }
-      $root = [System.Windows.Automation.AutomationElement]::RootElement
+      $root = [System.Windows.Automation.AutomationElement]::FromHandle([NovaDesktopInput]::GetForegroundWindow())
       $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
       $matches = @()
       $limit = [Math]::Min($all.Count, 3000)
