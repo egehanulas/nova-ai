@@ -71,6 +71,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: NOVA AI Desktop ${{ steps.release.outputs.tag_name }}
           generate_release_notes: true
+          overwrite_files: true
           files: |
             nova-ai/desktop/out/make/squirrel.windows/x64/*.exe
             nova-ai/desktop/out/make/squirrel.windows/x64/*.nupkg
