@@ -8,6 +8,8 @@ using System;
 using System.Runtime.InteropServices;
 public static class NovaDesktopInput {
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
+  [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X; public int Y; }
+  [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT point);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int count);
   [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, int data, UIntPtr extraInfo);
@@ -39,6 +41,7 @@ public static class NovaDesktopInput {
                 automationId = [string]$current.AutomationId
                 className = [string]$current.ClassName
                 focusable = [bool]$current.IsKeyboardFocusable
+                bounds = @{ x = [int]$current.BoundingRectangle.Left; y = [int]$current.BoundingRectangle.Top; width = [int]$current.BoundingRectangle.Width; height = [int]$current.BoundingRectangle.Height }
               }
               if ($control -match "Edit|Button|ListItem|Hyperlink|TabItem|ComboBox|MenuItem") { $controls += $item }
               elseif ($name.Trim()) { $texts += $item }
@@ -149,7 +152,14 @@ public static class NovaDesktopInput {
       $result.message = "Ekrana tıklandı."
     }
     "move-mouse" {
-      $x = [int]$action.x; $y = [int]$action.y
+      if ($null -ne $action.dx -or $null -ne $action.dy) {
+        $point = New-Object NovaDesktopInput+POINT
+        [NovaDesktopInput]::GetCursorPos([ref]$point) | Out-Null
+        $x = $point.X + [int]$action.dx
+        $y = $point.Y + [int]$action.dy
+      } else {
+        $x = [int]$action.x; $y = [int]$action.y
+      }
       $bounds = [Windows.Forms.Screen]::PrimaryScreen.Bounds
       if ($x -lt 0 -or $y -lt 0 -or $x -ge $bounds.Width -or $y -ge $bounds.Height) { throw "Mouse koordinatı ekran sınırlarının dışında." }
       [NovaDesktopInput]::SetCursorPos($x, $y) | Out-Null
