@@ -1,4 +1,5 @@
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 try {
   Add-Type -AssemblyName UIAutomationClient
   Add-Type -AssemblyName UIAutomationTypes
@@ -187,6 +188,6 @@ public static class NovaDesktopInput {
   }
   $result | ConvertTo-Json -Depth 8 -Compress
 } catch {
-  @{ success = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress
+  Write-Output ("NOVA_RESULT:" + (@{ success = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress))
   exit 1
 }
