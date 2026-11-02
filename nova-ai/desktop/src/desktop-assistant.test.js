@@ -77,6 +77,12 @@ test("desktop command parser routes common and arbitrary installed apps safely",
   assert.deepEqual(parseDesktopCommand("Telegram aç"), {
     intent: "open-installed-app", app: "Telegram", label: "Telegram"
   });
+  assert.deepEqual(parseDesktopCommand("Not Defteri aç"), {
+    intent: "open-app", app: "notepad", label: "Not Defteri"
+  });
+  assert.deepEqual(parseDesktopCommand("Hesap Makinesi aç"), {
+    intent: "open-app", app: "calculator", label: "Hesap Makinesi"
+  });
   assert.deepEqual(parseDesktopCommand("Windows Ayarları aç"), {
     intent: "open-installed-app", app: "Settings", label: "Windows Ayarları"
   });
@@ -84,7 +90,34 @@ test("desktop command parser routes common and arbitrary installed apps safely",
     intent: "open-installed-app", app: "Visual Studio Code"
   });
   assert.deepEqual(parseDesktopCommand("Görev Yöneticisi'ni aç"), {
-    intent: "open-installed-app", app: "Görev Yöneticisi"
+    intent: "open-installed-app", app: "Task Manager", label: "Görev Yöneticisi"
+  });
+});
+
+test("desktop parser handles Turkish Settings inflections, YouTube search, file overview and mouse motion", () => {
+  assert.deepEqual(parseDesktopCommand("Windows ayarlarını aç"), {
+    intent: "open-installed-app", app: "Settings", label: "Windows Ayarları"
+  });
+  assert.deepEqual(parseDesktopCommand("Windows aylarını aç"), {
+    intent: "open-installed-app", app: "Settings", label: "Windows Ayarları"
+  });
+  assert.deepEqual(parseDesktopCommand("yt de müzik aç"), {
+    intent: "open-url", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent("müzik")
+  });
+  assert.deepEqual(parseDesktopCommand("Google'da İstanbul hava durumu ara, sonuçları incele ve bana özetle"), {
+    intent: "computer-control", done: false,
+    actions: [{ type: "research-web", query: "İstanbul hava durumu" }]
+  });
+  assert.deepEqual(parseDesktopCommand("dosyaları incele ve bana neler olduğunu söyle"), {
+    intent: "list-folders"
+  });
+  assert.deepEqual(parseDesktopCommand("mouse'u sağa hareket ettir"), {
+    intent: "computer-control", done: true, message: "Mouse hareket ettirildi.",
+    actions: [{ type: "move-mouse", dx: 140, dy: 0 }, { type: "finish" }]
+  });
+  assert.deepEqual(parseDesktopCommand("fareyi sola hareket ettir"), {
+    intent: "computer-control", done: true, message: "Mouse hareket ettirildi.",
+    actions: [{ type: "move-mouse", dx: -140, dy: 0 }, { type: "finish" }]
   });
 });
 

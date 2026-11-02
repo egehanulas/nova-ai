@@ -11,7 +11,7 @@ const APP_ALIASES = [
   { names: ["dosya gezgini", "dosya yöneticisi", "explorer"], app: "explorer", label: "Dosya Gezgini" },
   { names: ["whatsapp"], app: "WhatsApp", label: "WhatsApp", installed: true },
   { names: ["telegram"], app: "Telegram", label: "Telegram", installed: true },
-  { names: ["windows ayarları", "ayarlar", "settings"], app: "Settings", label: "Windows Ayarları", installed: true },
+  { names: ["windows ayarları", "windows ayar", "windows ay", "windows settings", "ayarlar", "ayar", "settings"], app: "Settings", label: "Windows Ayarları", installed: true },
   { names: ["görev yöneticisi", "task manager"], app: "Task Manager", label: "Görev Yöneticisi", installed: true }
 ];
 
@@ -56,6 +56,7 @@ export function parseDesktopCommand(input) {
     .trim();
 
   if (/^(?:yardım|komutlar|neler yapabilirsin|ne yapabilirsin)$/.test(text)) return { intent: "help" };
+  if (/^(?:(?:masaüstündeki|bilgisayardaki|erişilebilir sürücülerdeki)\s+)?dosyalar(?:ı|ımı|imi)?\s+incele(?:\s+ve\s+.*)?$/iu.test(command)) return { intent: "list-folders" };
   if (/^(?:bilgisayar bilgileri|sistem bilgileri|bilgisayarımın özellikleri|pc özellikleri)$/.test(text)) return { intent: "computer-info" };
   if (/^(?:klasörler|klasörlerimi göster|dosyalarımı göster|hızlı erişim|sürücüleri göster|diskleri göster)$/.test(text)) return { intent: "list-folders" };
 
@@ -72,8 +73,18 @@ export function parseDesktopCommand(input) {
   browserMatch = command.match(/^(?:youtube|youtube\.com)\s+(?:aç|gir)$/iu);
   if (browserMatch) return { intent: "open-url", url: "https://www.youtube.com" };
 
-  browserMatch = command.match(/^youtube(?:'da|’da|da)\s+(.+?)\s+ara$/iu);
+  browserMatch = command.match(/^(?:youtube|yt)\s*(?:'da|’da|da|'de|’de|de)\s+(.+?)\s+(?:ara|aç|ac|çal|cal|oynat)$/iu);
   if (browserMatch) return { intent: "open-url", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent(browserMatch[1].trim()) };
+
+  const explicitResearchRequest =
+    /(?:google(?:['’]da|da|de)?|internette|web(?:['’]de|de)|hava durumu|güncel bilgi)/iu.test(command) &&
+    /(?:araştır|arastir|\bara\b|özetle|ozetle|incele)/iu.test(command);
+  if (explicitResearchRequest) {
+    let query = command.replace(/^(?:lütfen\s+)?(?:google(?:['’]da|da|de)?|internette|web(?:['’]de|de))\s+/iu, "");
+    query = query.replace(/\s+(?:ara|araştır|arastir|özetle|ozetle|incele)\b[\s\S]*$/iu, "").trim();
+    if (!query) query = command;
+    return { intent: "computer-control", done: false, actions: [{ type: "research-web", query: query.slice(0, 1200) }] };
+  }
 
   browserMatch = command.match(/^spotify(?:'da|’da|da)\s+(.+?)\s+(?:çal|cal|aç|ac|dinlet)$/iu);
   if (browserMatch) return { intent: "computer-control", done: false, actions: [{ type: "spotify-search", query: browserMatch[1].trim() }, { type: "wait", ms: 1800 }, { type: "inspect-screen" }] };
@@ -81,11 +92,18 @@ export function parseDesktopCommand(input) {
   browserMatch = command.match(/^steam(?:'de|’de|de)\s+(.+?)\s+(?:aç|ac|başlat|baslat|oyna|çalıştır|calistir)$/iu);
   if (browserMatch) return { intent: "launch-steam-game", game: browserMatch[1].trim() };
 
+  const mouseDirection = command.match(/^(?:mouse|fare)(?:['’](?:u|ı|i)|yı|yi|yu|yü|u|ı|i|ü)?\s+(sağa|sola|yukarı|aşağı)\s+(?:hareket ettir|oynat|götür)$/iu);
+  if (mouseDirection) {
+    const direction = mouseDirection[1].toLocaleLowerCase("tr-TR");
+    const delta = direction === "sağa" ? { dx: 140, dy: 0 } : direction === "sola" ? { dx: -140, dy: 0 } : direction === "yukarı" ? { dx: 0, dy: -140 } : { dx: 0, dy: 140 };
+    return { intent: "computer-control", done: true, message: "Mouse hareket ettirildi.", actions: [{ type: "move-mouse", ...delta }, { type: "finish" }] };
+  }
+
   const appText = text
     .replace(/^(?:lütfen\s+)?(?:(?:bana|benim için)\s+)?/i, "")
     .replace(/^(?:uygulamayı\s+)?(?:aç|başlat|çalıştır)\s+/i, "")
     .replace(/\s+(?:uygulamasını\s+)?(?:aç|başlat|çalıştır)(?:\s+(?:lütfen|artık))?$/i, "")
-    .replace(/['’](?:i|ı|u|ü)$/i, "")
+    .replace(/(?:['’](?:nı|ni|nu|nü|yı|yi|yu|yü|ı|i|u|ü)|(?:larını|lerini|ları|leri|sini|sını|nı|ni|nu|nü|yı|yi|yu|yü))$/iu, "")
     .trim();
   const app = APP_ALIASES.find((entry) => entry.names.includes(appText));
   if (app) return app.installed ? { intent: "open-installed-app", app: app.app, label: app.label } : { intent: "open-app", app: app.app, label: app.label };

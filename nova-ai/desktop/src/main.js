@@ -488,6 +488,7 @@ function registerDesktopAssistantIpc() {
               action.type === "open-url" ? "Tarayıcıda web adresi açılıyor." :
               action.type === "launch-steam-game" ? (action.game + " oyunu başlatılıyor.") :
               action.type === "spotify-search" ? (action.query + " Spotify'da aranıyor.") :
+              action.type === "research-web" ? "Web kaynakları araştırılıyor ve yanıt hazırlanıyor." :
               action.type === "inspect-screen" ? "Etkin pencere inceleniyor." :
               action.type === "click-text" ? "Ekrandaki hedef öğeye tıklanıyor." :
               action.type === "focus-control" ? "İlgili giriş alanına odaklanılıyor." :
@@ -548,6 +549,23 @@ function registerDesktopAssistantIpc() {
               await launchSteamGame(action.game);
             } else if (action.type === "spotify-search") {
               await searchSpotify(action.query);
+            } else if (action.type === "research-web") {
+              if (!accessToken) throw new Error("Web araştırması için önce NOVA hesabında oturum açmalısın.");
+              const response = await fetch(new URL("/api/research", NOVA_URL), {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": "Bearer " + accessToken
+                },
+                body: JSON.stringify({ messages: [{ role: "user", content: String(action.query || "").slice(0, 1200) }] }),
+                signal: AbortSignal.timeout(90000)
+              });
+              const research = await response.json().catch(() => ({}));
+              if (!response.ok || !research.success || typeof research.answer !== "string" || !research.answer.trim()) {
+                throw new Error(research.error || "NOVA web araştırmasını tamamlayamadı.");
+              }
+              reportProgress("completed", "Araştırma yanıtı hazır.", completed + 1, completed + 1);
+              return { message: research.answer, steps: completed + 1, sources: research.sources || [] };
             } else {
               await runComputerAction(action);
             }
@@ -774,6 +792,14 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
       "Steam kütüphanesindeki kurulu oyunları adlarıyla başlatabiliyor",
       "Ekrandaki erişilebilir öğeleri okuyup adım adım tıklama ve metin yazma",
       "Rastgele terminal komutları yerine izinli ve doğrulanan masaüstü eylemleri"
+    ],
+    "0.2.0-alpha.34": [
+      "Windows Ayarları ve Görev Yöneticisi için daha güvenilir doğrudan başlatma",
+      "Türkçe uygulama adlarında doğal ekleri tanıma ve YouTube/yt arama komutları",
+      "Google araştırma isteklerinde kaynakları inceleyip yanıtı NOVA içinde sunma",
+      "Dosyaları incele isteğinde erişilebilir sürücülerin üst düzey içeriğini listeleme",
+      "Mouse/fare yön komutları ve imleç hareketinin gerçek konumla doğrulanması",
+      "Uygulama başlatma hatalarında UTF-8 yapılandırılmış hata çıktısı"
     ],
     "0.2.0-alpha.33": [
       "Windows Başlat menüsüne kayıtlı uygulamaları adlarıyla bulup açma",

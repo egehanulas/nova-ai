@@ -1128,8 +1128,9 @@ async function callGroq(messages, extraInstruction = "") {
                           items: {
                             type: "object",
                             properties: {
-                              type: { type: "string", enum: ["open-app", "open-url", "launch-steam-game", "spotify-search", "inspect-screen", "click-text", "focus-control", "type-text", "press-key", "click", "move-mouse", "scroll", "wait", "finish"] },
+                              type: { type: "string", enum: ["open-app", "open-installed-app", "launch-installer", "open-url", "research-web", "launch-steam-game", "spotify-search", "inspect-screen", "click-text", "focus-control", "type-text", "press-key", "click", "move-mouse", "scroll", "wait", "finish"] },
                               app: { type: ["string", "null"] },
+                              path: { type: ["string", "null"] },
                               url: { type: ["string", "null"] },
                               game: { type: ["string", "null"] },
                               query: { type: ["string", "null"] },
@@ -1145,7 +1146,7 @@ async function callGroq(messages, extraInstruction = "") {
                               amount: { type: ["number", "null"] },
                               ms: { type: ["number", "null"] }
                             },
-                            required: ["type", "app", "url", "game", "query", "text", "controlType", "name", "automationId", "key", "x", "y", "dx", "dy", "amount", "ms"],
+                            required: ["type", "app", "path", "url", "game", "query", "text", "controlType", "name", "automationId", "key", "x", "y", "dx", "dy", "amount", "ms"],
                             additionalProperties: false
                           }
                         }
@@ -3328,7 +3329,8 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
     '- {"type":"open-app","app":"discord|steam|chrome|edge|firefox|notepad|calculator|explorer|paint|spotify"}',
     '- {"type":"open-installed-app","app":"exact installed app name, e.g. WhatsApp, Telegram, Windows Settings or Task Manager"} (resolve only through the Windows Start menu app registry; never construct a shell command)',
     '- {"type":"launch-installer","path":"exact downloaded .exe or .msi file in the Downloads folder"} (only after explicit local approval; never launch scripts or files outside Downloads)',
-    '- {"type":"open-url","url":"https://...","app":"chrome"} (app isteğe bağlı; yalnızca http/https)',
+    '- {"type":"open-url","url":"https://...","app":"chrome"} (app isteğe bağlı; yalnızca http/https; kullanıcı siteyi açmak istediğinde kullan)',
+    '- {"type":"research-web","query":"araştırılacak konu veya güncel soru"} (kaynakları araştır ve yanıt hazırla)',
     '- {"type":"launch-steam-game","game":"kurulu oyunun tam adı"}',
     '- {"type":"spotify-search","query":"şarkı veya sanatçı"}',
     '- {"type":"inspect-screen"} (yalnızca etkin pencerenin erişilebilir denetimlerini oku)',
@@ -3350,7 +3352,9 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
     "- Discord'da en son konuştuğu kişiye mesaj istenirse, en son birebir DM konuşmasını seç; sunucu/kanal, grup sohbeti veya kişi ayrımı belirsizse mesaj gönderme ve kullanıcıdan netleştirme iste.",
     "- Satın alma/ödeme, hesap ayarı değiştirme ve program kurma/kaldırma komutlarında yerel onay penceresi gösterilir; onay alınmadan bu işlemlere yönelik tıklama veya tuş gönderme. Dosya silme işlemlerinde de mevcut yerel onay mekanizmasını kullan.",
     "- Hesaplara girişte kullanıcıyı giriş sayfasına götür ve güvenli alanları doldurabilirsin; parola, tek kullanımlık kod veya kurtarma kodu isteme, okuma ya da yazma. Parola/2FA alanına gelince kullanıcıya kendisinin girmesi için dur.",
-    "- İstenen web işlemlerinde Google/YouTube araması, bağlantı açma, sekme yönetimi, form doldurma, indirme ve sayfa içi gezinmeyi erişilebilir UI denetimleriyle yap. İndirme tamamlanmadan dosya hazır olduğunu söyleme.",
+    "- Kullanıcı güncel bilgi, hava durumu, internet araştırması, Google araması ve sonuç özeti istediğinde research-web eylemini kullan; yalnızca Google sayfasını açıp görevi tamamlandı sayma. Kullanıcı yalnızca bir siteyi açmanı istiyorsa open-url kullan.",
+    "- Kullanıcı mouse/fareyi sağa, sola, yukarı veya aşağı hareket ettirmeyi isterse move-mouse ile göreli dx/dy kullan; gereksiz ekran koordinatı uydurma.",
+    "- İstenen web işlemlerinde bağlantı açma, sekme yönetimi, form doldurma, indirme ve sayfa içi gezinmeyi erişilebilir UI denetimleriyle yap. İndirme tamamlanmadan dosya hazır olduğunu söyleme.",
     "- Steam oyunu için yalnızca kurulu oyun adı iste; oyun adını uydurma. Spotify şarkı isteğinde arama ekranını aç, inspect-screen ile sonuçları oku, yalnızca istenen şarkıyla açıkça eşleşen sonucu tıkla ve oynatmayı başlat. Birden fazla benzer sonuç varsa tahmin etme; kullanıcıdan sanatçı/sürüm ayrıntısı iste. Abonelik veya ödeme işlemi yapma.",
     "- Web adreslerini yalnızca http/https olarak aç. Bilinmeyen uygulama veya rastgele komut çalıştırma; PowerShell, CMD, terminal veya kabuk komutu üretme.",
     "- Ekran gözlemi yoksa click-text veya focus-control üretme. Koordinatları gözlem olmadan tahmin etme; gözlemdeki bounds alanı varsa merkezini kullan.",
@@ -3373,7 +3377,7 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
     if (!intent || intent.intent !== "computer-control" || !Array.isArray(intent.actions) || intent.actions.length > 8) {
       throw new Error("Masaüstü eylem planı şemaya uymuyor.");
     }
-    const allowedTypes = new Set(["open-app", "open-installed-app", "launch-installer", "open-url", "launch-steam-game", "spotify-search", "inspect-screen", "click-text", "focus-control", "type-text", "press-key", "click", "move-mouse", "scroll", "wait", "finish"]);
+    const allowedTypes = new Set(["open-app", "open-installed-app", "launch-installer", "open-url", "research-web", "launch-steam-game", "spotify-search", "inspect-screen", "click-text", "focus-control", "type-text", "press-key", "click", "move-mouse", "scroll", "wait", "finish"]);
     const allowedApps = new Set(["discord", "steam", "chrome", "edge", "firefox", "notepad", "calculator", "explorer", "paint", "spotify"]);
     const allowedKeys = new Set(["ENTER", "TAB", "ESC", "SPACE", "BACKSPACE", "DELETE", "UP", "DOWN", "LEFT", "RIGHT", "HOME", "END", "CTRL+A", "CTRL+L", "CTRL+T", "CTRL+W", "CTRL+V", "CTRL+C", "CTRL+X", "CTRL+F", "ALT+F4", "SHIFT+TAB", "CTRL+SHIFT+T", "CTRL+SHIFT+TAB", "CTRL+PAGEUP", "CTRL+PAGEDOWN", "CTRL+S", "CTRL+P", "CTRL+R", "CTRL+Z", "CTRL+Y", "ALT+LEFT", "ALT+RIGHT", "F5", "F11"]);
     for (const action of intent.actions) {
@@ -3381,6 +3385,7 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
       if (action.type === "open-app" && !allowedApps.has(action.app)) throw new Error("İzin verilmeyen uygulama.");
       if (action.type === "open-installed-app" && (typeof action.app !== "string" || !action.app.trim() || action.app.length > 100 || /[\r\n\0]/.test(action.app))) throw new Error("Yüklü uygulama adı geçersiz.");
       if (action.type === "launch-installer" && (typeof action.path !== "string" || !action.path.trim() || action.path.length > 260 || /[\r\n\0]/.test(action.path))) throw new Error("Kurulum dosyası yolu geçersiz.");
+      if (action.type === "research-web" && (typeof action.query !== "string" || !action.query.trim() || action.query.length > 1200)) throw new Error("Web araştırma sorgusu geçersiz.");
       if (action.type === "open-url") {
         const url = new URL(String(action.url || ""));
         if (!["http:", "https:"].includes(url.protocol)) throw new Error("Yalnızca HTTP/HTTPS adreslerine izin verilir.");

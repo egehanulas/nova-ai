@@ -174,8 +174,11 @@ public static class NovaDesktopInput {
       }
       $bounds = [Windows.Forms.Screen]::PrimaryScreen.Bounds
       if ($x -lt 0 -or $y -lt 0 -or $x -ge $bounds.Width -or $y -ge $bounds.Height) { throw "Mouse koordinatı ekran sınırlarının dışında." }
-      [NovaDesktopInput]::SetCursorPos($x, $y) | Out-Null
-      $result.message = "Mouse hareket ettirildi."
+      if (-not [NovaDesktopInput]::SetCursorPos($x, $y)) { throw "Windows fare konumunu değiştiremedi." }
+      $actualPoint = New-Object NovaDesktopInput+POINT
+      [NovaDesktopInput]::GetCursorPos([ref]$actualPoint) | Out-Null
+      if ($actualPoint.X -ne $x -or $actualPoint.Y -ne $y) { throw "Fare konumu doğrulanamadı; hareket tamamlanmadı." }
+      $result.message = "Mouse hareket ettirildi ve konumu doğrulandı."
     }
     "scroll" {
       $amount = [int]$action.amount
