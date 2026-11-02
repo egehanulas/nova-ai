@@ -256,6 +256,38 @@ test("exact files directly inside a named user folder are not blocked by inacces
   }
 });
 
+test("searching a named folder ignores inaccessible unrelated folders outside the search scope", async () => {
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-scoped-folder-search-test-"));
+  const desktop = path.join(base, "desktop");
+  const documents = path.join(base, "documents");
+  const downloads = path.join(base, "downloads");
+  const games = path.join(desktop, "Oyunlar");
+  const deniedOne = path.join(documents, "protected-child-one");
+  const deniedTwo = path.join(downloads, "protected-child-two");
+  await Promise.all([games, deniedOne, deniedTwo].map((folder) => fs.mkdir(folder, { recursive: true })));
+  const target = path.join(games, "121.png");
+  await fs.writeFile(target, "scoped-search-target");
+  configureUserFolderPaths({ Desktop: desktop, Documents: documents, Downloads: downloads });
+
+  const originalReaddir = fs.readdir;
+  fs.readdir = async (directory, ...args) => {
+    const resolved = path.resolve(String(directory));
+    if ([path.resolve(deniedOne), path.resolve(deniedTwo)].includes(resolved)) {
+      throw Object.assign(new Error("Access denied by test"), { code: "EACCES" });
+    }
+    return originalReaddir.call(fs, directory, ...args);
+  };
+
+  try {
+    const results = await searchUserFiles("121.png", "Oyunlar");
+    assert.deepEqual(results.map((item) => item.path), [target]);
+    assert.equal(results.inaccessibleDirectories, 0);
+  } finally {
+    fs.readdir = originalReaddir;
+    await fs.rm(base, { recursive: true, force: true });
+  }
+});
+
 test("moving a file by natural-language source name resolves its explicitly named folder", async () => {
   const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-desktop-move-test-"));
   const desktop = path.join(base, "desktop");
