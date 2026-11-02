@@ -373,7 +373,7 @@ test("broad searches skip protected system trees but explicit scoped searches ca
 
 test("desktop assistant HTML inline scripts remain syntactically valid", async () => {
   const html = await fs.readFile(new URL("./assistant.html", import.meta.url), "utf8");
-  const scripts = [...html.matchAll(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi)]
+  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
     .map((match) => match[1].trim())
     .filter(Boolean);
   assert.ok(scripts.length > 0, "expected at least one inline assistant script");
