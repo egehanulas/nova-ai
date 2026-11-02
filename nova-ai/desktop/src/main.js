@@ -406,11 +406,18 @@ function registerDesktopAssistantIpc() {
         return { message: all.map((folder) => folder.name + " (" + folder.items.length + " öğe)\\n" +
           folder.items.slice(0, 20).map((item) => (item.type === "folder" ? "📁 " : "📄 ") + item.name).join("\\n")).join("\\n\\n") };
       }
-      case "open-app":
-        if (intent.app === "spotify") return await openSpotify();
-        return await openAllowedApp(intent.app);
-      case "open-installed-app":
-        return await openInstalledApp(intent.app);
+      case "open-app": {
+        reportProgress("running", intent.app + " uygulaması açılıyor.");
+        const result = intent.app === "spotify" ? await openSpotify() : await openAllowedApp(intent.app);
+        reportProgress("completed", result.message || "Uygulama açıldı.", 1, 1);
+        return result;
+      }
+      case "open-installed-app": {
+        reportProgress("running", intent.app + " uygulaması aranıyor ve açılıyor.");
+        const result = await openInstalledApp(intent.app);
+        reportProgress("completed", result.message, 1, 1);
+        return result;
+      }
       case "open-url": {
         let targetUrl = typeof intent.url === "string" ? intent.url : "";
         if (!targetUrl && typeof intent.query === "string" && intent.query.trim()) {
@@ -426,10 +433,18 @@ function registerDesktopAssistantIpc() {
         openExternal(parsedUrl.href);
         return { message: parsedUrl.hostname + " varsayılan tarayıcıda açılıyor." };
       }
-      case "spotify-search":
-        return await searchSpotify(intent.query);
-      case "launch-steam-game":
-        return await launchSteamGame(intent.game);
+      case "spotify-search": {
+        reportProgress("running", "Spotify'da müzik aranıyor.");
+        const result = await searchSpotify(intent.query);
+        reportProgress("completed", result.message, 1, 1);
+        return result;
+      }
+      case "launch-steam-game": {
+        reportProgress("running", intent.game + " oyunu başlatılıyor.");
+        const result = await launchSteamGame(intent.game);
+        reportProgress("completed", result.message, 1, 1);
+        return result;
+      }
       case "computer-control": {
         let currentIntent = intent;
         let completed = 0;
