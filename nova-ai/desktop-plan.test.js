@@ -40,9 +40,9 @@ test("no-send plans stop immediately after text entry", () => {
     intent: "computer-control",
     done: false,
     message: "",
-    actions: [{ type: "type-text", text: "draft" }, { type: "finish" }]
+    actions: [{ type: "focus-control", controlType: "Edit", automationId: "composer" }, { type: "type-text", text: "NOVA TEST 123" }, { type: "finish" }]
   };
   const result = enforceNoSend(intent, "Mesajı gönderme.");
   assert.equal(result.done, true);
-  assert.deepEqual(result.actions, [{ type: "type-text", text: "draft" }]);
+  assert.deepEqual(result.actions, [\n    { type: "focus-control", controlType: "Edit", automationId: "composer" },\n    { type: "type-text", text: "NOVA TEST 123" }\n  ]);
 });
