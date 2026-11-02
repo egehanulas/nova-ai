@@ -15,7 +15,7 @@ import {
 import { URL } from "node:url";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile } from "./desktop-assistant.js";
+import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureUserFolderPaths } from "./desktop-assistant.js";
 import { parseDesktopCommand } from "./desktop-command.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 
@@ -736,6 +736,11 @@ if (!handleSquirrelEvent()) {
   });
 
   app.whenReady().then(() => {
+    configureUserFolderPaths({
+      Desktop: app.getPath("desktop"),
+      Documents: app.getPath("documents"),
+      Downloads: app.getPath("downloads")
+    });
     configureMicrophonePermissions();
     registerDesktopAssistantIpc();
     createApplicationMenu();
