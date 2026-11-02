@@ -65,6 +65,17 @@ Windows Squirrel güncelleme dosyaları GitHub Releases üzerinden dağıtılır
 
 Otomatik güncellemeler yalnızca paketlenmiş Windows uygulamasında çalışır. İlk kurulum yine Setup.exe ile yapılır. Actions derleme artefaktı tek başına otomatik güncelleme kaynağı değildir; güncellemenin çalışması için aynı sürümün GitHub Release'inde Setup.exe, `.nupkg` ve `RELEASES` dosyaları bulunmalıdır.
 
+## Alpha 33 masaüstü ajanı
+
+- Windows Başlat menüsüne kayıtlı uygulamaları güvenli ad eşleştirmesiyle açabilir; birden fazla eşleşmede daha belirgin ad ister.
+- Chrome, Edge ve diğer erişilebilir uygulama pencerelerinde UI Automation üzerinden gezinme, tıklama, metin girişi, sekme yönetimi ve form etkileşimi yapabilir.
+- Uzun görevler için 8 dakikalık görev sınırı, 60 saniyelik planlama isteği sınırı ve takılan PowerShell masaüstü işlemleri için 45 saniyelik süreç sınırı bulunur.
+- Salt-okunur ekran incelemesi başarısız olursa bir kez yeniden denenir; mesaj gönderme veya tıklama gibi yan etkili eylemler körlemesine tekrarlanmaz.
+- Görevlerin planlama, çalışma, yeniden deneme ve tamamlanma durumları sohbet penceresinde ayrıntılı gösterilir.
+- Satın alma/ödeme, hesap ayarı değiştirme ve program kurma/kaldırma komutlarında yerel onay alınır. Dosya silme işlemleri mevcut ayrı onayını korur.
+- Uygulama başlatma için rastgele PowerShell/CMD komutu çalıştırılmaz; yalnızca Windows Başlat menüsündeki kayıtlı uygulamalar aranır.
+- Parola ve tek kullanımlık kodlar NOVA'ya yazdırılmaz; giriş ekranındaki hassas alanlarda kullanıcı girişi beklenir.
+
 ## Güvenlik ve mimari
 
 - Renderer içinde Node.js entegrasyonu kapalıdır.
