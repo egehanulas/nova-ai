@@ -526,7 +526,7 @@ test("computer control validates supported actions and rejects unsafe or malform
   assert.equal(validateComputerAction({ type: "inspect-screen" }).type, "inspect-screen");
   assert.equal(validateComputerAction({ type: "type-text", text: "Ben Nova" }).text, "Ben Nova");
   assert.throws(() => validateComputerAction({ type: "run-command", command: "whoami" }), /Desteklenmeyen/);
-  assert.throws(() => validateComputerAction({ type: "press-key", key: "WIN+R" }), /izin verilmeyen/i);
+  assert.throws(() => validateComputerAction({ type: "press-key", key: "WIN+R" }), /İzin verilmeyen/;
   assert.throws(() => validateComputerAction({ type: "click", x: -1, y: 30 }), /koordinat/);
 });
 
