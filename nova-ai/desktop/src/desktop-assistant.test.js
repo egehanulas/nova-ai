@@ -140,7 +140,10 @@ test("Turkish desktop intent parser recognizes apps, search and destructive acti
   assert.equal(parseDesktopCommand("Steam'i aç").intent, "open-app");
   assert.equal(parseDesktopCommand("Discord'u başlat").app, "discord");
   assert.deepEqual(parseDesktopCommand("masaüstünde 1.jpg"), {
-    intent: "search-files", query: "1.jpg"
+    intent: "search-files", query: "1.jpg", location: "Desktop"
+  });
+  assert.deepEqual(parseDesktopCommand("belgelerdeki rapor.pdf"), {
+    intent: "search-files", query: "rapor.pdf", location: "Documents"
   });
   assert.deepEqual(parseDesktopCommand("1.jpg dosyasını sil"), {
     intent: "trash-file", target: "1.jpg"
@@ -181,6 +184,8 @@ test("moving a file by natural-language source name resolves its explicitly name
   configureUserFolderPaths({ Desktop: desktop, Documents: documents, Downloads: downloads });
 
   try {
+    const scopedResults = await searchUserFiles("1.jpg", "Desktop");
+    assert.deepEqual(scopedResults.map((item) => item.path), [path.join(desktop, "1.jpg")]);
     const result = await resolveUserItem("1.jpg dosyasını", "Desktop");
     assert.equal(result.path, await fs.realpath(path.join(desktop, "1.jpg")));
     const moved = await moveUserFile("1.jpg dosyasını", downloads, "", "Desktop");
