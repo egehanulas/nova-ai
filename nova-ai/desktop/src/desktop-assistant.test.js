@@ -115,6 +115,10 @@ test("desktop parser handles Turkish Settings inflections, YouTube search, file 
     intent: "computer-control", done: true, message: "Mouse hareket ettirildi.",
     actions: [{ type: "move-mouse", dx: 140, dy: 0 }, { type: "finish" }]
   });
+  assert.deepEqual(parseDesktopCommand("fareyi sola hareket ettir"), {
+    intent: "computer-control", done: true, message: "Mouse hareket ettirildi.",
+    actions: [{ type: "move-mouse", dx: -140, dy: 0 }, { type: "finish" }]
+  });
 });
 
 test("desktop browser shortcut allowlist includes tab restore and navigation keys", () => {
