@@ -22,7 +22,7 @@ import {
 } from "./desktop-assistant.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 import { parseDesktopCommand } from "./desktop-command.js";
-import { validateComputerAction } from "./computer-control.js";
+import { validateComputerAction, runComputerAction } from "./computer-control.js";
 
 test("user path resolver accepts configured user folders and rejects unrelated paths", () => {
   const home = os.homedir();
@@ -565,4 +565,9 @@ test("Windows PowerShell desktop automation script parses without syntax errors"
     "', [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count -gt 0) { $errors | Out-String; exit 1 }";
   const result = spawnSync("powershell.exe", ["-NoLogo", "-NoProfile", "-Command", command], { encoding: "utf8" });
   assert.equal(result.status, 0, (result.stdout || "") + (result.stderr || ""));
+});
+
+test("Windows desktop controller can load its automation runtime", { skip: process.platform !== "win32" }, async () => {
+  const result = await runComputerAction({ type: "wait", ms: 0 });
+  assert.equal(result.success, true);
 });
