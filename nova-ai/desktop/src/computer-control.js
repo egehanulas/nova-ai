@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT_PATH = fileURLToPath(new URL("./computer-control.ps1", import.meta.url));
@@ -117,12 +118,19 @@ export async function runComputerAction(action) {
   validateComputerAction(action);
   if (process.platform !== "win32") throw new Error("Masaüstü kontrolü yalnızca Windows'ta kullanılabilir.");
   const payload = Buffer.from(JSON.stringify(action), "utf8").toString("base64");
-  await fs.access(SCRIPT_PATH);
-  const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  // Electron ASAR paths are readable through Node, but PowerShell cannot open a
+  // script inside app.asar. Copy the bundled, trusted script to a private temp
+  // directory and invoke it by file path to avoid Windows command-line limits.
+  const script = await fs.readFile(SCRIPT_PATH, "utf8");
+  const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "nova-desktop-control-"));
+  const tempScriptPath = path.join(tempDirectory, "computer-control.ps1");
+  try {
+    await fs.writeFile(tempScriptPath, script, { encoding: "utf8", mode: 0o600 });
+    const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
   return await new Promise((resolve, reject) => {
     const child = spawn(powershell, [
       "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-      "-STA", "-File", SCRIPT_PATH
+      "-STA", "-File", tempScriptPath
     ], {
       windowsHide: true,
       env: { ...process.env, NOVA_CONTROL_PAYLOAD: payload },
@@ -166,5 +174,8 @@ export async function runComputerAction(action) {
       finish(reject, new Error("Windows masaüstü işlemi 45 saniyede tamamlanamadı; takılan işlem sonlandırıldı."));
     }, 45_000);
     timeout.unref?.();
-  });
+  })
+  } finally {
+    await fs.rm(tempDirectory, { recursive: true, force: true }).catch(() => {});
+  }
 }
