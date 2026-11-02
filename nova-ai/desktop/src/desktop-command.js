@@ -105,6 +105,11 @@ export function parseDesktopCommand(input) {
     ]
   };
 
+  const genericAppMatch = command.match(/^(?:lütfen\s+)?(.+?)(?:\s+uygulamasını)?\s+(?:aç|başlat|çalıştır)$/iu);
+  if (genericAppMatch && !/(?:dosyasını|dosyayı|klasörünü|klasörü|öğesini)/iu.test(genericAppMatch[1])) {
+    return { intent: "open-installed-app", app: cleanTarget(genericAppMatch[1]).replace(/[\'’](?:ni|nı|nu|nü|yi|yı|yu|yü|i|ı|u|ü)$/iu, "") };
+  }
+
   const createText = command.toLocaleLowerCase("tr-TR").replace(/\s+/g, " ").trim();
   const createPatterns = [
     /^(?:lütfen\s+)?(?:yeni\s+)?klasör(?:\s+oluştur|\s+aç)\s+(.+?)(?:\s+(masaüstünde|masaüstüne|masaüstüme|belgelerde|belgelerine|belgelerime|indirilenlerde|indirilenlere|indirilenlerime))?$/,
@@ -216,11 +221,6 @@ export function parseDesktopCommand(input) {
     query: cleanTarget(match[2]),
     location: locationFrom(match[1])
   };
-
-  const genericAppMatch = command.match(/^(?:lütfen\s+)?(.+?)(?:\s+uygulamasını)?\s+(?:aç|başlat|çalıştır)$/iu);
-  if (genericAppMatch && !/(?:dosyasını|dosyayı|klasörünü|klasörü|öğesini)/iu.test(genericAppMatch[1])) {
-    return { intent: "open-installed-app", app: cleanTarget(genericAppMatch[1]).replace(/[\'’](?:ni|nı|nu|nü|yi|yı|yu|yü|i|ı|u|ü)$/iu, "") };
-  }
 
   return { intent: "unknown" };
 }
