@@ -9,6 +9,8 @@ import {
   searchUserFiles,
   openAllowedApp,
   openUserPath,
+  resolveUserItem,
+  moveUserFile,
   configureUserFolderPaths
 } from "./desktop-assistant.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
@@ -138,7 +140,10 @@ test("Turkish desktop intent parser recognizes apps, search and destructive acti
   assert.equal(parseDesktopCommand("Steam'i aç").intent, "open-app");
   assert.equal(parseDesktopCommand("Discord'u başlat").app, "discord");
   assert.deepEqual(parseDesktopCommand("masaüstünde 1.jpg"), {
-    intent: "search-files", query: "1.jpg"
+    intent: "search-files", query: "1.jpg", location: "Desktop"
+  });
+  assert.deepEqual(parseDesktopCommand("belgelerdeki rapor.pdf"), {
+    intent: "search-files", query: "rapor.pdf", location: "Documents"
   });
   assert.deepEqual(parseDesktopCommand("1.jpg dosyasını sil"), {
     intent: "trash-file", target: "1.jpg"
@@ -161,6 +166,32 @@ test("opening a file by its bare filename resolves the exact item in known folde
     assert.equal(result.path, await fs.realpath(path.join(desktop, "1.jpg")));
     await fs.writeFile(path.join(documents, "1.jpg"), "duplicate");
     await assert.rejects(openUserPath("1.jpg"), /birden fazla öğe/);
+  } finally {
+    await fs.rm(base, { recursive: true, force: true });
+  }
+});
+
+
+test("moving a file by natural-language source name resolves its explicitly named folder", async () => {
+  const base = await fs.mkdtemp(path.join(os.tmpdir(), "nova-desktop-move-test-"));
+  const desktop = path.join(base, "desktop");
+  const documents = path.join(base, "documents");
+  const downloads = path.join(base, "downloads");
+  await Promise.all([desktop, documents, downloads].map((folder) => fs.mkdir(folder)));
+  await fs.writeFile(path.join(desktop, "1.jpg"), "desktop-image");
+  await fs.mkdir(path.join(documents, "Euro Truck Simulator 2"), { recursive: true });
+  await fs.writeFile(path.join(documents, "Euro Truck Simulator 2", "1.jpg"), "other-image");
+  configureUserFolderPaths({ Desktop: desktop, Documents: documents, Downloads: downloads });
+
+  try {
+    const scopedResults = await searchUserFiles("1.jpg", "Desktop");
+    assert.deepEqual(scopedResults.map((item) => item.path), [path.join(desktop, "1.jpg")]);
+    const result = await resolveUserItem("1.jpg dosyasını", "Desktop");
+    assert.equal(result.path, await fs.realpath(path.join(desktop, "1.jpg")));
+    const moved = await moveUserFile("1.jpg dosyasını", downloads, "", "Desktop");
+    assert.equal(moved.path, await fs.realpath(path.join(downloads, "1.jpg")));
+    assert.equal(await fs.readFile(path.join(downloads, "1.jpg"), "utf8"), "desktop-image");
+    await assert.rejects(resolveUserItem("1.jpg"), /birden fazla öğe/);
   } finally {
     await fs.rm(base, { recursive: true, force: true });
   }

@@ -365,10 +365,10 @@ function registerDesktopAssistantIpc() {
       case "open-app":
         return await openAllowedApp(intent.app);
       case "search-files": {
-        const found = await searchUserFiles(intent.query);
+        const found = await searchUserFiles(intent.query, intent.location || "");
         if (!found.length) return { message: "“" + intent.query + "” için Masaüstü, Belgeler ve İndirilenler içinde eşleşme bulamadım." };
-        return { message: "Bulduğum öğeler:\\n" + found.slice(0, 30).map((item, index) =>
-          (index + 1) + ". " + (item.type === "folder" ? "📁 " : "📄 ") + item.name + "\\n" + item.path).join("\\n") };
+        return { message: "Bulduğum öğeler:\n" + found.slice(0, 30).map((item, index) =>
+          (index + 1) + ". " + (item.type === "folder" ? "📁 " : "📄 ") + item.name + "\n" + item.path).join("\n") };
       }
       case "open-path": {
         const resolved = await openUserPath(intent.target);
@@ -383,9 +383,7 @@ function registerDesktopAssistantIpc() {
       }
       case "move-file":
       case "rename-file": {
-        const sourcePath = path.isAbsolute(intent.source)
-          ? intent.source
-          : (await openUserPath(intent.source)).path;
+        const sourcePath = (await openUserPath(intent.source, intent.sourceLocation || "")).path;
         const destinationText = intent.destination || "";
         const destination = intent.intent === "rename-file"
           ? path.dirname(sourcePath)
@@ -400,7 +398,7 @@ function registerDesktopAssistantIpc() {
           buttons: ["Devam et", "Vazgeç"], defaultId: 1, cancelId: 1
         });
         if (answer.response !== 0) return { message: "İşlem iptal edildi." };
-        return await moveUserFile(sourcePath, destination, intent.newName || "");
+        return await moveUserFile(sourcePath, destination, intent.newName || "", intent.sourceLocation || "");
       }
       case "trash-file": {
         const resolvedTarget = path.isAbsolute(intent.target)
