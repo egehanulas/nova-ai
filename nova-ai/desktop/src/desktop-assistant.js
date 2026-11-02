@@ -201,8 +201,14 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
   }
   const needle = query.trim().toLocaleLowerCase("tr-TR");
   const preferredKey = normalizeFolderKey(preferredLocation);
-  const preferredRoot = preferredKey ? USER_FOLDERS[preferredKey] : "";
-  const roots = preferredRoot ? [preferredRoot] : ROOTS;
+  let roots = ROOTS;
+  if (preferredKey) {
+    roots = [USER_FOLDERS[preferredKey]];
+  } else if (typeof preferredLocation === "string" && path.isAbsolute(preferredLocation)) {
+    const preferredFolder = await resolveExistingUserPath(preferredLocation);
+    if (!preferredFolder.stat.isDirectory()) throw new Error("Arama konumu bir klasör olmalı.");
+    roots = [preferredFolder.path];
+  }
   const found = [];
   const queue = [...roots];
   const startedAt = Date.now();
@@ -323,7 +329,11 @@ export async function openUserPath(input, preferredLocation = "") {
 
 export async function resolveUserFolder(input) {
   const knownPath = getUserFolderPath(input);
-  const resolved = await resolveExistingUserPath(knownPath || input);
+  let candidate = knownPath || input;
+  if (!knownPath && typeof input === "string" && !path.isAbsolute(input) && !input.includes("/") && !input.includes("\\")) {
+    candidate = (await resolveUserItem(input)).path;
+  }
+  const resolved = await resolveExistingUserPath(candidate);
   if (!resolved.stat.isDirectory()) throw new Error("Belirttiğin hedef bir klasör değil.");
   return resolved;
 }
