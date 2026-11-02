@@ -203,6 +203,39 @@ test("opening a file by its bare filename resolves the exact item in known folde
 });
 
 
+test("exact files directly inside a named user folder are not blocked by inaccessible child folders", async () => {
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-direct-folder-file-test-"));
+  const desktop = path.join(base, "desktop");
+  const documents = path.join(base, "documents");
+  const downloads = path.join(base, "downloads");
+  const deniedOne = path.join(downloads, "protected-child-one");
+  const deniedTwo = path.join(downloads, "protected-child-two");
+  await Promise.all([desktop, documents, deniedOne, deniedTwo].map((folder) => fs.mkdir(folder, { recursive: true })));
+  const target = path.join(downloads, "121.png");
+  await fs.writeFile(target, "direct-download-file");
+  configureComputerFileAccess({
+    userFolders: { Desktop: desktop, Documents: documents, Downloads: downloads },
+    driveRoots: [base]
+  });
+
+  const originalReaddir = fs.readdir;
+  fs.readdir = async (directory, ...args) => {
+    const resolved = path.resolve(String(directory));
+    if ([path.resolve(deniedOne), path.resolve(deniedTwo)].includes(resolved)) {
+      throw Object.assign(new Error("Access denied by test"), { code: "EACCES" });
+    }
+    return originalReaddir.call(fs, directory, ...args);
+  };
+
+  try {
+    const opened = await openUserPath("121.png", "Downloads");
+    assert.equal(opened.path, await fs.realpath(target));
+  } finally {
+    fs.readdir = originalReaddir;
+    await fs.rm(base, { recursive: true, force: true });
+  }
+});
+
 test("moving a file by natural-language source name resolves its explicitly named folder", async () => {
   const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-desktop-move-test-"));
   const desktop = path.join(base, "desktop");
