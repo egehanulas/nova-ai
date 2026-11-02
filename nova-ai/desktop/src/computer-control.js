@@ -127,7 +127,7 @@ export async function runComputerAction(action) {
   try {
     await fs.writeFile(tempScriptPath, script, { encoding: "utf8", mode: 0o600 });
     const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
-  return await new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
     const child = spawn(powershell, [
       "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
       "-STA", "-File", tempScriptPath
@@ -174,7 +174,7 @@ export async function runComputerAction(action) {
       finish(reject, new Error("Windows masaüstü işlemi 45 saniyede tamamlanamadı; takılan işlem sonlandırıldı."));
     }, 45_000);
     timeout.unref?.();
-  })
+    });
   } finally {
     await fs.rm(tempDirectory, { recursive: true, force: true }).catch(() => {});
   }
