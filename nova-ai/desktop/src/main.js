@@ -312,9 +312,34 @@ function registerDesktopAssistantIpc() {
   ipcMain.handle("nova-desktop:computer-info", (event) => { requireTrustedWindows(event); return getComputerInfo(); });
   ipcMain.handle("nova-desktop:list-folders", (event) => { requireTrustedWindows(event); return listUserFolders(); });
   ipcMain.handle("nova-desktop:search-files", (event, query) => { requireTrustedWindows(event); return searchUserFiles(query); });
-  ipcMain.handle("nova-desktop:execute-command", async (event, rawCommand) => {
+  ipcMain.handle("nova-desktop:execute-command", async (event, payload = {}) => {
     requireTrustedWindows(event);
-    const intent = parseDesktopCommand(rawCommand);
+    const rawCommand = typeof payload.command === "string" ? payload.command : "";
+    let intent = parseDesktopCommand(rawCommand);
+    const accessToken = typeof payload.accessToken === "string" ? payload.accessToken : "";
+    if (intent.intent === "unknown" && accessToken && accessToken.length < 5000) {
+      try {
+        const response = await fetch(new URL("/api/desktop/interpret", NOVA_URL), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + accessToken
+          },
+          body: JSON.stringify({ command: rawCommand }),
+          signal: AbortSignal.timeout(25000)
+        });
+        if (response.ok) {
+          const interpreted = await response.json();
+          if (interpreted?.intent && typeof interpreted.intent === "object") {
+            intent = interpreted.intent;
+          }
+        } else {
+          console.warn("NOVA AI intent interpretation unavailable:", response.status);
+        }
+      } catch (error) {
+        console.warn("NOVA AI intent interpretation failed; local parser remains available:", error.message);
+      }
+    }
     const parent = getDialogParent(event);
     const folders = () => listUserFolders();
     const findFolder = async (name) => {
