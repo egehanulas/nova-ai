@@ -19,6 +19,7 @@ import {
 } from "./desktop-assistant.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 import { parseDesktopCommand } from "./desktop-command.js";
+import { validateComputerAction } from "./computer-control.js";
 
 test("user path resolver accepts configured user folders and rejects unrelated paths", () => {
   const home = os.homedir();
@@ -492,4 +493,28 @@ test("desktop assistant HTML inline scripts remain syntactically valid", async (
   for (const [index, script] of scripts.entries()) {
     assert.doesNotThrow(() => new vm.Script(script, { filename: "assistant.html:inline-" + index }));
   }
+});
+
+test("desktop command parser supports browser, Spotify and installed Steam game requests", () => {
+  assert.deepEqual(parseDesktopCommand("Chrome'da YouTube aç"), {
+    intent: "open-url", app: "chrome", url: "https://www.youtube.com"
+  });
+  assert.deepEqual(parseDesktopCommand("YouTube aç"), {
+    intent: "open-url", url: "https://www.youtube.com"
+  });
+  assert.deepEqual(parseDesktopCommand("Spotify'da Blinding Lights çal"), {
+    intent: "spotify-search", query: "Blinding Lights"
+  });
+  assert.deepEqual(parseDesktopCommand("Steam'de Dying Light: The Beast aç"), {
+    intent: "launch-steam-game", game: "Dying Light: The Beast"
+  });
+  assert.equal(parseDesktopCommand("Spotify'ı aç").app, "spotify");
+});
+
+test("computer control validates supported actions and rejects unsafe or malformed inputs", () => {
+  assert.equal(validateComputerAction({ type: "inspect-screen" }).type, "inspect-screen");
+  assert.equal(validateComputerAction({ type: "type-text", text: "Ben Nova" }).text, "Ben Nova");
+  assert.throws(() => validateComputerAction({ type: "run-command", command: "whoami" }), /Desteklenmeyen/);
+  assert.throws(() => validateComputerAction({ type: "press-key", key: "WIN+R" }), /izin verilmeyen/);
+  assert.throws(() => validateComputerAction({ type: "click", x: -1, y: 30 }), /koordinat/);
 });
