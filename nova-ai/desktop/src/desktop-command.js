@@ -49,13 +49,13 @@ export function parseDesktopCommand(input) {
     /^(?:lütfen\s+)?(?:yeni\s+)?klasör(?:\s+oluştur|\s+aç)\s+(.+?)(?:\s+(masaüstünde|masaüstüne|masaüstüme|belgelerde|belgelerine|belgelerime|indirilenlerde|indirilenlere|indirilenlerime))?$/,
     /^(?:lütfen\s+)?(masaüstüne|masaüstünde|masaüstüme|belgelere|belgelerde|belgelerime|indirilenlere|indirilenlerde|indirilenlerime)\s+(?:bir\s+)?(.+?)\s+(?:adında\s+)?klasör(?:ü)?(?:\s+oluştur)?$/
   ];
-  let match = text.match(createPatterns[0]);
+  let match = raw.match(createPatterns[0]);
   let folderName, folderLocation = "Desktop";
   if (match) {
     folderName = cleanTarget(match[1]);
     folderLocation = locationFrom(match[2]);
   } else {
-    match = text.match(createPatterns[1]);
+    match = raw.match(createPatterns[1]);
     if (match) {
       folderLocation = locationFrom(match[1]);
       folderName = cleanTarget(match[2]);
