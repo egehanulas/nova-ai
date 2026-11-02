@@ -441,7 +441,7 @@ function registerDesktopAssistantIpc() {
           }
           if (!needsReplan) {
             if (currentIntent.done === true) {
-              return { message: "İstenen masaüstü işlemleri tamamlandı.", steps: completed };
+              return { message: currentIntent.message || "İstenen masaüstü işlemleri tamamlandı.", steps: completed };
             }
             return { message: "Masaüstü adımları uygulandı; devam etmek için komutun kalan kısmını belirt.", steps: completed };
           }

@@ -86,6 +86,21 @@ export function parseDesktopCommand(input) {
   const app = APP_ALIASES.find((entry) => entry.names.includes(appText));
   if (app) return { intent: "open-app", app: app.app, label: app.label };
 
+  const discordRecentConversationTask =
+    /discord/i.test(command) &&
+    /(?:en\s+son|son)\s+(?:konuştuğum|yazıştığım|mesajlaştığım)/iu.test(command) &&
+    /(?:sohbet|kişi|mesaj)/iu.test(command) &&
+    /(?:aç|bul|yaz)/iu.test(command);
+  if (discordRecentConversationTask) return {
+    intent: "computer-control",
+    done: false,
+    actions: [
+      { type: "open-app", app: "discord" },
+      { type: "wait", ms: 1400 },
+      { type: "inspect-screen" }
+    ]
+  };
+
   const createText = command.toLocaleLowerCase("tr-TR").replace(/\s+/g, " ").trim();
   const createPatterns = [
     /^(?:lütfen\s+)?(?:yeni\s+)?klasör(?:\s+oluştur|\s+aç)\s+(.+?)(?:\s+(masaüstünde|masaüstüne|masaüstüme|belgelerde|belgelerine|belgelerime|indirilenlerde|indirilenlere|indirilenlerime))?$/,
@@ -177,7 +192,7 @@ export function parseDesktopCommand(input) {
     || command.match(/^(.+?)\s+(?:dosyasını|dosyayı|klasörünü|klasörü)?\s*(?:aç|göster|çalıştır)(?:\s+(?:lütfen|artık))?$/i);
   if (openMatch) {
     const target = cleanTarget(locatedOpenMatch ? openMatch[2] : openMatch[1]);
-    if (target) return {
+    if (target && !/(?:sohbet|konuştuğum|yazıştığım|kişi|mesaj|discord)/iu.test(target)) return {
       intent: "open-path",
       target,
       ...(locatedOpenMatch && locationFrom(locatedOpenMatch[1]) ? { location: locationFrom(locatedOpenMatch[1]) } : {})
