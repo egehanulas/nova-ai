@@ -211,8 +211,10 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
   let roots = ROOTS;
   if (preferredKey) {
     roots = [USER_FOLDERS[preferredKey]];
-  } else if (typeof preferredLocation === "string" && path.isAbsolute(preferredLocation)) {
-    const preferredFolder = await resolveExistingUserPath(preferredLocation);
+  } else if (typeof preferredLocation === "string" && preferredLocation.trim()) {
+    const preferredFolder = path.isAbsolute(preferredLocation)
+      ? await resolveExistingUserPath(preferredLocation)
+      : await resolveUserFolder(preferredLocation);
     if (!preferredFolder.stat.isDirectory()) throw new Error("Arama konumu bir klasör olmalı.");
     roots = [preferredFolder.path];
   }
