@@ -217,7 +217,7 @@ export function parseDesktopCommand(input) {
     location: locationFrom(match[1])
   };
 
-  const genericAppMatch = command.match(/^(?:lütfen\\s+)?(.+?)(?:\\s+uygulamasını)?\\s+(?:aç|başlat|çalıştır)$/iu);
+  const genericAppMatch = command.match(/^(?:lütfen\s+)?(.+?)(?:\s+uygulamasını)?\s+(?:aç|başlat|çalıştır)$/iu);
   if (genericAppMatch && !/(?:dosyasını|dosyayı|klasörünü|klasörü|öğesini)/iu.test(genericAppMatch[1])) {
     return { intent: "open-installed-app", app: cleanTarget(genericAppMatch[1]) };
   }
