@@ -174,7 +174,7 @@ test("Turkish desktop intent parser recognizes apps, search and destructive acti
 
 
 test("opening a file by its bare filename resolves the exact item in known folders", async () => {
-  const base = await fs.mkdtemp(path.join(os.tmpdir(), "nova-desktop-path-test-"));
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-desktop-path-test-"));
   const desktop = path.join(base, "desktop");
   const documents = path.join(base, "documents");
   const downloads = path.join(base, "downloads");
@@ -194,7 +194,7 @@ test("opening a file by its bare filename resolves the exact item in known folde
 
 
 test("moving a file by natural-language source name resolves its explicitly named folder", async () => {
-  const base = await fs.mkdtemp(path.join(os.tmpdir(), "nova-desktop-move-test-"));
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-desktop-move-test-"));
   const desktop = path.join(base, "desktop");
   const documents = path.join(base, "documents");
   const downloads = path.join(base, "downloads");
@@ -220,7 +220,7 @@ test("moving a file by natural-language source name resolves its explicitly name
 
 
 test("full computer access searches deeply and handles arbitrary file extensions", async () => {
-  const base = await fs.mkdtemp(path.join(os.tmpdir(), "nova-computer-access-test-"));
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-computer-access-test-"));
   const desktop = path.join(base, "Desktop");
   const documents = path.join(base, "Documents");
   const downloads = path.join(base, "Downloads");
@@ -253,7 +253,7 @@ test("full computer access searches deeply and handles arbitrary file extensions
 });
 
 test("computer file mutations reject protected system locations", async () => {
-  const base = await fs.mkdtemp(path.join(os.tmpdir(), "nova-protected-path-test-"));
+  const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-protected-path-test-"));
   const desktop = path.join(base, "Desktop");
   const documents = path.join(base, "Documents");
   const downloads = path.join(base, "Downloads");
