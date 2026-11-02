@@ -46,7 +46,7 @@ test("computer information includes stable system fields", () => {
 
 test("file search validates its query before reading folders", async () => {
   await assert.rejects(searchUserFiles(""), /dosya veya klasör adı yaz/);
-  await assert.rejects(searchUserFiles("x".repeat(241)), /240 karakter/);
+  await assert.rejects(searchUserFiles("x".repeat(256)), /255 karakter/);
 });
 
 test("application launcher rejects anything outside the fixed allowlist", async () => {
