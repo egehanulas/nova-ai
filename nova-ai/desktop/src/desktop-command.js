@@ -72,7 +72,7 @@ export function parseDesktopCommand(input) {
   }
   if (folderName) return { intent: "create-folder", name: folderName, location: folderLocation };
 
-  match = command.match(/^(?:lütfen\s+)?(masaüstündeki|belgelerdeki|indirilenlerdeki)\s+(.+?)\s+(?:dosyasını|dosyayı|klasörünü|öğesini)\s+(.+?)\s+taşı(?:\s+lütfen)?$/i);
+  match = command.match(/^(?:lütfen\s+)?(masaüstündeki|belgelerdeki|indirilenlerdeki)\s+(.+?)\s+(?:dosyasını|dosyayı|klasörünü|öğesini)\s+(.+?)\s+(?:taşı|tası|taşır\s+mısın|taşıyabilir\s+misin|aktar|götür|yerleştir|koy)(?:\s+lütfen)?$/i);
   if (match) return {
     intent: "move-file",
     source: cleanTarget(match[2]),
@@ -80,7 +80,7 @@ export function parseDesktopCommand(input) {
     destination: normalizeDestination(match[3])
   };
 
-  match = command.match(/^([A-Z])\s+(?:sürücüsündeki|diskindeki)\s+(.+?)\s+(?:dosyasını|dosyayı|klasörünü|öğesini)\s+(.+?)\s+taşı(?:\s+lütfen)?$/i);
+  match = command.match(/^([A-Z])\s+(?:sürücüsündeki|diskindeki)\s+(.+?)\s+(?:dosyasını|dosyayı|klasörünü|öğesini)\s+(.+?)\s+(?:taşı|tası|taşır\s+mısın|taşıyabilir\s+misin|aktar|götür|yerleştir|koy)(?:\s+lütfen)?$/i);
   if (match) return {
     intent: "move-file",
     source: cleanTarget(match[2]),
@@ -88,14 +88,14 @@ export function parseDesktopCommand(input) {
     destination: normalizeDestination(match[3])
   };
 
-  match = command.match(/^(.+?)\s+(?:dosyasını|dosyayı|klasörünü|öğesini)\s+(.+?)\s+taşı(?:\s+lütfen)?$/i);
+  match = command.match(/^(.+?)\s+(?:dosyasını|dosyayı|klasörünü|öğesini)\s+(.+?)\s+(?:taşı|tası|taşır\s+mısın|taşıyabilir\s+misin|aktar|götür|yerleştir|koy)(?:\s+lütfen)?$/i);
   if (match) return {
     intent: "move-file",
     source: cleanTarget(match[1]),
     destination: normalizeDestination(match[2])
   };
 
-  match = command.match(/^(?:taşı|taşır mısın|taşıyabilir misin)\s+(.+?)\s*(?:->|→| içine | klasörüne )\s*(.+)$/i);
+  match = command.match(/^(?:taşı|tası|taşır mısın|taşıyabilir misin|aktar|götür|yerleştir|koy)\s+(.+?)\s*(?:->|→| içine | klasörüne )\s*(.+)$/i);
   if (match) return { intent: "move-file", source: cleanTarget(match[1]), destination: normalizeDestination(match[2]) };
 
   match = command.match(/^(?:yeniden adlandır|adını değiştir)\s+(.+?)\s*(?:->|→| olarak | diye )\s*(.+)$/i);
