@@ -9,6 +9,7 @@ import {
   openAllowedApp
 } from "./desktop-assistant.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
+import { parseDesktopCommand } from "./desktop-command.js";
 
 test("user path resolver accepts only the three approved folders", () => {
   const home = os.homedir();
@@ -103,4 +104,39 @@ test("desktop updater retry can be cancelled or reset without leaving a pending 
   assert.equal(timers[1].cancelled, true);
   assert.equal(scheduler.pending, false);
   assert.equal(scheduler.schedule(), 30_000);
+});
+
+
+test("Turkish desktop intent parser understands natural file-open phrasing", () => {
+  assert.deepEqual(parseDesktopCommand("Masaüstündeki 1.jpg dosyasını aç"), {
+    intent: "open-path", target: "1.jpg"
+  });
+  assert.deepEqual(parseDesktopCommand("1.jpg'yi aç"), {
+    intent: "open-path", target: "1.jpg"
+  });
+  assert.deepEqual(parseDesktopCommand("lütfen aç: \"1.jpg\""), {
+    intent: "open-path", target: "1.jpg"
+  });
+});
+
+test("Turkish desktop intent parser understands folder creation in different word orders", () => {
+  assert.deepEqual(parseDesktopCommand("Masaüstüne Oyunlar adında klasör oluştur"), {
+    intent: "create-folder", name: "Oyunlar", location: "Desktop"
+  });
+  assert.deepEqual(parseDesktopCommand("klasör oluştur Projeler belgelerde"), {
+    intent: "create-folder", name: "Projeler", location: "Documents"
+  });
+  assert.deepEqual(parseDesktopCommand("İndirilenlere Arşiv klasörü oluştur"), {
+    intent: "create-folder", name: "Arşiv", location: "Downloads"
+  });
+});
+
+test("Turkish desktop intent parser recognizes apps, search and destructive actions separately", () => {
+  assert.equal(parseDesktopCommand("Steam'i aç").intent, "open-app");
+  assert.equal(parseDesktopCommand("Discord'u başlat").app, "discord");
+  assert.deepEqual(parseDesktopCommand("masaüstünde 1.jpg"), {
+    intent: "search-files", query: "1.jpg"
+  });
+  assert.equal(parseDesktopCommand("1.jpg dosyasını sil").intent, "unknown");
+  assert.equal(parseDesktopCommand("sil 1.jpg").intent, "trash-file");
 });
