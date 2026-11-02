@@ -220,6 +220,7 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
   const queue = [...roots];
   const startedAt = Date.now();
   let visited = 0;
+  let inaccessibleDirectories = 0;
   let stop = false;
 
   while (queue.length && !stop) {
@@ -230,7 +231,11 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
     const batch = queue.splice(0, SEARCH_WORKERS);
     visited += batch.length;
     const batches = await Promise.all(batch.map(async (dir) => {
-      try { return await fs.readdir(dir, { withFileTypes: true }); } catch { return []; }
+      try { return await fs.readdir(dir, { withFileTypes: true }); }
+      catch (error) {
+        if (!["ENOENT", "ENOTDIR"].includes(error?.code)) inaccessibleDirectories += 1;
+        return [];
+      }
     }));
     for (let index = 0; index < batches.length && !stop; index += 1) {
       const dir = batch[index];
@@ -255,9 +260,12 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
     const bExact = b.name.toLocaleLowerCase("tr-TR") === needle ? 0 : 1;
     return aExact - bExact || a.path.localeCompare(b.path, "tr");
   });
-  Object.defineProperty(found, "truncated", {
-    value: stop && (queue.length > 0 || found.length >= SEARCH_MAX_RESULTS || visited >= SEARCH_MAX_DIRECTORIES || Date.now() - startedAt >= SEARCH_MAX_DURATION_MS),
-    enumerable: true
+  Object.defineProperties(found, {
+    truncated: {
+      value: stop && (queue.length > 0 || found.length >= SEARCH_MAX_RESULTS || visited >= SEARCH_MAX_DIRECTORIES || Date.now() - startedAt >= SEARCH_MAX_DURATION_MS),
+      enumerable: true
+    },
+    inaccessibleDirectories: { value: inaccessibleDirectories, enumerable: true }
   });
   return found;
 }
@@ -277,9 +285,21 @@ export async function openAllowedApp(appName) {
     try { await fs.access(selected.command); } catch { throw new Error(selected.label + " bu bilgisayarda bulunamadı veya varsayılan konumunda kurulu değil."); }
   }
   const child = spawn(selected.command, selected.args, { detached: true, stdio: "ignore", windowsHide: true });
-  child.on("error", (error) => console.error("NOVA app launch failed:", error));
-  child.unref();
-  return { message: selected.label + " açılıyor." };
+  await new Promise((resolve, reject) => {
+    let settled = false;
+    child.once("error", (error) => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(selected.label + " başlatılamadı: " + error.message));
+    });
+    child.once("spawn", () => {
+      if (settled) return;
+      settled = true;
+      child.unref();
+      resolve();
+    });
+  });
+  return { message: selected.label + " uygulaması başarıyla başlatıldı." };
 }
 
 function cleanFileReference(input) {
@@ -317,8 +337,17 @@ export async function resolveUserItem(input, preferredLocation = "", { allowRoot
   return resolveExistingUserPath(exact[0].path, { allowRoot });
 }
 
+const BLOCKED_OPEN_EXTENSIONS = new Set([
+  ".exe", ".com", ".bat", ".cmd", ".ps1", ".psm1", ".vbs", ".vbe", ".js", ".jse",
+  ".wsf", ".wsh", ".hta", ".scr", ".msi", ".msp", ".mst", ".dll", ".sys", ".ocx",
+  ".cpl", ".lnk", ".url", ".reg", ".sh", ".bash", ".jar", ".appx", ".msix"
+]);
+
 export async function openUserPath(input, preferredLocation = "") {
   const resolved = await resolveUserItem(input, preferredLocation);
+  if (resolved.stat.isFile() && BLOCKED_OPEN_EXTENSIONS.has(path.extname(resolved.path).toLowerCase())) {
+    throw new Error("Çalıştırılabilir dosyalar, komut dosyaları ve Windows kısayolları güvenlik nedeniyle NOVA üzerinden doğrudan açılamaz. İzin verilen uygulamaları uygulama listesinden başlatabilirsin.");
+  }
   return { path: resolved.path, message: "“" + path.basename(resolved.path) + "” açılmaya hazır." };
 }
 
