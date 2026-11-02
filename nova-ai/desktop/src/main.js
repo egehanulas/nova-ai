@@ -15,8 +15,9 @@ import {
 import { URL, pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder } from "./desktop-assistant.js";
+import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder, launchSteamGame, searchSpotify } from "./desktop-assistant.js";
 import { parseDesktopCommand } from "./desktop-command.js";
+import { runComputerAction } from "./computer-control.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 
 const NOVA_URL = "https://nova-ai-xxid.onrender.com/";
@@ -331,25 +332,25 @@ function registerDesktopAssistantIpc() {
     const rawCommand = typeof payload.command === "string" ? payload.command : "";
     let intent = parseDesktopCommand(rawCommand);
     const accessToken = typeof payload.accessToken === "string" ? payload.accessToken : "";
+    const observations = [];
+    const requestInterpretation = async () => {
+      if (!accessToken || accessToken.length >= 5000) return null;
+      const response = await fetch(new URL("/api/desktop/interpret", NOVA_URL), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + accessToken
+        },
+        body: JSON.stringify({ command: rawCommand, observations: observations.slice(-6) }),
+        signal: AbortSignal.timeout(25000)
+      });
+      if (!response.ok) throw new Error("NOVA komut yorumlama servisi HTTP " + response.status);
+      const interpreted = await response.json();
+      return interpreted?.intent && typeof interpreted.intent === "object" ? interpreted.intent : null;
+    };
     if (intent.intent === "unknown" && accessToken && accessToken.length < 5000) {
       try {
-        const response = await fetch(new URL("/api/desktop/interpret", NOVA_URL), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + accessToken
-          },
-          body: JSON.stringify({ command: rawCommand }),
-          signal: AbortSignal.timeout(25000)
-        });
-        if (response.ok) {
-          const interpreted = await response.json();
-          if (interpreted?.intent && typeof interpreted.intent === "object") {
-            intent = interpreted.intent;
-          }
-        } else {
-          console.warn("NOVA AI intent interpretation unavailable:", response.status);
-        }
+        intent = await requestInterpretation() || intent;
       } catch (error) {
         console.warn("NOVA AI intent interpretation failed; local parser remains available:", error.message);
       }
@@ -374,7 +375,75 @@ function registerDesktopAssistantIpc() {
           folder.items.slice(0, 20).map((item) => (item.type === "folder" ? "📁 " : "📄 ") + item.name).join("\\n")).join("\\n\\n") };
       }
       case "open-app":
+        if (intent.app === "spotify") {
+          await shell.openExternal("spotify:");
+          return { message: "Spotify açılıyor." };
+        }
         return await openAllowedApp(intent.app);
+      case "open-url": {
+        let targetUrl = typeof intent.url === "string" ? intent.url : "";
+        if (!targetUrl && typeof intent.query === "string" && intent.query.trim()) {
+          targetUrl = "https://www.google.com/search?q=" + encodeURIComponent(intent.query.trim());
+        }
+        let parsedUrl;
+        try { parsedUrl = new URL(targetUrl); } catch { throw new Error("Açılacak internet adresi geçersiz."); }
+        if (!["https:", "http:"].includes(parsedUrl.protocol)) throw new Error("Yalnızca güvenli web adresleri açılabilir.");
+        if (intent.app === "chrome") {
+          await openAllowedApp("chrome", [parsedUrl.href]);
+          return { message: "Google Chrome'da " + parsedUrl.hostname + " açılıyor." };
+        }
+        openExternal(parsedUrl.href);
+        return { message: parsedUrl.hostname + " varsayılan tarayıcıda açılıyor." };
+      }
+      case "spotify-search":
+        return await searchSpotify(intent.query);
+      case "launch-steam-game":
+        return await launchSteamGame(intent.game);
+      case "computer-control": {
+        if (!Array.isArray(intent.actions) || intent.actions.length > 12) {
+          throw new Error("Masaüstü kontrol planı geçersiz veya çok uzun.");
+        }
+        let completed = 0;
+        for (const action of intent.actions) {
+          if (!action || typeof action !== "object") throw new Error("Masaüstü kontrol adımı geçersiz.");
+          if (action.type === "finish") break;
+          if (action.type === "inspect-screen") {
+            const result = await runComputerAction(action);
+            observations.push({ activeWindow: result.activeWindow || "", items: result.items || [] });
+            const nextIntent = await requestInterpretation();
+            if (!nextIntent || nextIntent.intent !== "computer-control" || !Array.isArray(nextIntent.actions)) {
+              throw new Error("NOVA ekrandaki durumu yorumlayamadı; güvenli olması için işlem durduruldu.");
+            }
+            intent = nextIntent;
+            break;
+          }
+          if (action.type === "open-app") {
+            if (action.app === "spotify") await shell.openExternal("spotify:");
+            else await openAllowedApp(action.app);
+          } else if (action.type === "open-url") {
+            let parsedUrl;
+            try { parsedUrl = new URL(String(action.url || "")); } catch { throw new Error("Açılacak internet adresi geçersiz."); }
+            if (!["https:", "http:"].includes(parsedUrl.protocol)) throw new Error("Yalnızca HTTP ve HTTPS adresleri açılabilir.");
+            if (action.app === "chrome") await openAllowedApp("chrome", [parsedUrl.href]);
+            else openExternal(parsedUrl.href);
+          } else if (action.type === "launch-steam-game") {
+            await launchSteamGame(action.game);
+          } else if (action.type === "spotify-search") {
+            await searchSpotify(action.query);
+          } else {
+            await runComputerAction(action);
+          }
+          completed += 1;
+        }
+        if (intent.done === true || intent.actions.every((action) => action.type === "finish")) {
+          return { message: "İstenen masaüstü işlemleri tamamlandı.", steps: completed };
+        }
+        if (observations.length >= 6) throw new Error("Güvenlik sınırı nedeniyle masaüstü görevi durduruldu.");
+        if (intent.actions.some((action) => action.type === "inspect-screen")) {
+          return { message: "Ekran incelendi ve sonraki işlem planlandı; devam etmek için komutu tekrar ver." };
+        }
+        return { message: "Masaüstü işlemleri tamamlandı.", steps: completed };
+      }
       case "search-files": {
         const found = await searchUserFiles(intent.query, intent.location || "");
         if (!found.length) {
