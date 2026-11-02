@@ -400,7 +400,7 @@ function registerDesktopAssistantIpc() {
       case "trash-file": {
         const resolvedTarget = path.isAbsolute(intent.target)
           ? intent.target
-          : (await openUserPath(intent.target)).path;
+          : (await openUserPath(intent.target, intent.location || "")).path;
         const safePath = await resolveUserFileForTrash(resolvedTarget);
         const answer = await dialog.showMessageBox(parent, {
           type: "warning", title: "Geri Dönüşüm Kutusu",
