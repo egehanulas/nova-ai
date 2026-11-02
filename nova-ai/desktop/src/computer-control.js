@@ -56,6 +56,17 @@ export function validateComputerAction(action) {
   return action;
 }
 
+export function parseComputerControlOutput(stdout) {
+  const output = String(stdout || "");
+  const matches = [...output.matchAll(/NOVA_RESULT:(\{[^\r\n]*\})/g)];
+  if (!matches.length) throw new Error("Windows masaüstü kontrolünden geçerli sonuç alınamadı.");
+  try {
+    return JSON.parse(matches[matches.length - 1][1]);
+  } catch {
+    throw new Error("Windows masaüstü kontrolü bozuk sonuç döndürdü.");
+  }
+}
+
 export async function runComputerAction(action) {
   validateComputerAction(action);
   if (process.platform !== "win32") throw new Error("Masaüstü kontrolü yalnızca Windows'ta kullanılabilir.");
@@ -81,8 +92,11 @@ export async function runComputerAction(action) {
     child.once("error", error => reject(new Error("Windows masaüstü kontrolü başlatılamadı: " + error.message)));
     child.once("close", code => {
       let result;
-      try { result = JSON.parse(stdout.trim()); }
-      catch { reject(new Error("Windows masaüstü kontrolünden geçerli sonuç alınamadı. " + stderr.slice(-1000))); return; }
+      try { result = parseComputerControlOutput(stdout); }
+      catch (error) {
+        reject(new Error(error.message + (stderr.trim() ? " " + stderr.slice(-1000) : "")));
+        return;
+      }
       if (code !== 0 || !result.success) reject(new Error(result.error || "Masaüstü kontrolü başarısız."));
       else resolve(result);
     });
