@@ -218,8 +218,10 @@ function fetchPinnedUrl(url, signal) {
         if (Array.isArray(value)) value.forEach((entry) => headers.append(name, entry));
         else if (value !== undefined) headers.set(name, String(value));
       }
-      resolve(new Response(Readable.toWeb(incoming), {
-        status: incoming.statusCode || 502,
+      const status = incoming.statusCode || 502;
+      const body = [204, 205, 304].includes(status) ? null : Readable.toWeb(incoming);
+      resolve(new Response(body, {
+        status,
         statusText: incoming.statusMessage,
         headers,
       }));
