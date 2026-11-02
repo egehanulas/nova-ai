@@ -344,8 +344,8 @@ function registerDesktopAssistantIpc() {
     };
     const sensitiveCommand = rawCommand.toLocaleLowerCase("tr-TR");
     const approvalReason =
-      /(?:satın\\s*al|sipariş\\s*ver|ödeme\\s*yap|ödemeyi\\s*tamamla|checkout|buy\\s*now|purchase|pay\\s*now)/iu.test(sensitiveCommand) ? "Satın alma veya ödeme" :
-      /(?:hesap\\s+ayar|account\\s+settings|güvenlik\\s+ayar|şifre(?:mi|yi)?\\s+değiştir|e.?posta\\s+adresini\\s+değiştir)/iu.test(sensitiveCommand) ? "Hesap ayarlarını değiştirme" :
+      /(?:satın\s*al|sipariş\s*ver|ödeme\s*yap|ödemeyi\s*tamamla|checkout|buy\s*now|purchase|pay\s*now)/iu.test(sensitiveCommand) ? "Satın alma veya ödeme" :
+      /(?:hesap\s+ayar|account\s+settings|güvenlik\s+ayar|şifre(?:mi|yi)?\s+değiştir|e.?posta\s+adresini\s+değiştir)/iu.test(sensitiveCommand) ? "Hesap ayarlarını değiştirme" :
       /(?:program|uygulama|application|software).{0,35}(?:yükle|kur|kaldır|uninstall|install)/iu.test(sensitiveCommand) ? "Program kurma veya kaldırma" : "";
     if (approvalReason) {
       const approval = await dialog.showMessageBox(parent, {
