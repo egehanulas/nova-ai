@@ -48,6 +48,43 @@
     return;
   }
 
+  if (window.novaDesktop?.isDesktop && window.novaDesktop?.assistant?.onTaskProgress) {
+    const progressPanel = document.createElement("div");
+    progressPanel.id = "nova-desktop-task-progress";
+    progressPanel.setAttribute("role", "status");
+    progressPanel.setAttribute("aria-live", "polite");
+    Object.assign(progressPanel.style, {
+      position: "fixed", right: "22px", bottom: "22px", zIndex: "9999",
+      maxWidth: "min(420px, calc(100vw - 32px))", padding: "12px 16px",
+      border: "1px solid rgba(150,160,220,.35)", borderRadius: "12px",
+      background: "rgba(15,19,34,.96)", color: "#eef0ff",
+      boxShadow: "0 12px 40px rgba(0,0,0,.35)", fontSize: "13px",
+      lineHeight: "1.45", pointerEvents: "none", display: "none",
+      whiteSpace: "pre-wrap"
+    });
+    document.body.appendChild(progressPanel);
+    let progressHideTimer;
+    window.novaDesktop.assistant.onTaskProgress((progress) => {
+      if (!progress || typeof progress !== "object") return;
+      if (progressHideTimer) clearTimeout(progressHideTimer);
+      const labels = {
+        started: "NOVA görevi başlattı",
+        planning: "NOVA planlıyor",
+        running: "Görev yürütülüyor",
+        retrying: "Güvenli yeniden deneme",
+        waiting: "Görev beklemede",
+        completed: "Görev tamamlandı",
+        cancelled: "Görev iptal edildi",
+        failed: "Görev durduruldu"
+      };
+      const step = Number.isFinite(progress.step) && progress.step > 0 ? " · Adım " + progress.step : "";
+      progressPanel.textContent = (labels[progress.phase] || "NOVA görev durumu") + step + "\n" + String(progress.message || "");
+      progressPanel.style.display = "block";
+      progressPanel.style.borderColor = progress.phase === "failed" ? "rgba(255,120,120,.55)" : "rgba(150,160,220,.35)";
+      progressHideTimer = setTimeout(() => { progressPanel.style.display = "none"; }, ["completed", "cancelled", "failed"].includes(progress.phase) ? 6000 : 18000);
+    });
+  }
+
   // The server supplies these public browser settings from the same environment
   // used by authenticated API routes, avoiding a second hard-coded project config.
   const SUPABASE_URL = window.NOVA_CONFIG?.supabaseUrl || "";
