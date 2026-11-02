@@ -24,8 +24,8 @@ test("user path resolver accepts configured user folders and rejects unrelated p
     assert.equal(resolveUserPath(path.join(home, name)), path.join(home, name));
     assert.equal(resolveUserPath(path.join(home, name, "sample.txt")), path.join(home, name, "sample.txt"));
   }
-  assert.throws(() => resolveUserPath(path.join(home, "Pictures", "private.txt")), /yalnızca Masaüstü/);
-  assert.throws(() => resolveUserPath(path.join(home, "Desktop", "..", "..", "Windows", "system.ini")), /yalnızca Masaüstü/);
+  assert.throws(() => resolveUserPath(path.join(home, "Pictures", "private.txt")), /erişilebilen yerel sürücüler/);
+  assert.throws(() => resolveUserPath(path.join(home, "Desktop", "..", "..", "Windows", "system.ini")), /erişilebilen yerel sürücüler/);
 });
 
 test("user path resolver rejects empty, non-string and oversized input", () => {
@@ -45,8 +45,8 @@ test("computer information includes stable system fields", () => {
 });
 
 test("file search validates its query before reading folders", async () => {
-  await assert.rejects(searchUserFiles(""), /dosya adı yaz/);
-  await assert.rejects(searchUserFiles("x".repeat(121)), /120 karakter/);
+  await assert.rejects(searchUserFiles(""), /dosya veya klasör adı yaz/);
+  await assert.rejects(searchUserFiles("x".repeat(121)), /240 karakter/);
 });
 
 test("application launcher rejects anything outside the fixed allowlist", async () => {
