@@ -1411,9 +1411,15 @@ async function streamOpenAIProvider({
     const choice = data?.choices?.[0];
     if (choice?.finish_reason) finishReason = choice.finish_reason;
 
-    const text = choice?.delta?.content;
+    const rawText = choice?.delta?.content;
+    const text = typeof rawText === "string"
+      ? rawText
+      : Array.isArray(rawText)
+        ? rawText.filter((part) => typeof part === "string" || typeof part?.text === "string")
+          .map((part) => typeof part === "string" ? part : part.text).join("")
+        : "";
 
-    if (typeof text === "string" && text.length > 0) {
+    if (text.length > 0) {
       answer += text;
       cleaner.push(text);
     }
