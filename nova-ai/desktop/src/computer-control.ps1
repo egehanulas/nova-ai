@@ -116,13 +116,12 @@ public static class NovaDesktopInput {
       $value = [string]$action.text
       if ($value.Length -gt 4000) { throw "Yazılacak metin çok uzun." }
       $oldClipboard = $null
-      $hadTextClipboard = $false
-      try { $hadTextClipboard = [Windows.Forms.Clipboard]::ContainsText(); if ($hadTextClipboard) { $oldClipboard = [Windows.Forms.Clipboard]::GetText() } } catch {}
+      try { $oldClipboard = [Windows.Forms.Clipboard]::GetDataObject() } catch {}
       [Windows.Forms.Clipboard]::SetText($value)
       [Windows.Forms.SendKeys]::SendWait("^v")
       Start-Sleep -Milliseconds 250
-      if ($hadTextClipboard -and $oldClipboard.Length -le 4000) { [Windows.Forms.Clipboard]::SetText($oldClipboard) }
-      elseif (-not $hadTextClipboard) { [Windows.Forms.Clipboard]::Clear() }
+      if ($null -ne $oldClipboard) { [Windows.Forms.Clipboard]::SetDataObject($oldClipboard, $true) }
+      else { [Windows.Forms.Clipboard]::Clear() }
       $result.message = "Metin yazıldı."
     }
     "press-key" {
