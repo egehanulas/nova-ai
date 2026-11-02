@@ -75,7 +75,10 @@ export function configureComputerFileAccess({ userFolders = {}, driveRoots = [] 
   const roots = [...driveRoots, ...userFolderRoots]
     .filter((value) => typeof value === "string" && path.isAbsolute(value))
     .map((value) => path.resolve(value));
-  ROOTS = [...new Set(roots.length ? roots : Object.values(USER_FOLDERS).map((value) => path.resolve(value)))];
+  const uniqueRoots = [...new Set(roots.length ? roots : Object.values(USER_FOLDERS).map((value) => path.resolve(value)))];
+  ROOTS = uniqueRoots.filter((candidate) =>
+    !uniqueRoots.some((parent) => parent !== candidate && inside(parent, candidate))
+  );
   ROOT_LABELS = new Map(ROOTS.map((root) => [root, path.parse(root).root ? path.parse(root).root.replace(/[\\/]+$/, "") : path.basename(root)]));
   for (const [name, value] of entries) ROOT_LABELS.set(path.resolve(value), name);
 }
