@@ -310,7 +310,7 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
 }
 
 function findInstalledExecutable(candidates) {
-  return candidates.find((candidate) => candidate && path.isAbsolute(candidate));
+  return candidates.find((candidate) => typeof candidate === "string" && candidate.trim());
 }
 
 function launchDetached(command, args = []) {
