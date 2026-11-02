@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld("novaDesktop", Object.freeze({
     computerInfo: () => ipcRenderer.invoke("nova-desktop:computer-info"),
     listFolders: () => ipcRenderer.invoke("nova-desktop:list-folders"),
     searchFiles: (query) => ipcRenderer.invoke("nova-desktop:search-files", query),
+    executeCommand: (command, accessToken) => ipcRenderer.invoke("nova-desktop:execute-command", { command, accessToken }),
     openApp: (name) => ipcRenderer.invoke("nova-desktop:open-app", name),
     openPath: (targetPath) => ipcRenderer.invoke("nova-desktop:open-path", targetPath),
     createFolder: (parent, name) => ipcRenderer.invoke("nova-desktop:create-folder", { parent, name }),

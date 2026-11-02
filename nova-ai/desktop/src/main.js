@@ -15,7 +15,8 @@ import {
 import { URL } from "node:url";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile } from "./desktop-assistant.js";
+import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureUserFolderPaths } from "./desktop-assistant.js";
+import { parseDesktopCommand } from "./desktop-command.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 
 const NOVA_URL = "https://nova-ai-xxid.onrender.com/";
@@ -311,6 +312,114 @@ function registerDesktopAssistantIpc() {
   ipcMain.handle("nova-desktop:computer-info", (event) => { requireTrustedWindows(event); return getComputerInfo(); });
   ipcMain.handle("nova-desktop:list-folders", (event) => { requireTrustedWindows(event); return listUserFolders(); });
   ipcMain.handle("nova-desktop:search-files", (event, query) => { requireTrustedWindows(event); return searchUserFiles(query); });
+  ipcMain.handle("nova-desktop:execute-command", async (event, payload = {}) => {
+    requireTrustedWindows(event);
+    const rawCommand = typeof payload.command === "string" ? payload.command : "";
+    let intent = parseDesktopCommand(rawCommand);
+    const accessToken = typeof payload.accessToken === "string" ? payload.accessToken : "";
+    if (intent.intent === "unknown" && accessToken && accessToken.length < 5000) {
+      try {
+        const response = await fetch(new URL("/api/desktop/interpret", NOVA_URL), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + accessToken
+          },
+          body: JSON.stringify({ command: rawCommand }),
+          signal: AbortSignal.timeout(25000)
+        });
+        if (response.ok) {
+          const interpreted = await response.json();
+          if (interpreted?.intent && typeof interpreted.intent === "object") {
+            intent = interpreted.intent;
+          }
+        } else {
+          console.warn("NOVA AI intent interpretation unavailable:", response.status);
+        }
+      } catch (error) {
+        console.warn("NOVA AI intent interpretation failed; local parser remains available:", error.message);
+      }
+    }
+    const parent = getDialogParent(event);
+    const folders = () => listUserFolders();
+    const findFolder = async (name) => {
+      const all = await folders();
+      const normalized = String(name || "Desktop").toLocaleLowerCase("tr-TR");
+      const aliases = normalized.includes("belge") || normalized.includes("document") ? ["documents"] :
+        normalized.includes("indir") || normalized.includes("download") ? ["downloads"] : ["desktop"];
+      const found = all.find((item) => aliases.includes(item.name.toLocaleLowerCase("tr-TR")));
+      if (!found) throw new Error("İstenen konum bulunamadı.");
+      return found.path;
+    };
+
+    switch (intent.intent) {
+      case "help":
+        return { message: "Şunları doğal şekilde söyleyebilirsin: “Masaüstündeki 1.jpg dosyasını aç”, “Masaüstüne Oyunlar adında klasör oluştur”, “Steam'i aç”, “indirilenlerde PDF dosyasını bul”, “şu dosyayı Belgeler'e taşı”. Dosya silme, taşıma ve klasör oluşturma işlemlerinde onay isterim." };
+      case "computer-info":
+        return { message: JSON.stringify(getComputerInfo(), null, 2) };
+      case "list-folders": {
+        const all = await folders();
+        return { message: all.map((folder) => folder.name + " (" + folder.items.length + " öğe)\\n" +
+          folder.items.slice(0, 20).map((item) => (item.type === "folder" ? "📁 " : "📄 ") + item.name).join("\\n")).join("\\n\\n") };
+      }
+      case "open-app":
+        return await openAllowedApp(intent.app);
+      case "search-files": {
+        const found = await searchUserFiles(intent.query);
+        if (!found.length) return { message: "“" + intent.query + "” için Masaüstü, Belgeler ve İndirilenler içinde eşleşme bulamadım." };
+        return { message: "Bulduğum öğeler:\\n" + found.slice(0, 30).map((item, index) =>
+          (index + 1) + ". " + (item.type === "folder" ? "📁 " : "📄 ") + item.name + "\\n" + item.path).join("\\n") };
+      }
+      case "open-path": {
+        const resolved = await openUserPath(intent.target);
+        const error = await shell.openPath(resolved.path);
+        if (error) throw new Error("Öğe açılamadı: " + error);
+        return { message: "“" + path.basename(resolved.path) + "” açıldı.", path: resolved.path };
+      }
+      case "create-folder": {
+        const destination = await findFolder(intent.location);
+        // Folder creation is a reversible, low-risk action; no confirmation dialog is needed.
+        return await createUserFolder(destination, intent.name);
+      }
+      case "move-file":
+      case "rename-file": {
+        const sourcePath = path.isAbsolute(intent.source)
+          ? intent.source
+          : (await openUserPath(intent.source)).path;
+        const destinationText = intent.destination || "";
+        const destination = intent.intent === "rename-file"
+          ? path.dirname(sourcePath)
+          : (path.isAbsolute(destinationText) || destinationText.includes("/") || destinationText.includes("\\")
+            ? destinationText
+            : await findFolder(destinationText));
+        const answer = await dialog.showMessageBox(parent, {
+          type: "warning", title: "Dosya işlemi onayı",
+          message: intent.intent === "rename-file" ? "Öğe yeniden adlandırılsın mı?" : "Öğe taşınsın mı?",
+          detail: sourcePath + "\n→ " + destination +
+            (intent.newName ? "\nYeni ad: " + intent.newName : ""),
+          buttons: ["Devam et", "Vazgeç"], defaultId: 1, cancelId: 1
+        });
+        if (answer.response !== 0) return { message: "İşlem iptal edildi." };
+        return await moveUserFile(sourcePath, destination, intent.newName || "");
+      }
+      case "trash-file": {
+        const resolvedTarget = path.isAbsolute(intent.target)
+          ? intent.target
+          : (await openUserPath(intent.target)).path;
+        const safePath = await resolveUserFileForTrash(resolvedTarget);
+        const answer = await dialog.showMessageBox(parent, {
+          type: "warning", title: "Geri Dönüşüm Kutusu",
+          message: "Bu öğe Geri Dönüşüm Kutusu'na taşınsın mı?",
+          detail: safePath, buttons: ["Geri dönüşüm kutusuna taşı", "Vazgeç"], defaultId: 1, cancelId: 1
+        });
+        if (answer.response !== 0) return { message: "Silme işlemi iptal edildi." };
+        await shell.trashItem(safePath);
+        return { message: "Öğe Geri Dönüşüm Kutusu'na taşındı." };
+      }
+      default:
+        throw new Error("Komutu tam anlayamadım. Örneğin “Masaüstündeki 1.jpg dosyasını aç” veya “Masaüstüne Oyunlar klasörü oluştur” diyebilirsin. “Yardım” yazarak örnekleri görebilirsin.");
+    }
+  });
   ipcMain.handle("nova-desktop:open-app", (event, name) => { requireTrustedWindows(event); return openAllowedApp(name); });
   ipcMain.handle("nova-desktop:open-path", async (event, input) => {
     requireTrustedWindows(event);
@@ -636,6 +745,11 @@ if (!handleSquirrelEvent()) {
   });
 
   app.whenReady().then(() => {
+    configureUserFolderPaths({
+      Desktop: app.getPath("desktop"),
+      Documents: app.getPath("documents"),
+      Downloads: app.getPath("downloads")
+    });
     configureMicrophonePermissions();
     registerDesktopAssistantIpc();
     createApplicationMenu();
