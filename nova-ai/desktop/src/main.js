@@ -550,6 +550,7 @@ function registerDesktopAssistantIpc() {
             } else if (action.type === "spotify-search") {
               await searchSpotify(action.query);
             } else if (action.type === "research-web") {
+              if (!accessToken) throw new Error("Web araştırması için önce NOVA hesabında oturum açmalısın.");
               const response = await fetch(new URL("/api/research", NOVA_URL), {
                 method: "POST",
                 headers: {
