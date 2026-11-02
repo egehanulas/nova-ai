@@ -365,6 +365,18 @@ export async function openUserPath(input, preferredLocation = "") {
   return { path: resolved.path, message: "“" + path.basename(resolved.path) + "” açılmaya hazır." };
 }
 
+function folderLookupCandidates(input) {
+  const raw = String(input || "").trim().replace(/\s+klasör(?:ü|üne)?$/i, "").trim();
+  const candidates = [raw];
+  const apostropheSuffix = raw.replace(/['’](?:a|e|ı|i|u|ü)$/i, "");
+  if (apostropheSuffix && apostropheSuffix !== raw) candidates.push(apostropheSuffix);
+  const glideSuffix = raw.replace(/(?:ya|ye)$/i, "");
+  if (glideSuffix && glideSuffix !== raw) candidates.push(glideSuffix);
+  const finalVowel = raw.replace(/[aeıiuü]$/i, "");
+  if (finalVowel && finalVowel !== raw) candidates.push(finalVowel);
+  return [...new Set(candidates.filter(Boolean))];
+}
+
 export async function resolveUserFolder(input) {
   const knownPath = getUserFolderPath(input);
   let candidate = knownPath || input;
@@ -375,7 +387,19 @@ export async function resolveUserFolder(input) {
     const relativeFolder = driveFolderMatch[2].replace(/\s+klasör(?:ü|üne)?$/i, "").trim();
     candidate = path.join(driveFolderMatch[1].toUpperCase() + ":\\", relativeFolder);
   } else if (!knownPath && typeof input === "string" && !path.isAbsolute(input) && !input.includes("/") && !input.includes("\\")) {
-    candidate = (await resolveUserItem(input)).path;
+    let resolvedItem = null;
+    let lastError = null;
+    for (const candidateName of folderLookupCandidates(input)) {
+      try {
+        resolvedItem = await resolveUserItem(candidateName);
+        break;
+      } catch (error) {
+        if (/birden fazla öğe/i.test(error?.message || "")) throw error;
+        lastError = error;
+      }
+    }
+    if (!resolvedItem) throw lastError || new Error("Belirttiğin hedef klasörü bulamadım.");
+    candidate = resolvedItem.path;
   }
   const resolved = await resolveExistingUserPath(candidate);
   if (!resolved.stat.isDirectory()) throw new Error("Belirttiğin hedef bir klasör değil.");
