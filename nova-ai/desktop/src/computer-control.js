@@ -64,10 +64,15 @@ export function parseComputerControlOutput(stdout) {
     const payload = output.slice(sentinel + "NOVA_RESULT:".length).trim();
     try { return JSON.parse(payload); } catch {}
   }
-  for (let start = output.indexOf("{"); start >= 0; start = output.indexOf("{", start + 1)) {
+  let lastValidResult = null;
+  let cursor = 0;
+  while (cursor < output.length) {
+    const start = output.indexOf("{", cursor);
+    if (start < 0) break;
     let depth = 0;
     let inString = false;
     let escaped = false;
+    let complete = false;
     for (let index = start; index < output.length; index++) {
       const character = output[index];
       if (inString) {
@@ -78,12 +83,25 @@ export function parseComputerControlOutput(stdout) {
       }
       if (character === '"') inString = true;
       else if (character === "{") depth++;
-      else if (character === "}" && --depth === 0) {
-        try { return JSON.parse(output.slice(start, index + 1)); } catch {}
-        break;
+      else if (character === "}") {
+        depth--;
+        if (depth === 0) {
+          try {
+            const candidate = JSON.parse(output.slice(start, index + 1));
+            if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+              lastValidResult = candidate;
+            }
+          } catch {}
+          // Skip the entire parsed object, including nested bounds/items objects.
+          cursor = index + 1;
+          complete = true;
+          break;
+        }
       }
     }
+    if (!complete) cursor = start + 1;
   }
+  if (lastValidResult) return lastValidResult;
   throw new Error("Windows masaüstü kontrolünden geçerli sonuç alınamadı.");
 }
 
