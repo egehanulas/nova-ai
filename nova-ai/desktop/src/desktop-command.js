@@ -76,6 +76,16 @@ export function parseDesktopCommand(input) {
   browserMatch = command.match(/^(?:youtube|yt)\s*(?:'da|’da|da|'de|’de|de)\s+(.+?)\s+(?:ara|aç|ac|çal|cal|oynat)$/iu);
   if (browserMatch) return { intent: "open-url", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent(browserMatch[1].trim()) };
 
+  const explicitResearchRequest =
+    /(?:google(?:['’]da|da|de)?|internette|web(?:['’]de|de)|hava durumu|güncel bilgi)/iu.test(command) &&
+    /(?:araştır|arastir|\bara\b|özetle|ozetle|incele)/iu.test(command);
+  if (explicitResearchRequest) {
+    let query = command.replace(/^(?:lütfen\s+)?(?:google(?:['’]da|da|de)?|internette|web(?:['’]de|de))\s+/iu, "");
+    query = query.replace(/\s+(?:ara|araştır|arastir|özetle|ozetle|incele)\b[\s\S]*$/iu, "").trim();
+    if (!query) query = command;
+    return { intent: "computer-control", done: false, actions: [{ type: "research-web", query: query.slice(0, 1200) }] };
+  }
+
   browserMatch = command.match(/^spotify(?:'da|’da|da)\s+(.+?)\s+(?:çal|cal|aç|ac|dinlet)$/iu);
   if (browserMatch) return { intent: "computer-control", done: false, actions: [{ type: "spotify-search", query: browserMatch[1].trim() }, { type: "wait", ms: 1800 }, { type: "inspect-screen" }] };
 
