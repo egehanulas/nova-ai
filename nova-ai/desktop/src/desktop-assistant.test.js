@@ -182,6 +182,23 @@ test("Turkish desktop intent parser recognizes apps, search and destructive acti
   assert.equal(parseDesktopCommand("sil 1.jpg").intent, "trash-file");
 });
 
+test("Turkish desktop parser recognizes explicit user-folder phrases and nested destinations", () => {
+  assert.deepEqual(parseDesktopCommand("İndirilenler klasöründeki 121.png dosyasını aç"), {
+    intent: "open-path", target: "121.png", location: "Downloads"
+  });
+  assert.deepEqual(parseDesktopCommand("İndirilenler klasöründeki 121.png dosyasını masaüstündeki Oyunlar klasörüne taşı"), {
+    intent: "move-file", source: "121.png", sourceLocation: "Downloads", destination: "Desktop/Oyunlar"
+  });
+  assert.equal(parseDesktopCommand("İndirilenler klasöründeki 121.png dosyasını masaüstündeki Oyunlar'a taşı").destination, "Desktop/Oyunlar");
+  assert.deepEqual(parseDesktopCommand("İndirilenler klasöründeki 121.png"), {
+    intent: "search-files", query: "121.png", location: "Downloads"
+  });
+  assert.deepEqual(parseDesktopCommand("Belgeler klasöründeki rapor.pdf dosyasını aç"), {
+    intent: "open-path", target: "rapor.pdf", location: "Documents"
+  });
+});
+
+
 
 test("opening a file by its bare filename resolves the exact item in known folders", async () => {
   const base = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || process.cwd(), "nova-desktop-path-test-"));
@@ -260,6 +277,8 @@ test("moving a file by natural-language source name resolves its explicitly name
     const customFolderMove = await moveUserFile("to-move.txt", "Oyunlara", "", "Desktop");
     assert.equal(customFolderMove.path, path.join(desktop, "Oyunlar", "to-move.txt"));
     assert.equal(await fs.readFile(customFolderMove.path, "utf8"), "custom-folder-target");
+    const qualifiedDestination = await resolveUserFolder("Desktop/Oyunlar");
+    assert.equal(qualifiedDestination.path, await fs.realpath(path.join(desktop, "Oyunlar")));
     await assert.rejects(resolveUserItem("1.jpg"), /birden fazla öğe/);
   } finally {
     await fs.rm(base, { recursive: true, force: true });

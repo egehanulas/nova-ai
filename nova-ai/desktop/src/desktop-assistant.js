@@ -408,10 +408,17 @@ function folderLookupCandidates(input) {
 export async function resolveUserFolder(input) {
   const knownPath = getUserFolderPath(input);
   let candidate = knownPath || input;
+  const userFolderRelativeMatch = typeof input === "string"
+    ? input.match(/^(Desktop|Documents|Downloads)[\\/](.+)$/i)
+    : null;
   const driveFolderMatch = typeof input === "string"
     ? input.match(/^([A-Z])\s+(?:sürücüsündeki|diskindeki|sürücüsünde|diskinde)\s+(.+)$/i)
     : null;
-  if (!knownPath && driveFolderMatch) {
+  if (!knownPath && userFolderRelativeMatch) {
+    const key = userFolderRelativeMatch[1].toLowerCase() === "desktop" ? "Desktop"
+      : userFolderRelativeMatch[1].toLowerCase() === "documents" ? "Documents" : "Downloads";
+    candidate = path.join(USER_FOLDERS[key], userFolderRelativeMatch[2]);
+  } else if (!knownPath && driveFolderMatch) {
     const relativeFolder = driveFolderMatch[2].replace(/\s+klasör(?:ü|üne)?$/i, "").trim();
     candidate = path.join(driveFolderMatch[1].toUpperCase() + ":\\", relativeFolder);
   } else if (!knownPath && typeof input === "string" && !path.isAbsolute(input) && !input.includes("/") && !input.includes("\\")) {
