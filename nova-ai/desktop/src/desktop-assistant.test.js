@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import fs from "node:fs/promises";
 import path from "node:path";
+import vm from "node:vm";
 import {
   getComputerInfo,
   resolveUserPath,
@@ -366,5 +367,17 @@ test("broad searches skip protected system trees but explicit scoped searches ca
     assert.equal(scoped[0].path, await fs.realpath(path.join(windows, "scoped-needle.txt")));
   } finally {
     await fs.rm(base, { recursive: true, force: true });
+  }
+});
+
+
+test("desktop assistant HTML inline scripts remain syntactically valid", async () => {
+  const html = await fs.readFile(new URL("./assistant.html", import.meta.url), "utf8");
+  const scripts = [...html.matchAll(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi)]
+    .map((match) => match[1].trim())
+    .filter(Boolean);
+  assert.ok(scripts.length > 0, "expected at least one inline assistant script");
+  for (const [index, script] of scripts.entries()) {
+    assert.doesNotThrow(() => new vm.Script(script, { filename: "assistant.html:inline-" + index }));
   }
 });
