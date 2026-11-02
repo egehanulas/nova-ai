@@ -2,6 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { parseComputerControlOutput } from "./computer-control.js";
 
+test("validates absolute and relative mouse movement actions", () => {
+  assert.doesNotThrow(() => validateComputerAction({ type: "move-mouse", x: 300, y: 250 }));
+  assert.doesNotThrow(() => validateComputerAction({ type: "move-mouse", dx: -140, dy: 60 }));
+  assert.throws(() => validateComputerAction({ type: "move-mouse", x: -1, y: 20 }), /Mouse hareket koordinatları/);
+  assert.throws(() => validateComputerAction({ type: "move-mouse", dx: 10001, dy: 0 }), /Mouse hareket koordinatları/);
+});
+
 test("prefers the explicit PowerShell failure payload over CLIXML JSON fragments", () => {
   const output = '<Objs><S S="Error">noise {"message":"wrong"}</S></Objs>\nNOVA_RESULT:{"success":false,"error":"UI Automation access denied"}';
   assert.deepEqual(parseComputerControlOutput(output), {
