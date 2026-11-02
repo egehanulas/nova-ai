@@ -276,6 +276,8 @@ test("moving a file by natural-language source name resolves its explicitly name
     const customFolderMove = await moveUserFile("to-move.txt", "Oyunlara", "", "Desktop");
     assert.equal(customFolderMove.path, path.join(desktop, "Oyunlar", "to-move.txt"));
     assert.equal(await fs.readFile(customFolderMove.path, "utf8"), "custom-folder-target");
+    const qualifiedDestination = await resolveUserFolder("Desktop/Oyunlar");
+    assert.equal(qualifiedDestination.path, await fs.realpath(path.join(desktop, "Oyunlar")));
     await assert.rejects(resolveUserItem("1.jpg"), /birden fazla öğe/);
   } finally {
     await fs.rm(base, { recursive: true, force: true });
