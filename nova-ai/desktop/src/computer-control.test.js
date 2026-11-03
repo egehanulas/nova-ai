@@ -59,3 +59,19 @@ test("parses a large successful UI Automation result without losing the success 
   assert.equal(parsed.success, true);
   assert.equal(parsed.items.length, 100);
 });
+
+test("preserves compressed screenshot payloads in structured desktop results", () => {
+  const screenshot = Buffer.from("NOVA visual screen snapshot").toString("base64");
+  const parsed = parseComputerControlOutput(JSON.stringify({
+    success: true,
+    activeWindow: "Chrome",
+    screenshot,
+    screenshotMimeType: "image/jpeg",
+    screenshotWidth: 1280,
+    screenshotHeight: 720
+  }));
+  assert.equal(parsed.success, true);
+  assert.equal(parsed.screenshot, screenshot);
+  assert.equal(parsed.screenshotMimeType, "image/jpeg");
+  assert.equal(parsed.screenshotWidth, 1280);
+});
