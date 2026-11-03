@@ -292,7 +292,7 @@ test("routes newly supported browser commands through desktop execution", async 
   vm.runInNewContext(helper, { window, globalThis: window });
   const route = window.NovaDesktopRouting.isLikelyDesktopCommand;
   for (const command of [
-    "Yeni pencere aç", "Gizli pencere aç", "Tarayıcı geçmişini aç",
+    "Yeni pencere aç", "Gizli pencere aç", "Tarayıcı geçmişini aç", "Google'da Fenerbahçe ara", "Chrome'da Fenerbahçe ara",
     "İndirilenleri aç", "Yer imlerini aç", "Sayfanın kaynak kodunu göster",
     "Yakınlaştırmayı sıfırla", "Uygulamalar arasında geçiş yap"
   ]) assert.equal(route(command), true, command);
