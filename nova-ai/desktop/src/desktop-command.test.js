@@ -136,7 +136,7 @@ test("runs two- and three-app launch sequences locally in the requested order", 
   const expectedTwo = {
     intent: "computer-control",
     done: true,
-    message: "Hesap Makinesi, Not Defteri açıldı.",
+    message: "Hesap Makinesi ve Not Defteri açıldı.",
     actions: [
       { type: "open-app", app: "calculator" },
       { type: "wait", ms: 900 },
