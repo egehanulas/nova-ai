@@ -118,6 +118,44 @@ export function parseDesktopCommand(input) {
     .replace(/\s+uygulamasını$/iu, "")
     .toLocaleLowerCase("tr-TR")
     .trim();
+  const keyboardShortcuts = [
+    { pattern: /^(?:hepsini|tümünü|bütününü) seç(?:\s+lütfen)?$/iu, key: "CTRL+A", message: "Tüm içerik seçiliyor." },
+    { pattern: /^(?:seçili olanı )?kopyala(?:\s+lütfen)?$/iu, key: "CTRL+C", message: "Seçili içerik kopyalanıyor." },
+    { pattern: /^(?:seçili olanı )?kes(?:\s+lütfen)?$/iu, key: "CTRL+X", message: "Seçili içerik kesiliyor." },
+    { pattern: /^(?:panodakini )?yapıştır(?:\s+lütfen)?$/iu, key: "CTRL+V", message: "Panodaki içerik yapıştırılıyor." },
+    { pattern: /^(?:dosyayı )?kaydet(?:\s+lütfen)?$/iu, key: "CTRL+S", message: "Geçerli dosya kaydediliyor." },
+    { pattern: /^(?:sayfayı )?yazdır(?:\s+lütfen)?$/iu, key: "CTRL+P", message: "Yazdırma penceresi açılıyor." },
+    { pattern: /^(?:son işlemi )?geri al(?:\s+lütfen)?$/iu, key: "CTRL+Z", message: "Son işlem geri alınıyor." },
+    { pattern: /^(?:geri aldığını )?yinele|yinele(?:\s+lütfen)?$/iu, key: "CTRL+Y", message: "Son işlem yineleniyor." },
+    { pattern: /^(?:sayfada|metinde) ara(?:\s+lütfen)?$/iu, key: "CTRL+F", message: "Bul araması açılıyor." },
+    { pattern: /^(?:adres çubuğuna git|adres çubuğunu seç)$/iu, key: "CTRL+L", message: "Tarayıcı adres çubuğu seçiliyor." },
+    { pattern: /^(?:yeni sekme aç|yeni sekme oluştur)$/iu, key: "CTRL+T", message: "Yeni sekme açılıyor." },
+    { pattern: /^(?:bu sekmeyi|geçerli sekmeyi) kapat$/iu, key: "CTRL+W", message: "Geçerli sekme kapatılıyor." },
+    { pattern: /^(?:kapattığım|son kapattığım) sekmeyi geri aç$/iu, key: "CTRL+SHIFT+T", message: "Son kapatılan sekme yeniden açılıyor." },
+    { pattern: /^(?:sonraki|bir sonraki) sekmeye geç$/iu, key: "CTRL+PAGEDOWN", message: "Sonraki sekmeye geçiliyor." },
+    { pattern: /^(?:önceki|bir önceki) sekmeye geç$/iu, key: "CTRL+PAGEUP", message: "Önceki sekmeye geçiliyor." },
+    { pattern: /^(?:önceki sayfaya|geri) git$/iu, key: "ALT+LEFT", message: "Önceki sayfaya gidiliyor." },
+    { pattern: /^(?:sonraki sayfaya|ileri) git$/iu, key: "ALT+RIGHT", message: "Sonraki sayfaya gidiliyor." },
+    { pattern: /^(?:sayfayı yenile|yeniden yükle)$/iu, key: "CTRL+R", message: "Sayfa yenileniyor." },
+    { pattern: /^(?:tam ekrana geç|tam ekran yap)$/iu, key: "F11", message: "Tam ekran görünümü değiştiriliyor." },
+    { pattern: /^(?:etkin pencereyi|bu pencereyi) kapat$/iu, key: "ALT+F4", message: "Etkin pencere kapatılıyor." },
+    { pattern: /^(?:tarayıcı sekmesini )?yeniden aç(?:\s+lütfen)?$/iu, key: "CTRL+SHIFT+T", message: "Son kapatılan sekme yeniden açılıyor." },
+    { pattern: /^(?:ekranı|sayfayı) yenile(?:\s+lütfen)?$/iu, key: "F5", message: "Ekran yenileniyor." }
+  ];
+  const shortcut = keyboardShortcuts.find((entry) => entry.pattern.test(text));
+  if (shortcut) return {
+    intent: "computer-control",
+    done: true,
+    message: shortcut.message,
+    actions: [{ type: "press-key", key: shortcut.key }, { type: "finish" }]
+  };
+
+  const scrollMatch = text.match(/^(?:biraz )?(aşağı|yukarı) kaydır(?:\s+(\d{1,3}))?$/iu);
+  if (scrollMatch) {
+    const amount = Math.min(1200, Math.max(120, Number(scrollMatch[2] || 600))) * (scrollMatch[1] === "yukarı" ? -1 : 1);
+    return { intent: "computer-control", done: true, message: "Sayfa kaydırılıyor.", actions: [{ type: "scroll", amount }, { type: "finish" }] };
+  }
+
   const appSequenceMatch = command.match(/^(?:(?:lütfen|önce)\s+)?(.+?)\s+aç\s*[,;]?\s*(?:ardından|sonra|daha sonra)\s+(.+?)\s+aç(?:\s*[,;]?\s*(?:ardından|sonra|daha sonra)\s+(.+?)\s+aç)?$/iu);
   if (appSequenceMatch) {
     const requestedApps = [appSequenceMatch[1], appSequenceMatch[2], appSequenceMatch[3]].filter(Boolean);
