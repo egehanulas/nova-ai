@@ -89,9 +89,12 @@ public static class NovaDesktopInput {
       # Capture a compressed primary-screen image for explicit visual analysis.
       # The screenshot is sent to the authenticated vision endpoint only when
       # the user asks NOVA to analyze the screen or a task needs visual context.
+      $captureBitmap = $null
+      $captureGraphics = $null
       $bitmap = $null
       $graphics = $null
       $stream = $null
+      $encoderParams = $null
       try {
         $screen = [System.Windows.Forms.Screen]::PrimaryScreen
         if ($screen -and $screen.Bounds.Width -gt 0 -and $screen.Bounds.Height -gt 0) {
@@ -99,10 +102,13 @@ public static class NovaDesktopInput {
           $scale = [Math]::Min(1.0, [Math]::Min(1280.0 / $bounds.Width, 900.0 / $bounds.Height))
           $width = [Math]::Max(1, [int][Math]::Round($bounds.Width * $scale))
           $height = [Math]::Max(1, [int][Math]::Round($bounds.Height * $scale))
+          $captureBitmap = New-Object System.Drawing.Bitmap($bounds.Width, $bounds.Height)
+          $captureGraphics = [System.Drawing.Graphics]::FromImage($captureBitmap)
+          $captureGraphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
           $bitmap = New-Object System.Drawing.Bitmap($width, $height)
           $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
           $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-          $graphics.DrawImage($bounds.X, $bounds.Y, $width, $height) | Out-Null
+          $graphics.DrawImage($captureBitmap, 0, 0, $width, $height)
           $stream = New-Object System.IO.MemoryStream
           $jpegCodec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq "image/jpeg" } | Select-Object -First 1
           $encoder = [System.Drawing.Imaging.Encoder]::Quality
@@ -113,14 +119,16 @@ public static class NovaDesktopInput {
           $result.screenshotMimeType = "image/jpeg"
           $result.screenshotWidth = $width
           $result.screenshotHeight = $height
-          $encoderParams.Dispose()
         }
       } catch {
         $result.screenshotError = $_.Exception.Message
       } finally {
+        if ($encoderParams) { $encoderParams.Dispose() }
         if ($stream) { $stream.Dispose() }
         if ($graphics) { $graphics.Dispose() }
         if ($bitmap) { $bitmap.Dispose() }
+        if ($captureGraphics) { $captureGraphics.Dispose() }
+        if ($captureBitmap) { $captureBitmap.Dispose() }
       }
       $result.message = "Etkin pencere, erişilebilir denetimler ve ekran görüntüsü alındı."
     }
