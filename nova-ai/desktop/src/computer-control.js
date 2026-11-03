@@ -48,7 +48,8 @@ export function validateComputerAction(action) {
       action.x >= 0 && action.y >= 0 && action.x <= 10000 && action.y <= 10000;
     const relative = [action.dx, action.dy].every(Number.isInteger) &&
       Math.abs(action.dx) <= 10000 && Math.abs(action.dy) <= 10000;
-    if (!absolute && !relative) throw new Error("Mouse hareket koordinatları geçersiz.");
+    const corner = ["top-left", "top-right", "bottom-left", "bottom-right", "center"].includes(action.corner);
+    if (!absolute && !relative && !corner) throw new Error("Mouse hareket koordinatları geçersiz.");
     if (action.durationMs != null && (!Number.isInteger(action.durationMs) || action.durationMs < 100 || action.durationMs > 5000)) {
       throw new Error("Fare animasyon süresi 100-5000 ms arasında olmalı.");
     }
