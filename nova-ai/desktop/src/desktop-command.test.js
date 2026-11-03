@@ -386,3 +386,14 @@ test("routes new browser navigation phrases through desktop command execution", 
     "Chrome aç ve Not Defteri aç"
   ]) assert.equal(route(command), true, command);
 });
+
+test("routes explicit screen analysis requests through desktop execution", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const vm = await import("node:vm");
+  const helperUrl = new URL("../../public/desktop-command-routing.js", import.meta.url);
+  const helper = await readFile(helperUrl, "utf8");
+  const window = {};
+  vm.runInNewContext(helper, { window, globalThis: window });
+  assert.equal(window.NovaDesktopRouting.isLikelyDesktopCommand("Ekranımı analiz et"), true);
+  assert.equal(parseDesktopCommand("Ekranımı analiz et").intent, "screen-summary");
+});

@@ -146,7 +146,7 @@ export async function runComputerAction(action) {
     let stderr = "";
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
-    child.stdout.on("data", chunk => { stdout = (stdout + chunk).slice(-250000); });
+    child.stdout.on("data", chunk => { stdout = (stdout + chunk).slice(-1800000); });
     child.stderr.on("data", chunk => { stderr = (stderr + chunk).slice(-8000); });
     let settled = false;
     let timeout;

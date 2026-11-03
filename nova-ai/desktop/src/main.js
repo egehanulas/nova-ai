@@ -332,6 +332,7 @@ function registerDesktopAssistantIpc() {
     const observations = [];
     const parent = getDialogParent(event);
     const taskDeadline = Date.now() + 8 * 60 * 1000;
+    let visionConsentGranted = false;
     const reportProgress = (phase, message, step = 0, total = 0) => {
       try {
         if (!event.sender.isDestroyed()) event.sender.send("nova-desktop:task-progress", {
@@ -386,6 +387,21 @@ function registerDesktopAssistantIpc() {
     const requestInterpretation = async () => {
       if (Date.now() > taskDeadline) throw new Error("Görev 8 dakikalık güvenli çalışma sınırına ulaştı.");
       if (!accessToken || accessToken.length >= 5000) return null;
+      const latestSnapshot = observations[observations.length - 1];
+      if (latestSnapshot?.screenshot && !visionConsentGranted) {
+        const approval = await dialog.showMessageBox(parent, {
+          type: "info",
+          title: "NOVA görsel analiz izni",
+          message: "Ekran görüntüsü yapay zekâ ile analiz edilmek üzere gönderilecek.",
+          detail: "Birincil monitörünün sıkıştırılmış görüntüsü, ekranı anlamak ve sonraki masaüstü adımını planlamak için güvenli bağlantı üzerinden Gemini API'ye gönderilecek. Parola, ödeme veya özel bilgiler görünüyorsa Vazgeç'i seç.",
+          buttons: ["Görüntüyü gönder ve devam et", "Vazgeç"],
+          defaultId: 1,
+          cancelId: 1,
+          noLink: true
+        });
+        if (approval.response !== 0) throw new Error("Görsel analiz için izin verilmedi; ekran görüntüsü gönderilmedi.");
+        visionConsentGranted = true;
+      }
       reportProgress("planning", "NOVA sonraki adımı planlıyor.");
       const response = await fetch(new URL("/api/desktop/interpret", NOVA_URL), {
         method: "POST",
@@ -393,7 +409,7 @@ function registerDesktopAssistantIpc() {
           "Content-Type": "application/json",
           "Authorization": "Bearer " + accessToken
         },
-        body: JSON.stringify({ command: rawCommand, observations: observations.slice(-6) }),
+        body: JSON.stringify({ command: rawCommand, observations: observations.slice(-6).map((item, index, items) => ({ activeWindow: item.activeWindow, items: item.items, screenshot: index === items.length - 1 ? item.screenshot : "", screenshotMimeType: item.screenshotMimeType })) }),
         signal: AbortSignal.timeout(60000)
       });
       if (!response.ok) throw new Error("NOVA komut yorumlama servisi HTTP " + response.status);
@@ -453,11 +469,42 @@ function registerDesktopAssistantIpc() {
       case "screen-summary": {
         const result = await runComputerAction({ type: "inspect-screen" });
         const items = Array.isArray(result.items) ? result.items : [];
+        if (result.screenshot && accessToken) {
+          const approval = await dialog.showMessageBox(parent, {
+            type: "info",
+            title: "NOVA görsel analiz izni",
+            message: "Ekran görüntüsü yapay zekâ ile analiz edilmek üzere gönderilecek.",
+            detail: "Birincil monitörünün sıkıştırılmış görüntüsü, ekranı açıklamak için güvenli bağlantı üzerinden Gemini API'ye gönderilecek. Parola, ödeme veya özel bilgiler görünüyorsa Vazgeç'i seç.",
+            buttons: ["Görüntüyü gönder ve analiz et", "Vazgeç"],
+            defaultId: 1,
+            cancelId: 1,
+            noLink: true
+          });
+          if (approval.response !== 0) return { message: "Görsel analiz iptal edildi. Ekran görüntüsü hiçbir yere gönderilmedi." };
+          reportProgress("planning", "Ekran görüntüsü görsel analiz için güvenli bağlantıya gönderiliyor.");
+          const response = await fetch(new URL("/api/desktop/interpret", NOVA_URL), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + accessToken },
+            body: JSON.stringify({
+              mode: "analyze-screen",
+              screenshot: result.screenshot,
+              screenshotMimeType: result.screenshotMimeType || "image/jpeg",
+              activeWindow: result.activeWindow || "",
+              items: items.slice(0, 50)
+            }),
+            signal: AbortSignal.timeout(90000)
+          });
+          const analysis = await response.json().catch(() => ({}));
+          if (!response.ok || typeof analysis.analysis !== "string" || !analysis.analysis.trim()) {
+            throw new Error(analysis.error || "Ekranın görsel analizi tamamlanamadı.");
+          }
+          return { message: "Görsel ekran analizi (" + (analysis.provider || "AI") + "):\n" + analysis.analysis };
+        }
         return { message: "Önde olan pencere: " + (result.activeWindow || "Bilinmiyor") +
           (items.length ? "\nErişilebilir ekrandaki öğeler:\n" + items.slice(0, 30).map((item, index) =>
             (index + 1) + ". " + (item.name || item.controlType || "Adsız öğe") + " (" + item.controlType + ")").join("\n")
             : "\nBu pencereden erişilebilir metin veya denetim alınamadı.") +
-          "\nNot: Bu rapor Windows erişilebilirlik bilgilerine dayanır; görsel piksellerin tam görüntü analizi değildir." };
+          (accessToken ? "\nGörsel analiz için ekran görüntüsü alınamadı." : "\nGörsel analiz için NOVA hesabında oturum açmalısın.") };
       }
       case "list-folders": {
         const all = await folders();
@@ -566,7 +613,7 @@ function registerDesktopAssistantIpc() {
                 reportProgress("retrying", "Ekran okuma başarısız oldu; güvenli okuma işlemi bir kez yeniden deneniyor.", completed + 1, 0);
                 result = await runComputerAction(action);
               }
-              observations.push({ activeWindow: result.activeWindow || "", items: result.items || [] });
+              observations.push({ activeWindow: result.activeWindow || "", items: result.items || [], screenshot: typeof result.screenshot === "string" ? result.screenshot : "", screenshotMimeType: result.screenshotMimeType || "image/jpeg" });
               reportProgress("planning", "Ekran okundu; NOVA sonraki adımı belirliyor.", completed, 0);
               try {
                 currentIntent = await requestInterpretation();
