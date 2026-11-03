@@ -219,3 +219,42 @@ test("recognizes natural scrolling commands with safe bounded amounts", () => {
   });
   assert.equal(parseDesktopCommand("Yukarı 300 kaydır").actions[0].amount, -300);
 });
+
+test("routes ordinary browser and scrolling requests to desktop execution", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const vm = await import("node:vm");
+  const helperUrl = new URL("../../public/desktop-command-routing.js", import.meta.url);
+  const helper = await readFile(helperUrl, "utf8");
+  const window = {};
+  vm.runInNewContext(helper, { window, globalThis: window });
+  const route = window.NovaDesktopRouting.isLikelyDesktopCommand;
+
+  for (const command of [
+    "Yeni sekme aç",
+    "YouTube'da Fenerbahçe ara",
+    "Sayfada ara",
+    "Sayfayı aşağı kaydır",
+    "Aşağı 300 kaydır",
+    "Tam ekrana geç",
+    "Önceki sayfaya git"
+  ]) assert.equal(route(command), true, command);
+
+  for (const message of [
+    "Yeni sekme açmak için Ctrl+T tuşlarına basabilirsin.",
+    "Chrome nedir?",
+    "YouTube'da Fenerbahçe videoları neden popüler?"
+  ]) assert.equal(route(message), false, message);
+});
+
+test("recognizes YouTube search and natural page scrolling locally", () => {
+  assert.deepEqual(parseDesktopCommand("YouTube'da “Fenerbahçe” ara"), {
+    intent: "open-url",
+    url: "https://www.youtube.com/results?search_query=Fenerbah%C3%A7e"
+  });
+  assert.deepEqual(parseDesktopCommand("Yeni sekme aç"), {
+    intent: "computer-control", done: true, message: "Yeni sekme açılıyor.",
+    actions: [{ type: "press-key", key: "CTRL+T" }, { type: "finish" }]
+  });
+  assert.equal(parseDesktopCommand("Sayfayı aşağı kaydır").actions[0].amount, 600);
+  assert.equal(parseDesktopCommand("Aşağı 300 kaydır").actions[0].amount, 300);
+});
