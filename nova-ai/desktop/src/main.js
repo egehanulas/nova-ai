@@ -489,7 +489,8 @@ function registerDesktopAssistantIpc() {
           await openAllowedApp("chrome", [parsedUrl.href]);
           return { message: "Google Chrome'da " + parsedUrl.hostname + " açılıyor." };
         }
-        openExternal(parsedUrl.href);
+        const opened = await openExternal(parsedUrl.href);
+        if (!opened) throw new Error("Bağlantı varsayılan tarayıcıda açılamadı.");
         return { message: parsedUrl.hostname + " varsayılan tarayıcıda açılıyor." };
       }
       case "spotify-search": {
