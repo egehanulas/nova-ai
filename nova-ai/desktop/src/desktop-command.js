@@ -59,9 +59,12 @@ export function parseDesktopCommand(input) {
   if (/^(?:(?:şu an )?saat kaç(?: ve bugün hangi tarih)?|bugün hangi tarih|tarih ve saat|yerel saat|bilgisayarın saatini söyle|bilgisayarımın saatini söyle)$/iu.test(text)) return { intent: "local-time" };
   if (/^(?:açık pencereleri(?: listele| göster)?|şu anda açık olan pencereleri listele|açık olan uygulama pencerelerini listele|windows.?ta şu anda açık olan uygulama pencerelerinin listesini getir|hangi pencereler açık|açık uygulamaları(?: listele| göster)?|önde hangi pencere var)$/iu.test(text)) return { intent: "list-windows" };
   if (/^(?:ekranımı analiz et|ekranı analiz et|ekrandaki erişilebilir arayüz öğelerini listele|erişilebilir arayüz öğelerini listele|ekranda ne var|ekranımda ne görüyorsun|açık ekranı anlat|ekranı incele)$/iu.test(text)) return { intent: "screen-summary" };
+  if (/(?:işlemci|cpu).*(?:ram|bellek)|(?:ram|bellek).*(?:işlemci|cpu)/iu.test(text) && /(?:model|miktar|bilgi|söyle|göster|özellik|ne)/iu.test(text)) return { intent: "computer-info" };
   if (/^(?:bilgisayar bilgileri|sistem bilgileri|bilgisayarımın özellikleri|pc özellikleri|bilgisayarımın pil durumu|bilgisayarımın cpu ram ve pil durumunu göster|bilgisayarımın cpu ram ve pil durumunu|cpu ram ve pil durumunu göster|cpu ram ve pil durumunu|pil durumunu kontrol et|pil durumu|batarya durumu|cpu kullanımı|ram kullanımı|sistem performansı|bilgisayarımın performansı|pil[, ]+cpu ve ram kullanımını(?: kontrol et| raporla)?|cpu ve ram kullanımını(?: kontrol et| raporla)?|işlemci ve ram kullanımını(?: kontrol et| raporla)?|sistem kaynaklarını(?: kontrol et| raporla)?|bilgisayar performansını raporla|işlemcimin modelini söyle|işlemcimin modeli ne|işlemci modelini söyle|işlemci modeli ne|cpu modelini söyle|cpu modeli ne|hangi işlemciyi kullanıyorum|hangi işlemci var bilgisayarımda|bilgisayarımın işlemcisini söyle)$/iu.test(text)) return { intent: "computer-info" };
   if (/^(?:(?:masaüstündeki|bilgisayardaki|erişilebilir sürücülerdeki)\s+)?dosyalar(?:ı|ımı|imi)?\s+incele(?:\s+ve\s+.*)?$/iu.test(command)) return { intent: "list-folders" };
   if (/^masaüstümdeki dosyaları listele ve varsa pdf dosyalarını bul$/iu.test(command)) return { intent: "search-files", query: ".pdf", location: "Desktop" };
+  const desktopImageSearch = command.match(/^masaüstümdeki\s+(jpg|jpeg)\s+dosyalarını?\s+bul\s+ve\s+isimlerini\s+listele$/iu);
+  if (desktopImageSearch) return { intent: "search-files", query: "." + desktopImageSearch[1].toLocaleLowerCase("en-US"), location: "Desktop" };
   if (/^(?:klasörler|klasörlerimi göster|dosyalarımı göster|hızlı erişim|sürücüleri göster|diskleri göster)$/iu.test(text)) return { intent: "list-folders" };
 
   let browserMatch = command.match(/^(?:google\s+)?chrome(?:'da|'dan|'de|'den|’da|’dan|da|dan|de|den)\s+(.+?)\s+(?:aç|git|gir)$/iu);
@@ -104,7 +107,7 @@ export function parseDesktopCommand(input) {
   browserMatch = command.match(/^steam(?:'de|’de|de)\s+(.+?)\s+(?:aç|ac|başlat|baslat|oyna|çalıştır|calistir)$/iu);
   if (browserMatch) return { intent: "launch-steam-game", game: browserMatch[1].trim() };
 
-  const notepadWriteMatch = command.match(/^(?:not defteri|notepad)(?:['’](?:ni|nı|nu|nü))?\s+aç\s+ve\s+(?:içine|içerisine)\s+["“]?([\s\S]+?)["”]?\s+yaz$/iu);
+  const notepadWriteMatch = command.match(/^(?:windows\s+)?(?:not defteri|notepad)(?:['’](?:ni|nı|nu|nü))?(?:\s+uygulamasını)?\s+aç\s+ve\s+(?:içine|içerisine)\s+["“]?([\s\S]+?)["”]?\s+yaz$/iu);
   if (notepadWriteMatch) {
     const value = notepadWriteMatch[1].trim().replace(/^[“"]|[”"]$/g, "");
     if (value && value.length <= 4000) return {
@@ -117,6 +120,17 @@ export function parseDesktopCommand(input) {
       ]
     };
   }
+
+  const twoAppSequence = command.match(/^(?:lütfen\s+)?hesap makinesi(?:['’]?(?:ni|nı))?\s+aç[, ]+(?:ardından|sonra)\s+not defteri(?:['’]?(?:ni|nı))?\s+aç$/iu);
+  if (twoAppSequence) return {
+    intent: "computer-control", done: true, message: "Hesap Makinesi ve Not Defteri açıldı.",
+    actions: [
+      { type: "open-app", app: "calculator" },
+      { type: "wait", ms: 500 },
+      { type: "open-app", app: "notepad" },
+      { type: "finish" }
+    ]
+  };
 
   const mouseCornerMatch = command.match(/^(?:mouse|fare)\s+(?:imlecini\s+)?(?:yavaşça\s+)?ekranın\s+(sol üst|sağ üst|sol alt|sağ alt|ortasına)\s+(?:köşesine\s+)?(?:yavaşça\s+)?(?:hareket ettir|götür|taşı)$/iu);
   if (mouseCornerMatch) {
