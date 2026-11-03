@@ -56,6 +56,20 @@ export function parseDesktopCommand(input) {
     .trim();
 
   if (/^(?:yardım|komutlar|neler yapabilirsin|ne yapabilirsin)$/.test(text)) return { intent: "help" };
+
+  // Treat "new tab + Google" as navigation, never as a search query.
+  // Launching Chrome with a URL opens it in a new tab when Chrome is already running.
+  const googleHomeRequest = /^(?:(?:chrome|google chrome)(?:['’](?:da|de)|da|de)\\s+)?(?:(?:yeni sekme(?: oluştur)?\\s+(?:aç|oluştur))(?:\\s+(?:ve|sonra|ardından)\\s*)?)?(?:google(?:['’](?:ı|i|yu|yü))?|google ana sayfası|google sitesini)(?:\\s+(?:internete|internet(?:e)?))?(?:\\s+(?:aç|git|gir))?$/iu;
+  if (googleHomeRequest.test(text)) return {
+    intent: "computer-control",
+    done: true,
+    message: "Google yeni sekmede açılıyor.",
+    actions: [
+      { type: "open-url", app: "chrome", url: "https://www.google.com/" },
+      { type: "finish" }
+    ]
+  };
+
   if (/^(?:(?:şu an )?saat kaç(?: ve bugün hangi tarih)?|bugün hangi tarih|tarih ve saat|yerel saat|bilgisayarın saatini söyle|bilgisayarımın saatini söyle)$/iu.test(text)) return { intent: "local-time" };
   if (/^(?:açık pencereleri(?: listele| göster)?|şu anda açık olan pencereleri listele|açık olan uygulama pencerelerini listele|windows.?ta şu anda açık olan uygulama pencerelerinin listesini getir|hangi pencereler açık|açık uygulamaları(?: listele| göster)?|önde hangi pencere var)$/iu.test(text)) return { intent: "list-windows" };
   if (/^(?:ekranımı analiz et|ekranı analiz et|ekrandaki erişilebilir arayüz öğelerini listele|erişilebilir arayüz öğelerini listele|ekranda ne var|ekranımda ne görüyorsun|açık ekranı anlat|ekranı incele)$/iu.test(text)) return { intent: "screen-summary" };
