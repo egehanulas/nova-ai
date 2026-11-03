@@ -62,12 +62,12 @@ export function parseDesktopCommand(input) {
   if (/(?:işlemci|cpu).*(?:ram|bellek)|(?:ram|bellek).*(?:işlemci|cpu)/iu.test(text) && /(?:model|miktar|bilgi|söyle|göster|özellik|ne)/iu.test(text)) return { intent: "computer-info" };
   if (/^(?:bilgisayar bilgileri|sistem bilgileri|bilgisayarımın özellikleri|pc özellikleri|bilgisayarımın pil durumu|bilgisayarımın cpu ram ve pil durumunu göster|bilgisayarımın cpu ram ve pil durumunu|cpu ram ve pil durumunu göster|cpu ram ve pil durumunu|pil durumunu kontrol et|pil durumu|batarya durumu|cpu kullanımı|ram kullanımı|sistem performansı|bilgisayarımın performansı|pil[, ]+cpu ve ram kullanımını(?: kontrol et| raporla)?|cpu ve ram kullanımını(?: kontrol et| raporla)?|işlemci ve ram kullanımını(?: kontrol et| raporla)?|sistem kaynaklarını(?: kontrol et| raporla)?|bilgisayar performansını raporla|işlemcimin modelini söyle|işlemcimin modeli ne|işlemci modelini söyle|işlemci modeli ne|işlemci modeli ve ram miktarını söyle|işlemcimin modeli ve ram miktarı ne|işlemci ve ram miktarını söyle|işlemci modelini ve ram miktarını göster|cpu modelini söyle|cpu modeli ne|hangi işlemciyi kullanıyorum|hangi işlemci var bilgisayarımda|bilgisayarımın işlemcisini söyle)$/iu.test(text)) return { intent: "computer-info" };
   if (/^(?:(?:masaüstündeki|bilgisayardaki|erişilebilir sürücülerdeki)\s+)?dosyalar(?:ı|ımı|imi)?\s+incele(?:\s+ve\s+.*)?$/iu.test(command)) return { intent: "list-folders" };
-  const extensionSearchMatch = command.match(/^(?:(masaüstümdeki|masaüstündeki|desktop(?:\\s+klasöründeki)?)|(belgelerimdeki|belgelerimde|belgelerdeki)|(indirilenlerimdeki|indirilenlerimde|indirilenlerdeki)|(bilgisayarımdaki|bilgisayardaki|tüm sürücülerdeki|erişilebilir sürücülerdeki))\\s+(?:(?:tüm|bütün)\\s+)?([a-z0-9]{1,8})\\s+dosyalarını?\\s+(?:bul|ara|listele)(?:\\s+ve\\s+isimlerini\\s+listele)?$/iu);
+  const extensionSearchMatch = command.match(/^(?:(masaüstümdeki|masaüstündeki|desktop(?:\s+klasöründeki)?)|(belgelerimdeki|belgelerimde|belgelerdeki)|(indirilenlerimdeki|indirilenlerimde|indirilenlerdeki)|(bilgisayarımdaki|bilgisayardaki|tüm sürücülerdeki|erişilebilir sürücülerdeki))\s+(?:(?:tüm|bütün)\s+)?([a-z0-9]{1,8})\s+dosyalarını?\s+(?:bul|ara|listele)(?:\s+ve\s+isimlerini\s+listele)?$/iu);
   if (extensionSearchMatch) {
     const location = extensionSearchMatch[1] ? "Desktop"
       : extensionSearchMatch[2] ? "Documents"
       : extensionSearchMatch[3] ? "Downloads" : "";
-    const extension = extensionSearchMatch[5].toLocaleLowerCase("tr-TR").replace(/^\\./, "");
+    const extension = extensionSearchMatch[5].toLocaleLowerCase("tr-TR").replace(/^\./, "");
     return { intent: "search-files", query: "." + extension, ...(location ? { location } : {}) };
   }
   if (/^masaüstümdeki dosyaları listele ve varsa pdf dosyalarını bul$/iu.test(command)) return { intent: "search-files", query: ".pdf", location: "Desktop" };
@@ -118,7 +118,7 @@ export function parseDesktopCommand(input) {
     .replace(/\s+uygulamasını$/iu, "")
     .toLocaleLowerCase("tr-TR")
     .trim();
-  const appSequenceMatch = command.match(/^(?:(?:lütfen|önce)\\s+)?(.+?)\\s+aç\\s*[,;]?\\s*(?:ardından|sonra|daha sonra)\\s+(.+?)\\s+aç(?:\\s*[,;]?\\s*(?:ardından|sonra|daha sonra)\\s+(.+?)\\s+aç)?$/iu);
+  const appSequenceMatch = command.match(/^(?:(?:lütfen|önce)\s+)?(.+?)\s+aç\s*[,;]?\s*(?:ardından|sonra|daha sonra)\s+(.+?)\s+aç(?:\s*[,;]?\s*(?:ardından|sonra|daha sonra)\s+(.+?)\s+aç)?$/iu);
   if (appSequenceMatch) {
     const requestedApps = [appSequenceMatch[1], appSequenceMatch[2], appSequenceMatch[3]].filter(Boolean);
     const selectedApps = requestedApps.map((name) =>
@@ -134,7 +134,7 @@ export function parseDesktopCommand(input) {
       return {
         intent: "computer-control",
         done: true,
-        message: selectedApps.map((entry) => entry.label).join(", ") + " açıldı.",
+        message: (selectedApps.length === 2 ? selectedApps.map((entry) => entry.label).join(" ve ") : selectedApps.map((entry) => entry.label).join(", ")) + " açıldı.",
         actions
       };
     }
@@ -154,16 +154,7 @@ export function parseDesktopCommand(input) {
     };
   }
 
-  const twoAppSequence = command.match(/^(?:lütfen\s+)?hesap makinesi(?:['’]?(?:ni|nı))?\s+aç[, ]+(?:ardından|sonra)\s+not defteri(?:['’]?(?:ni|nı))?\s+aç$/iu);
-  if (twoAppSequence) return {
-    intent: "computer-control", done: true, message: "Hesap Makinesi ve Not Defteri açıldı.",
-    actions: [
-      { type: "open-app", app: "calculator" },
-      { type: "wait", ms: 500 },
-      { type: "open-app", app: "notepad" },
-      { type: "finish" }
-    ]
-  };
+
 
   const mouseCornerMatch = command.match(/^(?:mouse|fare)\s+(?:imlecini\s+)?(?:yavaşça\s+)?ekranın\s+(sol üst|sağ üst|sol alt|sağ alt|ortasına)\s+(?:köşesine\s+)?(?:yavaşça\s+)?(?:hareket ettir|götür|taşı)$/iu);
   if (mouseCornerMatch) {
