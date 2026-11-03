@@ -1,8 +1,8 @@
 {
   "name": "nova-desktop",
-  "version": "0.2.0-alpha.53",
+  "version": "0.2.0-alpha.54",
   "private": true,
-  "description": "NOVA AI Windows desktop application — Alpha 53 reliable Google new-tab navigation",
+  "description": "NOVA AI Windows desktop application — Alpha 54 desktop reliability and natural command handling",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
