@@ -2,7 +2,7 @@
   "name": "nova-desktop",
   "version": "0.2.0-alpha.47",
   "private": true,
-  "description": "NOVA AI Windows desktop application — Alpha 47 verified",
+  "description": "NOVA AI Windows desktop application — Alpha 47 everyday controls",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
