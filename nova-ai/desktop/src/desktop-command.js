@@ -126,7 +126,7 @@ export function parseDesktopCommand(input) {
     { pattern: /^(?:dosyayı )?kaydet(?:\s+lütfen)?$/iu, key: "CTRL+S", message: "Geçerli dosya kaydediliyor." },
     { pattern: /^(?:sayfayı )?yazdır(?:\s+lütfen)?$/iu, key: "CTRL+P", message: "Yazdırma penceresi açılıyor." },
     { pattern: /^(?:son işlemi )?geri al(?:\s+lütfen)?$/iu, key: "CTRL+Z", message: "Son işlem geri alınıyor." },
-    { pattern: /^(?:geri aldığını )?yinele|yinele(?:\s+lütfen)?$/iu, key: "CTRL+Y", message: "Son işlem yineleniyor." },
+    { pattern: /^(?:(?:geri aldığını )?yinele)(?:\s+lütfen)?$/iu, key: "CTRL+Y", message: "Son işlem yineleniyor." },
     { pattern: /^(?:sayfada|metinde) ara(?:\s+lütfen)?$/iu, key: "CTRL+F", message: "Bul araması açılıyor." },
     { pattern: /^(?:adres çubuğuna git|adres çubuğunu seç)$/iu, key: "CTRL+L", message: "Tarayıcı adres çubuğu seçiliyor." },
     { pattern: /^(?:yeni sekme aç|yeni sekme oluştur)$/iu, key: "CTRL+T", message: "Yeni sekme açılıyor." },
@@ -150,7 +150,7 @@ export function parseDesktopCommand(input) {
     actions: [{ type: "press-key", key: shortcut.key }, { type: "finish" }]
   };
 
-  const scrollMatch = text.match(/^(?:biraz )?(aşağı|yukarı) kaydır(?:\s+(\d{1,3}))?$/iu);
+  const scrollMatch = text.match(/^(?:biraz )?(aşağı|yukarı)(?:\s+(\d{1,3}))?\s+kaydır$/iu);
   if (scrollMatch) {
     const amount = Math.min(1200, Math.max(120, Number(scrollMatch[2] || 600))) * (scrollMatch[1] === "yukarı" ? -1 : 1);
     return { intent: "computer-control", done: true, message: "Sayfa kaydırılıyor.", actions: [{ type: "scroll", amount }, { type: "finish" }] };
