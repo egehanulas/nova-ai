@@ -86,7 +86,7 @@ export function parseDesktopCommand(input) {
   }
   if (/^masaüstümdeki dosyaları listele ve varsa pdf dosyalarını bul$/iu.test(command)) return { intent: "search-files", query: ".pdf", location: "Desktop" };
 
-  const explicitBrowserDomainMatch = command.match(/^(chrome|google chrome|edge|microsoft edge|firefox)(?:['’](?:da|de|ta|te)|da|de|ta|te)\s+((?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?)\s+(?:aç|git|gir)$/iu);
+  const explicitBrowserDomainMatch = command.match(/^(chrome|google chrome|edge|microsoft edge|firefox)(?:['’](?:da|de|ta|te)|da|de|ta|te)\s+((?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?)(?:['’](?:a|e))?\s+(?:aç|git|gir)$/iu);
   if (explicitBrowserDomainMatch) {
     const browserName = explicitBrowserDomainMatch[1].toLocaleLowerCase("tr-TR");
     const app = browserName.includes("edge") ? "edge" : browserName === "firefox" ? "firefox" : "chrome";
