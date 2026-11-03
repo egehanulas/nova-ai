@@ -717,7 +717,9 @@ test("Windows desktop controller can load its automation runtime and read system
   assert.ok(Array.isArray(windows.windows));
 });
 
-test("Windows Notepad receives and verifies real text in its own foreground window", { skip: process.platform !== "win32" }, async () => {
+// GitHub-hosted Windows runners have no interactive desktop session; keep this
+// end-to-end input check opt-in to a real signed-in Windows desktop.
+test("Windows Notepad receives and verifies real text in its own foreground window", { skip: process.platform !== "win32" || process.env.GITHUB_ACTIONS === "true" }, async () => {
   await openAllowedApp("notepad");
   const text = "NOVA CI Notepad verification " + process.pid;
   const result = await runComputerAction({ type: "type-text", text, processName: "notepad" });
