@@ -194,7 +194,17 @@ public static class NovaDesktopInput {
       $result.message = "Ekrana tıklandı."
     }
     "move-mouse" {
-      if ($null -ne $action.dx -or $null -ne $action.dy) {
+      if ($action.corner) {
+        $bounds = [Windows.Forms.Screen]::PrimaryScreen.Bounds
+        switch ([string]$action.corner) {
+          "top-left" { $x = $bounds.Left + 5; $y = $bounds.Top + 5 }
+          "top-right" { $x = $bounds.Right - 6; $y = $bounds.Top + 5 }
+          "bottom-left" { $x = $bounds.Left + 5; $y = $bounds.Bottom - 6 }
+          "bottom-right" { $x = $bounds.Right - 6; $y = $bounds.Bottom - 6 }
+          "center" { $x = [int]($bounds.Left + ($bounds.Width / 2)); $y = [int]($bounds.Top + ($bounds.Height / 2)) }
+          default { throw "Fare hedef köşesi geçersiz." }
+        }
+      } elseif ($null -ne $action.dx -or $null -ne $action.dy) {
         $point = New-Object NovaDesktopInput+POINT
         [NovaDesktopInput]::GetCursorPos([ref]$point) | Out-Null
         $x = $point.X + [int]$action.dx
