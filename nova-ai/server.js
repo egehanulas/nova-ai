@@ -513,8 +513,8 @@ function getGenerationSettings(messages = [], extraInstruction = "") {
   const desktopIntentMode = /NOVA WINDOWS MASAÜSTÜ KONTROL PLANLAYICISI/.test(extraInstruction);
 
   if (desktopIntentMode) {
-    // Keep desktop JSON plans small enough for the constrained provider token budget.
-    return { temperature: 0.1, maxOutputTokens: 480 };
+    // Desktop plans must fit complete multi-action JSON, not be cut off mid-object.
+    return { temperature: 0.1, maxOutputTokens: 1000 };
   }
 
   return {
