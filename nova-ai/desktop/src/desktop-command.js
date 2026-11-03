@@ -96,6 +96,12 @@ export function parseDesktopCommand(input) {
     return { intent: "open-url", url };
   }
 
+  const googleSearchMatch = command.match(/^(?:google(?:['’]da|da|de)|internette|webde)\s+(.+?)\s+(?:ara|bul)$/iu);
+  if (googleSearchMatch) return {
+    intent: "open-url",
+    url: "https://www.google.com/search?q=" + encodeURIComponent(googleSearchMatch[1].trim())
+  };
+
   const explicitResearchRequest =
     /(?:google(?:['’]da|da|de)?|internette|web(?:['’]de|de)|hava durumu|güncel bilgi)/iu.test(command) &&
     /(?:araştır|arastir|\bara\b|özetle|ozetle|incele)/iu.test(command);
@@ -155,11 +161,6 @@ export function parseDesktopCommand(input) {
     { pattern: /^(?:uygulamalar|pencereler) arasında geçiş yap$/iu, key: "ALT+TAB", message: "Açık pencereler arasında geçiş yapılıyor." },
     { pattern: /^ana sayfaya git$/iu, key: "ALT+HOME", message: "Tarayıcının ana sayfası açılıyor." }
   );
-  const googleSearchMatch = command.match(/^(?:google(?:['’]da|da|de)|internette|webde)\s+(.+?)\s+(?:ara|bul)$/iu);
-  if (googleSearchMatch) return {
-    intent: "open-url",
-    url: "https://www.google.com/search?q=" + encodeURIComponent(googleSearchMatch[1].trim())
-  };
   const chromeSearchMatch = command.match(/^(?:chrome|google chrome|edge|firefox)(?:['’](?:da|de)|da|de)\s+(.+?)\s+ara$/iu);
   if (chromeSearchMatch) {
     const browser = /^edge$/iu.test(text) ? "edge" : /firefox/iu.test(text) ? "firefox" : "chrome";
