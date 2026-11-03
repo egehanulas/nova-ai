@@ -337,3 +337,17 @@ test("routes combined new-tab and Google navigation to desktop execution", async
   assert.equal(route("Yeni sekme aç ve Google'ı aç"), true);
   assert.equal(route("Yeni sekme aç ve Google'ı internete"), true);
 });
+
+
+test("supports natural two- and three-app sequences joined with and", () => {
+  for (const [command, expected] of [
+    ["Chrome aç ve Not Defteri aç", ["chrome", "notepad"]],
+    ["Hesap Makinesi aç ve Paint aç", ["calculator", "paint"]],
+    ["Steam aç ve Discord aç ve Spotify aç", ["steam", "discord", "spotify"]]
+  ]) {
+    const parsed = parseDesktopCommand(command);
+    assert.equal(parsed.intent, "computer-control", command);
+    assert.deepEqual(parsed.actions.filter(action => action.type === "open-app").map(action => action.app), expected, command);
+    assert.equal(parsed.actions.at(-1).type, "finish", command);
+  }
+});
