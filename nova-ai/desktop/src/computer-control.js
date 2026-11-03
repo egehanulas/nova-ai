@@ -13,8 +13,8 @@ const ALLOWED_KEYS = new Set([
   "ENTER", "TAB", "ESC", "SPACE", "BACKSPACE", "DELETE", "UP", "DOWN",
   "LEFT", "RIGHT", "HOME", "END", "CTRL+A", "CTRL+L", "CTRL+T", "CTRL+W",
   "CTRL+V", "CTRL+C", "CTRL+X", "CTRL+F", "ALT+F4", "SHIFT+TAB",
-  "CTRL+SHIFT+T", "CTRL+SHIFT+TAB", "CTRL+PAGEUP", "CTRL+PAGEDOWN", "CTRL+S",
-  "CTRL+P", "CTRL+R", "CTRL+Z", "CTRL+Y", "ALT+LEFT", "ALT+RIGHT", "F5", "F11"
+  "CTRL+SHIFT+T", "CTRL+SHIFT+TAB", "CTRL+SHIFT+N", "CTRL+SHIFT+O", "CTRL+PAGEUP", "CTRL+PAGEDOWN", "CTRL+S",
+  "CTRL+P", "CTRL+R", "CTRL+Z", "CTRL+Y", "CTRL+N", "CTRL+H", "CTRL+J", "CTRL+U", "CTRL+0", "CTRL+PLUS", "CTRL+MINUS", "ALT+LEFT", "ALT+RIGHT", "ALT+TAB", "ALT+HOME", "F5", "F11"
 ]);
 
 export function validateComputerAction(action) {
