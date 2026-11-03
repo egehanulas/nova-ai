@@ -157,7 +157,12 @@ export async function runComputerAction(action) {
       let result;
       try { result = parseComputerControlOutput(stdout); }
       catch (error) {
-        finish(reject, new Error(error.message + (stderr.trim() ? " " + stderr.slice(-1000) : "")));
+        const diagnostic = [
+          stderr.trim() ? "PowerShell stderr: " + stderr.trim().slice(-1200) : "",
+          stdout.trim() ? "PowerShell stdout: " + stdout.trim().slice(-1200) : "",
+          "PowerShell çıkış kodu: " + code
+        ].filter(Boolean).join(" | ");
+        finish(reject, new Error(error.message + (diagnostic ? " | " + diagnostic : "")));
         return;
       }
       if (!result.success) {
