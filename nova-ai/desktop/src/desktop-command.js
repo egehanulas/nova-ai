@@ -67,7 +67,7 @@ export function parseDesktopCommand(input) {
     const location = extensionSearchMatch[1] ? "Desktop"
       : extensionSearchMatch[2] ? "Documents"
       : extensionSearchMatch[3] ? "Downloads" : "";
-    const extension = extensionSearchMatch[5].toLocaleLowerCase("tr-TR").replace(/^\./, "");
+    const extension = extensionSearchMatch[5].replace(/ı/g, "i").toLowerCase().replace(/^\./, "");
     return { intent: "search-files", query: "." + extension, ...(location ? { location } : {}) };
   }
   if (/^masaüstümdeki dosyaları listele ve varsa pdf dosyalarını bul$/iu.test(command)) return { intent: "search-files", query: ".pdf", location: "Desktop" };
