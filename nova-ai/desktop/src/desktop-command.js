@@ -6,7 +6,7 @@ const APP_ALIASES = [
   { names: ["spotify"], app: "spotify", label: "Spotify" },
   { names: ["discord"], app: "discord", label: "Discord" },
   { names: ["paint"], app: "paint", label: "Paint" },
-  { names: ["not defteri", "notepad"], app: "notepad", label: "Not Defteri" },
+  { names: ["not defteri", "notepad", "windows not defteri", "windows notepad"], app: "notepad", label: "Not Defteri" },
   { names: ["hesap makinesi", "calculator", "calc"], app: "calculator", label: "Hesap Makinesi" },
   { names: ["dosya gezgini", "dosya yöneticisi", "explorer"], app: "explorer", label: "Dosya Gezgini" },
   { names: ["whatsapp"], app: "WhatsApp", label: "WhatsApp", installed: true },
@@ -57,9 +57,9 @@ export function parseDesktopCommand(input) {
 
   if (/^(?:yardım|komutlar|neler yapabilirsin|ne yapabilirsin)$/.test(text)) return { intent: "help" };
   if (/^(?:(?:şu an )?saat kaç(?: ve bugün hangi tarih)?|bugün hangi tarih|tarih ve saat|yerel saat|bilgisayarın saatini söyle|bilgisayarımın saatini söyle)$/iu.test(text)) return { intent: "local-time" };
-  if (/^(?:açık pencereleri(?: listele| göster)?|hangi pencereler açık|açık uygulamaları(?: listele| göster)?|önde hangi pencere var)$/iu.test(text)) return { intent: "list-windows" };
-  if (/^(?:ekranımı analiz et|ekranı analiz et|ekranda ne var|ekranımda ne görüyorsun|açık ekranı anlat|ekranı incele)$/iu.test(text)) return { intent: "screen-summary" };
-  if (/^(?:bilgisayar bilgileri|sistem bilgileri|bilgisayarımın özellikleri|pc özellikleri|bilgisayarımın pil durumu|pil durumunu kontrol et|pil durumu|batarya durumu|cpu kullanımı|ram kullanımı|sistem performansı|bilgisayarımın performansı|pil[, ]+cpu ve ram kullanımını(?: kontrol et| raporla)?|cpu ve ram kullanımını(?: kontrol et| raporla)?|işlemci ve ram kullanımını(?: kontrol et| raporla)?|sistem kaynaklarını(?: kontrol et| raporla)?|bilgisayar performansını raporla)$/iu.test(text)) return { intent: "computer-info" };
+  if (/^(?:açık pencereleri(?: listele| göster)?|şu anda açık olan pencereleri listele|açık olan uygulama pencerelerini listele|windows.?ta şu anda açık olan uygulama pencerelerinin listesini getir|hangi pencereler açık|açık uygulamaları(?: listele| göster)?|önde hangi pencere var)$/iu.test(text)) return { intent: "list-windows" };
+  if (/^(?:ekranımı analiz et|ekranı analiz et|ekrandaki erişilebilir arayüz öğelerini listele|erişilebilir arayüz öğelerini listele|ekranda ne var|ekranımda ne görüyorsun|açık ekranı anlat|ekranı incele)$/iu.test(text)) return { intent: "screen-summary" };
+  if (/^(?:bilgisayar bilgileri|sistem bilgileri|bilgisayarımın özellikleri|pc özellikleri|bilgisayarımın pil durumu|bilgisayarımın cpu ram ve pil durumunu göster|bilgisayarımın cpu ram ve pil durumunu|cpu ram ve pil durumunu göster|cpu ram ve pil durumunu|pil durumunu kontrol et|pil durumu|batarya durumu|cpu kullanımı|ram kullanımı|sistem performansı|bilgisayarımın performansı|pil[, ]+cpu ve ram kullanımını(?: kontrol et| raporla)?|cpu ve ram kullanımını(?: kontrol et| raporla)?|işlemci ve ram kullanımını(?: kontrol et| raporla)?|sistem kaynaklarını(?: kontrol et| raporla)?|bilgisayar performansını raporla)$/iu.test(text)) return { intent: "computer-info" };
   if (/^(?:(?:masaüstündeki|bilgisayardaki|erişilebilir sürücülerdeki)\s+)?dosyalar(?:ı|ımı|imi)?\s+incele(?:\s+ve\s+.*)?$/iu.test(command)) return { intent: "list-folders" };
   if (/^(?:klasörler|klasörlerimi göster|dosyalarımı göster|hızlı erişim|sürücüleri göster|diskleri göster)$/iu.test(text)) return { intent: "list-folders" };
 
