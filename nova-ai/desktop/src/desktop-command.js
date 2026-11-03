@@ -138,7 +138,7 @@ export function parseDesktopCommand(input) {
     }
   }
 
-  const notepadWriteMatch = command.match(/^(?:(?:windows\s+)?not defteri|notepad)(?:['’](?:ni|nı|nu|nü))?\s+aç\s+ve\s+(?:içine|içerisine)\s+["“]?([\s\S]+?)["”]?\s+yaz$/iu);
+  const notepadWriteMatch = command.match(/^(?:(?:windows\s+)?not defteri|notepad)(?:['’](?:ni|nı|nu|nü))?(?:\s+uygulamasını)?\s+aç\s+ve\s+(?:içine|içerisine)\s+["“]?([\s\S]+?)["”]?\s+yaz$/iu);
   if (notepadWriteMatch) {
     const value = notepadWriteMatch[1].trim().replace(/^[“"]|[”"]$/g, "");
     if (value && value.length <= 4000) return {
