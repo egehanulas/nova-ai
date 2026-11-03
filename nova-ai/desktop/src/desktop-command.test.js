@@ -280,7 +280,7 @@ test("supports additional browser navigation and search commands", () => {
   }
   assert.equal(parseDesktopCommand("Google'da Fenerbahçe ara").url,
     "https://www.google.com/search?q=Fenerbah%C3%A7e");
-  assert.equal(parseDesktopCommand("Chrome'da hava durumu ara").actions[0].app, "chrome");
+  assert.equal(parseDesktopCommand("Chrome'da Fenerbahçe ara").actions[0].app, "chrome");
 });
 
 test("routes newly supported browser commands through desktop execution", async () => {
