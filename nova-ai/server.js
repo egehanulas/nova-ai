@@ -3388,6 +3388,7 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
         if (action.app && !["chrome", "edge", "firefox"].includes(action.app)) throw new Error("İzin verilmeyen tarayıcı.");
       }
       if (action.type === "type-text" && (typeof action.text !== "string" || action.text.length > 4000)) throw new Error("Yazılacak metin geçersiz.");
+      if (action.type === "type-text" && action.processName != null && !["notepad"].includes(String(action.processName).toLowerCase())) throw new Error("Metin hedef uygulaması izin listesinde değil.");
       if (action.type === "click-text" && (typeof action.text !== "string" || !action.text.trim() || action.text.length > 180)) throw new Error("Tıklama metni geçersiz.");
       if (action.type === "focus-control" &&
           (!["Edit", "Button", "List", "ComboBox", "Document"].includes(action.controlType) ||
