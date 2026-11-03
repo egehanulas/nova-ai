@@ -60,6 +60,23 @@ test("finds JPG files on the desktop without requiring an AI planner", () => {
   });
 });
 
+test("normalizes sentence punctuation and closing quotes before local command matching", () => {
+  for (const command of [
+    "Windows Not Defteri uygulamasını aç ve içine NOVA AI test başarılı yaz.”",
+    "Windows Not Defteri uygulamasını aç ve içine NOVA AI test başarılı yaz.”.",
+    "Windows Not Defteri uygulamasını aç ve içine NOVA AI test başarılı yaz"
+  ]) {
+    const intent = parseDesktopCommand(command);
+    assert.equal(intent.intent, "computer-control");
+    assert.deepEqual(intent.actions, [
+      { type: "open-app", app: "notepad" },
+      { type: "wait", ms: 900 },
+      { type: "type-text", text: "NOVA AI test başarılı", processName: "notepad" },
+      { type: "finish" }
+    ]);
+  }
+});
+
 test("opens Windows Notepad and types the requested text locally", () => {
   assert.deepEqual(parseDesktopCommand("Windows Not Defteri uygulamasını aç ve içine NOVA AI test başarılı yaz"), {
     intent: "computer-control",
