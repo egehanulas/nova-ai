@@ -485,9 +485,10 @@ function registerDesktopAssistantIpc() {
         let parsedUrl;
         try { parsedUrl = new URL(targetUrl); } catch { throw new Error("Açılacak internet adresi geçersiz."); }
         if (!["https:", "http:"].includes(parsedUrl.protocol)) throw new Error("Yalnızca güvenli web adresleri açılabilir.");
-        if (intent.app === "chrome") {
-          await openAllowedApp("chrome", [parsedUrl.href]);
-          return { message: "Google Chrome'da " + parsedUrl.hostname + " açılıyor." };
+        if (["chrome", "edge", "firefox"].includes(intent.app)) {
+          await openAllowedApp(intent.app, [parsedUrl.href]);
+          const browserLabel = intent.app === "chrome" ? "Google Chrome" : intent.app === "edge" ? "Microsoft Edge" : "Firefox";
+          return { message: browserLabel + "'da " + parsedUrl.hostname + " açılıyor." };
         }
         const opened = await openExternal(parsedUrl.href);
         if (!opened) throw new Error("Bağlantı varsayılan tarayıcıda açılamadı.");
