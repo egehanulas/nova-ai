@@ -1900,7 +1900,7 @@
     const text = String(value || "").toLocaleLowerCase("tr-TR").trim();
     if (!text || text.length > 1200) return false;
     const action = /(?:^|[\s'’])(?:aç|başlat|çalıştır|oynat|taşı|aktar|sil|bul|ara|listele|göster|yaz|tıkla|hareket ettir|incele|kontrol et|raporla|söyle|öğren)(?=$|[\s.!?,;])|(?:açık pencereler|bilgisayar bilgileri|sistem bilgileri|işlemci|cpu|ram kullanımı|pil durumu|masaüstümdeki dosyalar|dosya ara|klasörlerimi göster)/iu;
-    const target = /(?:not defteri|notepad|steam|discord|spotify|chrome|google chrome|edge|firefox|paint|hesap makinesi|dosya gezgini|whatsapp|telegram|windows ayarları|görev yöneticisi|masaüstü|indirilenler|belgeler|dosya|klasör|işlemci|cpu|ram|pil|fare|mouse|ekran|pencere|pdf)/iu;
+    const target = /(?:not defteri|notepad|steam|discord|spotify|chrome|google chrome|edge|firefox|paint|hesap makinesi|dosya gezgini|whatsapp|telegram|windows ayarları|görev yöneticisi|masaüstü|indirilenler|belgeler|dosya|klasör|işlemci|cpu|ram|pil|fare|mouse|ekran|pencere|pdf|jpg|jpeg|png|webp|gif)/iu;
     return action.test(text) && target.test(text);
   };
   if (window.novaDesktop?.isDesktop && window.novaDesktop.assistant?.openApp) {
