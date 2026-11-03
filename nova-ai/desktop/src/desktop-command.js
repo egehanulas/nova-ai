@@ -150,7 +150,7 @@ export function parseDesktopCommand(input) {
     actions: [{ type: "press-key", key: shortcut.key }, { type: "finish" }]
   };
 
-  const scrollMatch = text.match(/^(?:(?:sayfayı|ekranı) )?(?:biraz )?(?:(aşağı|yukarı)(?: (\\d{1,3}))?|(\\d{1,3}) (aşağı|yukarı)) kaydır$/u);
+  const scrollMatch = text.match(/^(?:(?:sayfayı|ekranı) )?(?:biraz )?(?:(aşağı|yukarı)(?: (\d{1,3}))?|(\d{1,3}) (aşağı|yukarı)) kaydır$/u);
   if (scrollMatch) {
     const direction = scrollMatch[1] || scrollMatch[4];
     const amount = Math.min(1200, Math.max(120, Number(scrollMatch[2] || scrollMatch[3] || 600))) * (direction === "yukarı" ? -1 : 1);
