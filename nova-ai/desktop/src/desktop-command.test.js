@@ -132,19 +132,50 @@ test("recognizes JPG file searches on the Desktop without AI planning", () => {
   });
 });
 
-test("runs a two-app launch sequence locally in the requested order, including the Önce prefix", () => {
-  for (const command of [
-    "Hesap Makinesi'ni aç, ardından Not Defteri'ni aç",
-    "Önce Hesap Makinesi'ni aç, ardından Not Defteri'ni aç"
-  ]) assert.deepEqual(parseDesktopCommand(command), {
+test("runs two- and three-app launch sequences locally in the requested order", () => {
+  const expectedTwo = {
     intent: "computer-control",
     done: true,
-    message: "Hesap Makinesi ve Not Defteri açıldı.",
+    message: "Hesap Makinesi, Not Defteri açıldı.",
     actions: [
       { type: "open-app", app: "calculator" },
       { type: "wait", ms: 900 },
       { type: "open-app", app: "notepad" },
       { type: "finish" }
     ]
+  };
+  for (const command of [
+    "Hesap Makinesi'ni aç, ardından Not Defteri'ni aç",
+    "Önce Hesap Makinesi'ni aç, ardından Not Defteri'ni aç",
+    "Lütfen Hesap Makinesi'ni aç sonra Not Defteri'ni aç"
+  ]) assert.deepEqual(parseDesktopCommand(command), expectedTwo);
+
+  assert.deepEqual(parseDesktopCommand("Önce Hesap Makinesi'ni aç, sonra Not Defteri'ni aç, ardından Paint'i aç"), {
+    intent: "computer-control",
+    done: true,
+    message: "Hesap Makinesi, Not Defteri, Paint açıldı.",
+    actions: [
+      { type: "open-app", app: "calculator" },
+      { type: "wait", ms: 900 },
+      { type: "open-app", app: "notepad" },
+      { type: "wait", ms: 900 },
+      { type: "open-app", app: "paint" },
+      { type: "finish" }
+    ]
+  });
+});
+
+test("searches common file extensions in Desktop, Documents, Downloads or all accessible drives", () => {
+  assert.deepEqual(parseDesktopCommand("Belgelerimdeki PDF dosyalarını bul"), {
+    intent: "search-files", query: ".pdf", location: "Documents"
+  });
+  assert.deepEqual(parseDesktopCommand("İndirilenlerimdeki ZIP dosyalarını listele"), {
+    intent: "search-files", query: ".zip", location: "Downloads"
+  });
+  assert.deepEqual(parseDesktopCommand("Bilgisayarımdaki tüm JPG dosyalarını bul ve isimlerini listele"), {
+    intent: "search-files", query: ".jpg"
+  });
+  assert.deepEqual(parseDesktopCommand("Masaüstümdeki HEIC dosyalarını bul"), {
+    intent: "search-files", query: ".heic", location: "Desktop"
   });
 });
