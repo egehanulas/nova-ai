@@ -150,7 +150,7 @@ export function parseDesktopCommand(input) {
     actions: [{ type: "press-key", key: shortcut.key }, { type: "finish" }]
   };
 
-  const scrollMatch = text.match(/^(?:biraz )?(aşağı|yukarı)(?:\s+(\d{1,3}))?\s+kaydır$/iu);
+  const scrollMatch = text.match(/^(?:biraz )?(aşağı|yukarı)(?: (\d{1,3}))? kaydır$/u);
   if (scrollMatch) {
     const amount = Math.min(1200, Math.max(120, Number(scrollMatch[2] || 600))) * (scrollMatch[1] === "yukarı" ? -1 : 1);
     return { intent: "computer-control", done: true, message: "Sayfa kaydırılıyor.", actions: [{ type: "scroll", amount }, { type: "finish" }] };
