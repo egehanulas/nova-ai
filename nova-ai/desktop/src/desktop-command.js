@@ -86,6 +86,19 @@ export function parseDesktopCommand(input) {
   }
   if (/^masaüstümdeki dosyaları listele ve varsa pdf dosyalarını bul$/iu.test(command)) return { intent: "search-files", query: ".pdf", location: "Desktop" };
 
+  const explicitBrowserDomainMatch = command.match(/^(chrome|google chrome|edge|microsoft edge|firefox)(?:['’](?:da|de|ta|te)|da|de|ta|te)\s+((?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?)\s+(?:aç|git|gir)$/iu);
+  if (explicitBrowserDomainMatch) {
+    const browserName = explicitBrowserDomainMatch[1].toLocaleLowerCase("tr-TR");
+    const app = browserName.includes("edge") ? "edge" : browserName === "firefox" ? "firefox" : "chrome";
+    const target = explicitBrowserDomainMatch[2];
+    const url = /^https?:\/\//iu.test(target) ? target : "https://" + target;
+    return {
+      intent: "computer-control", done: true,
+      message: "İstenen site " + app + " tarayıcısında açılıyor.",
+      actions: [{ type: "open-url", app, url }, { type: "finish" }]
+    };
+  }
+
   let browserMatch = command.match(/^(?:google\s+)?chrome(?:'da|'dan|'de|'den|’da|’dan|da|dan|de|den)\s+(.+?)\s+(?:aç|git|gir)$/iu);
   if (browserMatch) {
     const target = browserMatch[1].trim();
