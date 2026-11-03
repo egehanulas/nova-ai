@@ -27,6 +27,10 @@ export function validateComputerAction(action) {
   if (action.type === "type-text" && (typeof action.text !== "string" || action.text.length > 4000)) {
     throw new Error("Yazılacak metin geçersiz veya çok uzun.");
   }
+  if (action.type === "type-text" && action.processName != null &&
+      !["notepad"].includes(String(action.processName).toLowerCase())) {
+    throw new Error("Metin yazılacak pencere için izin verilmeyen uygulama.");
+  }
   if (action.type === "click-text" && (typeof action.text !== "string" || !action.text.trim() || action.text.length > 180)) {
     throw new Error("Tıklanacak metin geçersiz.");
   }
