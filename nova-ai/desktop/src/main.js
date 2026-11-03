@@ -332,6 +332,7 @@ function registerDesktopAssistantIpc() {
     const observations = [];
     const parent = getDialogParent(event);
     const taskDeadline = Date.now() + 8 * 60 * 1000;
+    let visionConsentGranted = false;
     const reportProgress = (phase, message, step = 0, total = 0) => {
       try {
         if (!event.sender.isDestroyed()) event.sender.send("nova-desktop:task-progress", {
@@ -386,6 +387,21 @@ function registerDesktopAssistantIpc() {
     const requestInterpretation = async () => {
       if (Date.now() > taskDeadline) throw new Error("Görev 8 dakikalık güvenli çalışma sınırına ulaştı.");
       if (!accessToken || accessToken.length >= 5000) return null;
+      const latestSnapshot = observations[observations.length - 1];
+      if (latestSnapshot?.screenshot && !visionConsentGranted) {
+        const approval = await dialog.showMessageBox(parent, {
+          type: "info",
+          title: "NOVA görsel analiz izni",
+          message: "Ekran görüntüsü yapay zekâ ile analiz edilmek üzere gönderilecek.",
+          detail: "Birincil monitörünün sıkıştırılmış görüntüsü, ekranı anlamak ve sonraki masaüstü adımını planlamak için güvenli bağlantı üzerinden Gemini API'ye gönderilecek. Parola, ödeme veya özel bilgiler görünüyorsa Vazgeç'i seç.",
+          buttons: ["Görüntüyü gönder ve devam et", "Vazgeç"],
+          defaultId: 1,
+          cancelId: 1,
+          noLink: true
+        });
+        if (approval.response !== 0) throw new Error("Görsel analiz için izin verilmedi; ekran görüntüsü gönderilmedi.");
+        visionConsentGranted = true;
+      }
       reportProgress("planning", "NOVA sonraki adımı planlıyor.");
       const response = await fetch(new URL("/api/desktop/interpret", NOVA_URL), {
         method: "POST",
@@ -454,6 +470,17 @@ function registerDesktopAssistantIpc() {
         const result = await runComputerAction({ type: "inspect-screen" });
         const items = Array.isArray(result.items) ? result.items : [];
         if (result.screenshot && accessToken) {
+          const approval = await dialog.showMessageBox(parent, {
+            type: "info",
+            title: "NOVA görsel analiz izni",
+            message: "Ekran görüntüsü yapay zekâ ile analiz edilmek üzere gönderilecek.",
+            detail: "Birincil monitörünün sıkıştırılmış görüntüsü, ekranı açıklamak için güvenli bağlantı üzerinden Gemini API'ye gönderilecek. Parola, ödeme veya özel bilgiler görünüyorsa Vazgeç'i seç.",
+            buttons: ["Görüntüyü gönder ve analiz et", "Vazgeç"],
+            defaultId: 1,
+            cancelId: 1,
+            noLink: true
+          });
+          if (approval.response !== 0) return { message: "Görsel analiz iptal edildi. Ekran görüntüsü hiçbir yere gönderilmedi." };
           reportProgress("planning", "Ekran görüntüsü görsel analiz için güvenli bağlantıya gönderiliyor.");
           const response = await fetch(new URL("/api/desktop/interpret", NOVA_URL), {
             method: "POST",
