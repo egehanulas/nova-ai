@@ -428,11 +428,13 @@ function registerDesktopAssistantIpc() {
           "\nTarih: " + now.toLocaleDateString("tr-TR", { dateStyle: "full" }) };
       }
       case "computer-info": {
+        const baseInfo = getComputerInfo();
         try {
           const info = await runComputerAction({ type: "system-info" });
           const battery = info.battery?.available ? info.battery.chargePercent + "%" : (info.battery?.message || "Bilgi alınamadı");
           return { message: [
             "Bilgisayar: " + (info.computer || os.hostname()),
+            "İşlemci modeli: " + (baseInfo.processor || "Bilinmiyor"),
             "Yerel saat: " + (info.localTime ? new Date(info.localTime).toLocaleString("tr-TR") : "Okunamadı"),
             "CPU kullanımı: " + (info.cpuUsagePercent == null ? "Ölçülemedi" : info.cpuUsagePercent + "%"),
             "RAM: " + info.ramUsedGb + " / " + info.ramTotalGb + " GB (" + info.ramUsagePercent + "%)",
