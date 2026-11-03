@@ -10,6 +10,8 @@ test("validates absolute and relative mouse movement actions", () => {
   assert.throws(() => validateComputerAction({ type: "move-mouse", dx: 20, dy: 30, steps: 121 }), /adım sayısı/);
   assert.doesNotThrow(() => validateComputerAction({ type: "system-info" }));
   assert.doesNotThrow(() => validateComputerAction({ type: "list-windows" }));
+  assert.doesNotThrow(() => validateComputerAction({ type: "type-text", text: "NOVA test", processName: "notepad" }));
+  assert.throws(() => validateComputerAction({ type: "type-text", text: "NOVA test", processName: "powershell" }), /izin verilmeyen uygulama/);
   assert.throws(() => validateComputerAction({ type: "move-mouse", x: -1, y: 20 }), /Mouse hareket koordinatları/);
   assert.throws(() => validateComputerAction({ type: "move-mouse", dx: 10001, dy: 0 }), /Mouse hareket koordinatları/);
 });
