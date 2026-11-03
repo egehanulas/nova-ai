@@ -68,7 +68,7 @@ test("opens Windows Notepad and types the requested text locally", () => {
     actions: [
       { type: "open-app", app: "notepad" },
       { type: "wait", ms: 900 },
-      { type: "type-text", text: "NOVA AI test başarılı" },
+      { type: "type-text", text: "NOVA AI test başarılı", processName: "notepad" },
       { type: "finish" }
     ]
   });
@@ -97,7 +97,7 @@ test("recognizes Windows Notepad with Turkish suffix and writes the requested te
     actions: [
       { type: "open-app", app: "notepad" },
       { type: "wait", ms: 900 },
-      { type: "type-text", text: "NOVA AI test başarılı" },
+      { type: "type-text", text: "NOVA AI test başarılı", processName: "notepad" },
       { type: "finish" }
     ]
   });
