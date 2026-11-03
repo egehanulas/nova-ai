@@ -62,17 +62,15 @@ export function parseDesktopCommand(input) {
   if (/(?:işlemci|cpu).*(?:ram|bellek)|(?:ram|bellek).*(?:işlemci|cpu)/iu.test(text) && /(?:model|miktar|bilgi|söyle|göster|özellik|ne)/iu.test(text)) return { intent: "computer-info" };
   if (/^(?:bilgisayar bilgileri|sistem bilgileri|bilgisayarımın özellikleri|pc özellikleri|bilgisayarımın pil durumu|bilgisayarımın cpu ram ve pil durumunu göster|bilgisayarımın cpu ram ve pil durumunu|cpu ram ve pil durumunu göster|cpu ram ve pil durumunu|pil durumunu kontrol et|pil durumu|batarya durumu|cpu kullanımı|ram kullanımı|sistem performansı|bilgisayarımın performansı|pil[, ]+cpu ve ram kullanımını(?: kontrol et| raporla)?|cpu ve ram kullanımını(?: kontrol et| raporla)?|işlemci ve ram kullanımını(?: kontrol et| raporla)?|sistem kaynaklarını(?: kontrol et| raporla)?|bilgisayar performansını raporla|işlemcimin modelini söyle|işlemcimin modeli ne|işlemci modelini söyle|işlemci modeli ne|işlemci modeli ve ram miktarını söyle|işlemcimin modeli ve ram miktarı ne|işlemci ve ram miktarını söyle|işlemci modelini ve ram miktarını göster|cpu modelini söyle|cpu modeli ne|hangi işlemciyi kullanıyorum|hangi işlemci var bilgisayarımda|bilgisayarımın işlemcisini söyle)$/iu.test(text)) return { intent: "computer-info" };
   if (/^(?:(?:masaüstündeki|bilgisayardaki|erişilebilir sürücülerdeki)\s+)?dosyalar(?:ı|ımı|imi)?\s+incele(?:\s+ve\s+.*)?$/iu.test(command)) return { intent: "list-folders" };
-  const extensionSearchMatch = command.match(/^(?:masaüstümdeki|masaüstündeki|desktop(?:\s+klasöründeki)?)\s+([a-z0-9]{2,5})\s+dosyalarını\s+(?:bul|ara|listele)(?:\s+ve\s+isimlerini\s+listele)?$/iu);
+  const extensionSearchMatch = command.match(/^(?:(masaüstümdeki|masaüstündeki|desktop(?:\\s+klasöründeki)?)|(belgelerimdeki|belgelerimde|belgelerdeki)|(indirilenlerimdeki|indirilenlerimde|indirilenlerdeki)|(bilgisayarımdaki|bilgisayardaki|tüm sürücülerdeki|erişilebilir sürücülerdeki))\\s+(?:(?:tüm|bütün)\\s+)?([a-z0-9]{1,8})\\s+dosyalarını?\\s+(?:bul|ara|listele)(?:\\s+ve\\s+isimlerini\\s+listele)?$/iu);
   if (extensionSearchMatch) {
-    const extension = extensionSearchMatch[1].toLocaleLowerCase("tr-TR").replace(/^\./, "");
-    if (["jpg", "jpeg", "png", "webp", "gif", "pdf", "txt", "docx", "xlsx"].includes(extension)) {
-      return { intent: "search-files", query: "." + extension, location: "Desktop" };
-    }
+    const location = extensionSearchMatch[1] ? "Desktop"
+      : extensionSearchMatch[2] ? "Documents"
+      : extensionSearchMatch[3] ? "Downloads" : "";
+    const extension = extensionSearchMatch[5].toLocaleLowerCase("tr-TR").replace(/^\\./, "");
+    return { intent: "search-files", query: "." + extension, ...(location ? { location } : {}) };
   }
   if (/^masaüstümdeki dosyaları listele ve varsa pdf dosyalarını bul$/iu.test(command)) return { intent: "search-files", query: ".pdf", location: "Desktop" };
-  const desktopImageSearch = command.match(/^masaüstümdeki\s+(jpg|jpeg)\s+dosyalarını?\s+bul\s+ve\s+isimlerini\s+listele$/iu);
-  if (desktopImageSearch) return { intent: "search-files", query: "." + desktopImageSearch[1].toLocaleLowerCase("en-US"), location: "Desktop" };
-  if (/^(?:klasörler|klasörlerimi göster|dosyalarımı göster|hızlı erişim|sürücüleri göster|diskleri göster)$/iu.test(text)) return { intent: "list-folders" };
 
   let browserMatch = command.match(/^(?:google\s+)?chrome(?:'da|'dan|'de|'den|’da|’dan|da|dan|de|den)\s+(.+?)\s+(?:aç|git|gir)$/iu);
   if (browserMatch) {
@@ -120,20 +118,24 @@ export function parseDesktopCommand(input) {
     .replace(/\s+uygulamasını$/iu, "")
     .toLocaleLowerCase("tr-TR")
     .trim();
-  const appSequenceMatch = command.match(/^(?:(?:lütfen|önce)\s+)?(.+?)\s+aç\s*[,;]\s*(?:ardından|sonra|daha sonra)\s*(.+?)\s+aç$/iu);
+  const appSequenceMatch = command.match(/^(?:(?:lütfen|önce)\\s+)?(.+?)\\s+aç\\s*[,;]?\\s*(?:ardından|sonra|daha sonra)\\s+(.+?)\\s+aç(?:\\s*[,;]?\\s*(?:ardından|sonra|daha sonra)\\s+(.+?)\\s+aç)?$/iu);
   if (appSequenceMatch) {
-    const firstApp = APP_ALIASES.find((entry) => entry.names.includes(normalizeAppName(appSequenceMatch[1])));
-    const secondApp = APP_ALIASES.find((entry) => entry.names.includes(normalizeAppName(appSequenceMatch[2])));
-    if (firstApp && secondApp) {
-      const actionFor = (entry) => ({
-        type: entry.installed ? "open-installed-app" : "open-app",
-        app: entry.app
+    const requestedApps = [appSequenceMatch[1], appSequenceMatch[2], appSequenceMatch[3]].filter(Boolean);
+    const selectedApps = requestedApps.map((name) =>
+      APP_ALIASES.find((entry) => entry.names.includes(normalizeAppName(name)))
+    );
+    if (selectedApps.every(Boolean)) {
+      const actions = [];
+      selectedApps.forEach((entry, index) => {
+        actions.push({ type: entry.installed ? "open-installed-app" : "open-app", app: entry.app });
+        if (index < selectedApps.length - 1) actions.push({ type: "wait", ms: 900 });
       });
+      actions.push({ type: "finish" });
       return {
         intent: "computer-control",
         done: true,
-        message: firstApp.label + " ve " + secondApp.label + " açıldı.",
-        actions: [actionFor(firstApp), { type: "wait", ms: 900 }, actionFor(secondApp), { type: "finish" }]
+        message: selectedApps.map((entry) => entry.label).join(", ") + " açıldı.",
+        actions
       };
     }
   }
