@@ -59,7 +59,7 @@ export function parseDesktopCommand(input) {
 
   // Treat "new tab + Google" as navigation, never as a search query.
   // Launching Chrome with a URL opens it in a new tab when Chrome is already running.
-  const googleHomeRequest = /^(?:(?:chrome|google chrome)(?:['’](?:da|de)|da|de)\s+)?(?:(?:yeni sekme(?: oluştur)?\s+(?:aç|oluştur))(?:\s+(?:ve|sonra|ardından)\s*)?)?(?:google(?:['’](?:ı|i|yu|yü|a|e))?|google ana sayfas(?:ı|ına|ını)|google sitesini)(?:\s+(?:internete|internet(?:e)?))?(?:\s+(?:aç|git|gir))?$/iu;
+  const googleHomeRequest = /^(?:(?:chrome|google chrome)(?:['’](?:da|de)|da|de)\s+)?(?:(?:yeni sekme(?: oluştur)?\s+(?:aç|oluştur))(?:\s+(?:ve|sonra|ardından)\s*)?)?\s*(?:google(?:['’](?:ı|i|yu|yü|a|e))?|google ana sayfas(?:ı|ına|ını)|google sitesini)(?:\s+(?:internete|internet(?:e)?))?(?:\s+(?:aç|git|gir))?$/iu;
   if (googleHomeRequest.test(text)) return {
     intent: "computer-control",
     done: true,
