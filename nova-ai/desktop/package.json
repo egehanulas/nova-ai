@@ -1,8 +1,8 @@
 {
   "name": "nova-desktop",
-  "version": "0.2.0-alpha.55",
+  "version": "0.2.0-alpha.56",
   "private": true,
-  "description": "NOVA AI Windows desktop application — Alpha 55 improved browser automation and task verification",
+  "description": "NOVA AI Windows desktop application — Alpha 56 verified browser navigation and safer task completion",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
