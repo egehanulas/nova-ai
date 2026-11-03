@@ -312,7 +312,9 @@ test("opens Google directly in a new Chrome tab instead of searching the command
     "Google ana sayfasına git",
     "Chrome'da Google'ı aç",
     "Yeni sekme oluştur ve Google ana sayfasına git",
-    "Google sitesini aç"
+    "Google sitesini aç",
+    "Google'a git",
+    "Yeni sekme aç Google'ı aç"
   ]) {
     assert.deepEqual(parseDesktopCommand(command), {
       intent: "computer-control",
