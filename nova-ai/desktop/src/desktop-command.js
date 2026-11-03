@@ -49,7 +49,7 @@ function normalizeDestination(value) {
 export function parseDesktopCommand(input) {
   const raw = String(input || "").trim();
   if (!raw || raw.length > 500) return { intent: "unknown" };
-  const command = raw.replace(/[.!?]+["'”’»)]*$/u, "").replace(/["”»]+$/u, "").trim();
+  const command = raw.replace(/[.!?'"”’»]+$/u, "").trim();
   const text = command.toLocaleLowerCase("tr-TR")
     .replace(/[!?.,;]+/g, " ")
     .replace(/\s+/g, " ")
