@@ -120,7 +120,7 @@ export function parseDesktopCommand(input) {
     .replace(/\s+uygulamasını$/iu, "")
     .toLocaleLowerCase("tr-TR")
     .trim();
-  const appSequenceMatch = command.match(/^(.+?)\s+aç\s*[,;]\s*(?:ardından|sonra|daha sonra)\s*(.+?)\s+aç$/iu);
+  const appSequenceMatch = command.match(/^(?:(?:lütfen|önce)\s+)?(.+?)\s+aç\s*[,;]\s*(?:ardından|sonra|daha sonra)\s*(.+?)\s+aç$/iu);
   if (appSequenceMatch) {
     const firstApp = APP_ALIASES.find((entry) => entry.names.includes(normalizeAppName(appSequenceMatch[1])));
     const secondApp = APP_ALIASES.find((entry) => entry.names.includes(normalizeAppName(appSequenceMatch[2])));
