@@ -132,8 +132,11 @@ test("recognizes JPG file searches on the Desktop without AI planning", () => {
   });
 });
 
-test("runs a two-app launch sequence locally in the requested order", () => {
-  assert.deepEqual(parseDesktopCommand("Hesap Makinesi'ni aç, ardından Not Defteri'ni aç"), {
+test("runs a two-app launch sequence locally in the requested order, including the Önce prefix", () => {
+  for (const command of [
+    "Hesap Makinesi'ni aç, ardından Not Defteri'ni aç",
+    "Önce Hesap Makinesi'ni aç, ardından Not Defteri'ni aç"
+  ]) assert.deepEqual(parseDesktopCommand(command), {
     intent: "computer-control",
     done: true,
     message: "Hesap Makinesi ve Not Defteri açıldı.",
