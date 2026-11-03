@@ -215,7 +215,7 @@ public static class NovaDesktopInput {
         "ALT+F4" = "%{F4}"; "SHIFT+TAB" = "+{TAB}"
         "CTRL+SHIFT+T" = "^+t"; "CTRL+SHIFT+TAB" = "^+{TAB}"
         "CTRL+PAGEUP" = "^{PGUP}"; "CTRL+PAGEDOWN" = "^{PGDN}"
-        "CTRL+S" = "^s"; "CTRL+P" = "^p"; "CTRL+R" = "^r"
+        "CTRL+S" = "^s"; "CTRL+P" = "^p"; "CTRL+R" = "^r"; "CTRL+N" = "^n"; "CTRL+H" = "^h"; "CTRL+J" = "^j"; "CTRL+U" = "^u"; "CTRL+0" = "^0"; "CTRL+PLUS" = "^+{ADD}"; "CTRL+MINUS" = "^-"; "ALT+TAB" = "%{TAB}"; "ALT+HOME" = "%{HOME}"; "CTRL+SHIFT+N" = "^+n"; "CTRL+SHIFT+O" = "^+o"
         "CTRL+Z" = "^z"; "CTRL+Y" = "^y"; "ALT+LEFT" = "%{LEFT}"
         "ALT+RIGHT" = "%{RIGHT}"; F5 = "{F5}"; F11 = "{F11}"
       }
