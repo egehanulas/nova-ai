@@ -46,3 +46,44 @@ test("recognizes processor model questions and desktop PDF discovery locally", (
     intent: "search-files", query: ".pdf", location: "Desktop"
   });
 });
+
+
+test("keeps processor and RAM questions on the local computer-info path", () => {
+  assert.deepEqual(parseDesktopCommand("İşlemci modelini ve RAM miktarını söyle"), {
+    intent: "computer-info"
+  });
+});
+
+test("finds JPG files on the desktop without requiring an AI planner", () => {
+  assert.deepEqual(parseDesktopCommand("Masaüstümdeki jpg dosyalarını bul ve isimlerini listele"), {
+    intent: "search-files", query: ".jpg", location: "Desktop"
+  });
+});
+
+test("opens Windows Notepad and types the requested text locally", () => {
+  assert.deepEqual(parseDesktopCommand("Windows Not Defteri uygulamasını aç ve içine NOVA AI test başarılı yaz"), {
+    intent: "computer-control",
+    done: true,
+    message: "Not Defteri açıldı ve metin yazıldı.",
+    actions: [
+      { type: "open-app", app: "notepad" },
+      { type: "wait", ms: 900 },
+      { type: "type-text", text: "NOVA AI test başarılı" },
+      { type: "finish" }
+    ]
+  });
+});
+
+test("runs the calculator then Notepad sequence locally", () => {
+  assert.deepEqual(parseDesktopCommand("Hesap Makinesi'ni aç, ardından Not Defteri'ni aç"), {
+    intent: "computer-control",
+    done: true,
+    message: "Hesap Makinesi ve Not Defteri açıldı.",
+    actions: [
+      { type: "open-app", app: "calculator" },
+      { type: "wait", ms: 500 },
+      { type: "open-app", app: "notepad" },
+      { type: "finish" }
+    ]
+  });
+});
