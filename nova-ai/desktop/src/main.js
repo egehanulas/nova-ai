@@ -393,7 +393,7 @@ function registerDesktopAssistantIpc() {
           "Content-Type": "application/json",
           "Authorization": "Bearer " + accessToken
         },
-        body: JSON.stringify({ command: rawCommand, observations: observations.slice(-6).map((item) => ({ activeWindow: item.activeWindow, items: item.items, screenshot: item.screenshot, screenshotMimeType: item.screenshotMimeType })) }),
+        body: JSON.stringify({ command: rawCommand, observations: observations.slice(-6).map((item, index, items) => ({ activeWindow: item.activeWindow, items: item.items, screenshot: index === items.length - 1 ? item.screenshot : "", screenshotMimeType: item.screenshotMimeType })) }),
         signal: AbortSignal.timeout(60000)
       });
       if (!response.ok) throw new Error("NOVA komut yorumlama servisi HTTP " + response.status);
