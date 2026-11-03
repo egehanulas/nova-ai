@@ -179,3 +179,43 @@ test("searches common file extensions in Desktop, Documents, Downloads or all ac
     intent: "search-files", query: ".heic", location: "Desktop"
   });
 });
+
+test("recognizes common everyday keyboard and browser actions", () => {
+  const cases = [
+    ["Hepsini seç", "CTRL+A"],
+    ["Kopyala", "CTRL+C"],
+    ["Kes", "CTRL+X"],
+    ["Yapıştır", "CTRL+V"],
+    ["Kaydet", "CTRL+S"],
+    ["Yazdır", "CTRL+P"],
+    ["Geri al", "CTRL+Z"],
+    ["Yinele", "CTRL+Y"],
+    ["Sayfada ara", "CTRL+F"],
+    ["Adres çubuğuna git", "CTRL+L"],
+    ["Yeni sekme aç", "CTRL+T"],
+    ["Bu sekmeyi kapat", "CTRL+W"],
+    ["Kapattığım sekmeyi geri aç", "CTRL+SHIFT+T"],
+    ["Sonraki sekmeye geç", "CTRL+PAGEDOWN"],
+    ["Önceki sekmeye geç", "CTRL+PAGEUP"],
+    ["Önceki sayfaya git", "ALT+LEFT"],
+    ["Sonraki sayfaya git", "ALT+RIGHT"],
+    ["Sayfayı yenile", "CTRL+R"],
+    ["Tam ekrana geç", "F11"],
+    ["Etkin pencereyi kapat", "ALT+F4"],
+    ["Ekranı yenile", "F5"]
+  ];
+  for (const [command, key] of cases) {
+    const result = parseDesktopCommand(command);
+    assert.equal(result.intent, "computer-control", command);
+    assert.equal(result.actions[0].type, "press-key", command);
+    assert.equal(result.actions[0].key, key, command);
+  }
+});
+
+test("recognizes natural scrolling commands with safe bounded amounts", () => {
+  assert.deepEqual(parseDesktopCommand("Aşağı kaydır"), {
+    intent: "computer-control", done: true, message: "Sayfa kaydırılıyor.",
+    actions: [{ type: "scroll", amount: 600 }, { type: "finish" }]
+  });
+  assert.equal(parseDesktopCommand("Yukarı 300 kaydır").actions[0].amount, -300);
+});
