@@ -44,14 +44,10 @@ let updateRetryScheduler;
 let lastUpdateStatus = "idle";
 
 function openExternal(value) {
-  try {
-    const url = new URL(value);
-    if (url.protocol === "https:" || url.protocol === "http:" || url.protocol === "mailto:") {
-      void shell.openExternal(value);
-    }
-  } catch {
-    // Ignore malformed or unsupported external URLs.
-  }
+  let url;
+  try { url = new URL(value); } catch { return Promise.resolve(false); }
+  if (!["https:", "http:", "mailto:"].includes(url.protocol)) return Promise.resolve(false);
+  return shell.openExternal(url.href).then(() => true, () => false);
 }
 
 function showWindow() {
@@ -520,7 +516,13 @@ function registerDesktopAssistantIpc() {
           for (const action of currentIntent.actions) {
             if (!action || typeof action !== "object") throw new Error("Masaüstü kontrol adımı geçersiz.");
             if (action.type === "finish") {
-              const message = currentIntent.message || (completed ? "İstenen masaüstü işlemleri tamamlandı." : "Komutu güvenli biçimde tamamlayamadım; biraz daha açık anlatır mısın?");
+              if (currentIntent.actions[currentIntent.actions.length - 1] !== action) {
+                throw new Error("Görev planında bitiş adımı son sırada değil; güvenli olması için işlem durduruldu.");
+              }
+              if (completed === 0) {
+                throw new Error("NOVA herhangi bir masaüstü işlemini doğrulayamadı; görevi tamamlandı olarak göstermiyorum.");
+              }
+              const message = currentIntent.message || "İstenen masaüstü işlemleri tamamlandı.";
               reportProgress("completed", message, completed, completed);
               return { message, steps: completed };
             }
@@ -591,7 +593,10 @@ function registerDesktopAssistantIpc() {
               if (action.app === "chrome") await openAllowedApp("chrome", [parsedUrl.href]);
               else if (action.app === "edge") await openAllowedApp("edge", [parsedUrl.href]);
               else if (action.app === "firefox") await openAllowedApp("firefox", [parsedUrl.href]);
-              else openExternal(parsedUrl.href);
+              else {
+                const opened = await openExternal(parsedUrl.href);
+                if (!opened) throw new Error("Bağlantı varsayılan tarayıcıda açılamadı.");
+              }
             } else if (action.type === "launch-steam-game") {
               await launchSteamGame(action.game);
             } else if (action.type === "spotify-search") {
@@ -621,6 +626,7 @@ function registerDesktopAssistantIpc() {
           }
           if (!needsReplan) {
             if (currentIntent.done === true) {
+              if (completed === 0) throw new Error("NOVA herhangi bir masaüstü işlemini tamamlayamadı; görevi tamamlandı olarak göstermiyorum.");
               const message = currentIntent.message || "İstenen masaüstü işlemleri tamamlandı.";
               reportProgress("completed", message, completed, completed);
               return { message, steps: completed };
