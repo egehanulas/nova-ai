@@ -12,6 +12,7 @@ public static class NovaDesktopInput {
   [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X; public int Y; }
   [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT point);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int count);
   [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, int data, UIntPtr extraInfo);
 }
@@ -155,30 +156,54 @@ public static class NovaDesktopInput {
     "type-text" {
       $value = [string]$action.text
       if ($value.Length -gt 4000) { throw "Yazılacak metin çok uzun." }
+      $targetProcessId = [uint32]0
       if ($action.processName) {
         $processName = ([string]$action.processName).ToLowerInvariant()
         if ($processName -notin @("notepad")) { throw "Metin yazılacak pencere için izin verilmeyen uygulama." }
         $shell = New-Object -ComObject WScript.Shell
         $activated = $false
-        $deadline = (Get-Date).AddSeconds(6)
+        $deadline = (Get-Date).AddSeconds(8)
         do {
           $targetProcesses = @(Get-Process -Name $processName -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 })
           foreach ($targetProcess in $targetProcesses) {
-            if ($shell.AppActivate([int]$targetProcess.Id)) { $activated = $true; break }
+            if (-not $shell.AppActivate([int]$targetProcess.Id)) { continue }
+            Start-Sleep -Milliseconds 120
+            $foregroundProcessId = [uint32]0
+            $foregroundHandle = [NovaDesktopInput]::GetForegroundWindow()
+            [NovaDesktopInput]::GetWindowThreadProcessId($foregroundHandle, [ref]$foregroundProcessId) | Out-Null
+            if ($foregroundProcessId -eq [uint32]$targetProcess.Id) {
+              $targetProcessId = [uint32]$targetProcess.Id
+              $activated = $true
+              break
+            }
           }
           if (-not $activated) { Start-Sleep -Milliseconds 200 }
         } while (-not $activated -and (Get-Date) -lt $deadline)
-        if (-not $activated) { throw "Not Defteri penceresi bulunamadı veya öne getirilemedi; metin yazılmadı." }
-        Start-Sleep -Milliseconds 180
+        if (-not $activated) { throw "Not Defteri penceresi öne getirilemedi; başka bir pencereye metin gönderilmedi." }
       }
       $oldClipboard = $null
       try { $oldClipboard = [Windows.Forms.Clipboard]::GetDataObject() } catch {}
-      [Windows.Forms.Clipboard]::SetText($value)
-      [Windows.Forms.SendKeys]::SendWait("^v")
-      Start-Sleep -Milliseconds 250
-      if ($null -ne $oldClipboard) { [Windows.Forms.Clipboard]::SetDataObject($oldClipboard, $true) }
-      else { [Windows.Forms.Clipboard]::Clear() }
-      $result.message = "Metin yazıldı."
+      try {
+        [Windows.Forms.Clipboard]::SetText($value)
+        [Windows.Forms.SendKeys]::SendWait("^v")
+        Start-Sleep -Milliseconds 350
+        if ($targetProcessId -ne 0) {
+          $foregroundProcessId = [uint32]0
+          $foregroundHandle = [NovaDesktopInput]::GetForegroundWindow()
+          [NovaDesktopInput]::GetWindowThreadProcessId($foregroundHandle, [ref]$foregroundProcessId) | Out-Null
+          if ($foregroundProcessId -ne $targetProcessId) { throw "Metin yapıştırılırken Not Defteri odağı kayboldu; yazma doğrulanamadı." }
+          [Windows.Forms.SendKeys]::SendWait("^a")
+          [Windows.Forms.SendKeys]::SendWait("^c")
+          Start-Sleep -Milliseconds 180
+          $actualText = [Windows.Forms.Clipboard]::GetText()
+          if ($actualText -cne $value) { throw "Not Defteri içeriği doğrulanamadı; metin başarıyla yazılmış sayılmadı." }
+          [Windows.Forms.SendKeys]::SendWait("^{END}")
+        }
+      } finally {
+        if ($null -ne $oldClipboard) { [Windows.Forms.Clipboard]::SetDataObject($oldClipboard, $true) }
+        else { [Windows.Forms.Clipboard]::Clear() }
+      }
+      $result.message = if ($targetProcessId -ne 0) { "Metin Not Defteri'ne yazıldı ve içerik doğrulandı." } else { "Metin giriş işlemi gönderildi." }
     }
     "press-key" {
       $keys = @{
