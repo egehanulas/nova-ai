@@ -126,7 +126,7 @@ test("desktop parser handles Turkish Settings inflections, YouTube search, file 
     actions: [
       { type: "open-app", app: "notepad" },
       { type: "wait", ms: 900 },
-      { type: "type-text", text: "NOVA test başarılı" },
+      { type: "type-text", text: "NOVA test başarılı", processName: "notepad" },
       { type: "finish" }
     ]
   });
