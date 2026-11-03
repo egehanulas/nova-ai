@@ -155,6 +155,22 @@ public static class NovaDesktopInput {
     "type-text" {
       $value = [string]$action.text
       if ($value.Length -gt 4000) { throw "Yazılacak metin çok uzun." }
+      if ($action.processName) {
+        $processName = ([string]$action.processName).ToLowerInvariant()
+        if ($processName -notin @("notepad")) { throw "Metin yazılacak pencere için izin verilmeyen uygulama." }
+        $shell = New-Object -ComObject WScript.Shell
+        $activated = $false
+        $deadline = (Get-Date).AddSeconds(6)
+        do {
+          $targetProcesses = @(Get-Process -Name $processName -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 })
+          foreach ($targetProcess in $targetProcesses) {
+            if ($shell.AppActivate([int]$targetProcess.Id)) { $activated = $true; break }
+          }
+          if (-not $activated) { Start-Sleep -Milliseconds 200 }
+        } while (-not $activated -and (Get-Date) -lt $deadline)
+        if (-not $activated) { throw "Not Defteri penceresi bulunamadı veya öne getirilemedi; metin yazılmadı." }
+        Start-Sleep -Milliseconds 180
+      }
       $oldClipboard = $null
       try { $oldClipboard = [Windows.Forms.Clipboard]::GetDataObject() } catch {}
       [Windows.Forms.Clipboard]::SetText($value)
