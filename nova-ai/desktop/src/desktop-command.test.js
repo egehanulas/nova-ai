@@ -258,3 +258,44 @@ test("recognizes YouTube search and natural page scrolling locally", () => {
   assert.equal(parseDesktopCommand("Sayfayı aşağı kaydır").actions[0].amount, 600);
   assert.equal(parseDesktopCommand("Aşağı 300 kaydır").actions[0].amount, 300);
 });
+
+
+test("supports additional browser navigation and search commands", () => {
+  const cases = [
+    ["Yeni pencere aç", "CTRL+N"],
+    ["Gizli pencere aç", "CTRL+SHIFT+N"],
+    ["Tarayıcı geçmişini aç", "CTRL+H"],
+    ["İndirilenleri aç", "CTRL+J"],
+    ["Yer imlerini aç", "CTRL+SHIFT+O"],
+    ["Sayfanın kaynak kodunu göster", "CTRL+U"],
+    ["Yakınlaştırmayı sıfırla", "CTRL+0"],
+    ["Uygulamalar arasında geçiş yap", "ALT+TAB"],
+    ["Ana sayfaya git", "ALT+HOME"]
+  ];
+  for (const [command, key] of cases) {
+    const result = parseDesktopCommand(command);
+    assert.equal(result.intent, "computer-control", command);
+    assert.equal(result.actions[0].type, "press-key", command);
+    assert.equal(result.actions[0].key, key, command);
+  }
+  assert.equal(parseDesktopCommand("Google'da Fenerbahçe ara").url,
+    "https://www.google.com/search?q=Fenerbah%C3%A7e");
+  assert.equal(parseDesktopCommand("Chrome'da hava durumu ara").actions[0].app, "chrome");
+});
+
+test("routes newly supported browser commands through desktop execution", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const vm = await import("node:vm");
+  const helperUrl = new URL("../../public/desktop-command-routing.js", import.meta.url);
+  const helper = await readFile(helperUrl, "utf8");
+  const window = {};
+  vm.runInNewContext(helper, { window, globalThis: window });
+  const route = window.NovaDesktopRouting.isLikelyDesktopCommand;
+  for (const command of [
+    "Yeni pencere aç", "Gizli pencere aç", "Tarayıcı geçmişini aç",
+    "İndirilenleri aç", "Yer imlerini aç", "Sayfanın kaynak kodunu göster",
+    "Yakınlaştırmayı sıfırla", "Uygulamalar arasında geçiş yap"
+  ]) assert.equal(route(command), true, command);
+  for (const message of ["Chrome nedir?", "Google'da arama nasıl yapılır?", "Tarayıcı geçmişi neden tutulur?"])
+    assert.equal(route(message), false, message);
+});
