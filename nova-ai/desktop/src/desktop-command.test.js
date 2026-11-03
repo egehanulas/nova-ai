@@ -353,3 +353,17 @@ test("supports natural two- and three-app sequences joined with and", () => {
     assert.equal(parsed.actions.at(-1).type, "finish", command);
   }
 });
+
+
+test("opens explicit website domains in the browser named by the user", () => {
+  for (const [command, app, url] of [
+    ["Chrome'da github.com aç", "chrome", "https://github.com"],
+    ["Edge'de openai.com'a git", "edge", "https://openai.com"],
+    ["Firefox'ta example.com aç", "firefox", "https://example.com"]
+  ]) {
+    const parsed = parseDesktopCommand(command);
+    assert.equal(parsed.intent, "computer-control", command);
+    assert.deepEqual(parsed.actions[0], { type: "open-url", app, url }, command);
+    assert.equal(parsed.actions.at(-1).type, "finish", command);
+  }
+});
