@@ -142,6 +142,32 @@ export function parseDesktopCommand(input) {
     { pattern: /^(?:tarayıcı sekmesini )?yeniden aç(?:\s+lütfen)?$/iu, key: "CTRL+SHIFT+T", message: "Son kapatılan sekme yeniden açılıyor." },
     { pattern: /^(?:ekranı|sayfayı) yenile(?:\s+lütfen)?$/iu, key: "F5", message: "Ekran yenileniyor." }
   ];
+  keyboardShortcuts.push(
+    { pattern: /^(?:yeni|boş) pencere aç$/iu, key: "CTRL+N", message: "Yeni pencere açılıyor." },
+    { pattern: /^(?:gizli|incognito) pencere aç$/iu, key: "CTRL+SHIFT+N", message: "Gizli pencere açılıyor." },
+    { pattern: /^(?:tarayıcı )?geçmişini aç$/iu, key: "CTRL+H", message: "Tarayıcı geçmişi açılıyor." },
+    { pattern: /^(?:indirilenleri|indirme geçmişini) aç$/iu, key: "CTRL+J", message: "İndirilenler sayfası açılıyor." },
+    { pattern: /^(?:yer imlerini|favorileri) aç$/iu, key: "CTRL+SHIFT+O", message: "Yer imleri açılıyor." },
+    { pattern: /^(?:sayfanın )?kaynak kodunu göster$/iu, key: "CTRL+U", message: "Sayfanın kaynak kodu açılıyor." },
+    { pattern: /^yakınlaştır$/iu, key: "CTRL+PLUS", message: "Sayfa yakınlaştırılıyor." },
+    { pattern: /^uzaklaştır$/iu, key: "CTRL+MINUS", message: "Sayfa uzaklaştırılıyor." },
+    { pattern: /^(?:yakınlaştırmayı sıfırla|varsayılan yakınlaştırma)$/iu, key: "CTRL+0", message: "Yakınlaştırma varsayılana döndürülüyor." },
+    { pattern: /^(?:uygulamalar|pencereler) arasında geçiş yap$/iu, key: "ALT+TAB", message: "Açık pencereler arasında geçiş yapılıyor." },
+    { pattern: /^ana sayfaya git$/iu, key: "ALT+HOME", message: "Tarayıcının ana sayfası açılıyor." }
+  );
+  const googleSearchMatch = command.match(/^(?:google(?:['’]da|da|de)|internette|webde)\s+(.+?)\s+(?:ara|bul)$/iu);
+  if (googleSearchMatch) return {
+    intent: "open-url",
+    url: "https://www.google.com/search?q=" + encodeURIComponent(googleSearchMatch[1].trim())
+  };
+  const chromeSearchMatch = command.match(/^(?:chrome|google chrome|edge|firefox)(?:['’](?:da|de)|da|de)\s+(.+?)\s+ara$/iu);
+  if (chromeSearchMatch) {
+    const browser = /^edge$/iu.test(text) ? "edge" : /firefox/iu.test(text) ? "firefox" : "chrome";
+    return {
+      intent: "computer-control", done: true, message: "Arama seçilen tarayıcıda açılıyor.",
+      actions: [{ type: "open-url", app: browser, url: "https://www.google.com/search?q=" + encodeURIComponent(chromeSearchMatch[1].trim()) }, { type: "finish" }]
+    };
+  }
   const shortcut = keyboardShortcuts.find((entry) => entry.pattern.test(text));
   if (shortcut) return {
     intent: "computer-control",
