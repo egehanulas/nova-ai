@@ -551,15 +551,15 @@ export async function resolveUserItem(input, preferredLocation = "", { allowRoot
   }
 
   const exact = await searchUserFiles(candidate, preferredLocation, { exactOnly: true });
-  if (exact.inaccessibleDirectories > 0) {
-    throw new Error("Dosya araması sırasında " + exact.inaccessibleDirectories + " klasöre erişilemedi. Yanlış veya eksik eşleşme seçmemek için tam dosya yolunu belirt ya da arama konumunu daralt.");
-  }
-  if (exact.truncated) {
-    throw new Error("Dosya araması tamamlanamadı. Yanlış dosyayı açmamak için tam dosya yolunu belirt veya konumunu daralt.");
-  }
   if (exact.length > 1) {
     throw new Error("Aynı isimde birden fazla öğe buldum. Lütfen tam konumunu belirt:\n" +
       exact.slice(0, 8).map((item) => item.path).join("\n"));
+  }
+  if (!exact.length && exact.inaccessibleDirectories > 0) {
+    throw new Error("Dosya araması sırasında " + exact.inaccessibleDirectories + " klasöre erişilemedi ve tam eşleşme bulunamadı. Arama konumunu daralt ya da tam dosya yolunu belirt.");
+  }
+  if (!exact.length && exact.truncated) {
+    throw new Error("Dosya araması tamamlanamadı. Yanlış dosyayı açmamak için tam dosya yolunu belirt veya konumunu daralt.");
   }
   if (!exact.length) {
     throw new Error("“" + candidate + "” adlı öğenin tam eşleşmesini bulamadım. Önce dosya araması yap veya tam dosya yolunu belirt.");
