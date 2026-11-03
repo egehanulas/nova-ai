@@ -716,3 +716,11 @@ test("Windows desktop controller can load its automation runtime and read system
   assert.equal(windows.success, true);
   assert.ok(Array.isArray(windows.windows));
 });
+
+test("Windows Notepad receives and verifies real text in its own foreground window", { skip: process.platform !== "win32" }, async () => {
+  await openAllowedApp("notepad");
+  const text = "NOVA CI Notepad verification " + process.pid;
+  const result = await runComputerAction({ type: "type-text", text, processName: "notepad" });
+  assert.equal(result.success, true);
+  assert.match(result.message, /içerik doğrulandı/);
+});
