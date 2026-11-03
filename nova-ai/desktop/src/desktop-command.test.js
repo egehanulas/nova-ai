@@ -37,3 +37,12 @@ test("recognizes explicit open-window and accessibility inspection requests loca
     intent: "screen-summary"
   });
 });
+
+
+test("recognizes processor model questions and desktop PDF discovery locally", () => {
+  assert.deepEqual(parseDesktopCommand("İşlemcimin modelini söyle"), { intent: "computer-info" });
+  assert.deepEqual(parseDesktopCommand("Bilgisayarımın işlemcisini söyle"), { intent: "computer-info" });
+  assert.deepEqual(parseDesktopCommand("Masaüstümdeki dosyaları listele ve varsa PDF dosyalarını bul"), {
+    intent: "search-files", query: ".pdf", location: "Desktop"
+  });
+});
