@@ -87,3 +87,44 @@ test("runs the calculator then Notepad sequence locally", () => {
     ]
   });
 });
+
+
+test("recognizes Windows Notepad with Turkish suffix and writes the requested text locally", () => {
+  assert.deepEqual(parseDesktopCommand("Windows Not Defteri'ni aç ve içine NOVA AI test başarılı yaz"), {
+    intent: "computer-control",
+    done: true,
+    message: "Not Defteri açıldı ve metin yazıldı.",
+    actions: [
+      { type: "open-app", app: "notepad" },
+      { type: "wait", ms: 900 },
+      { type: "type-text", text: "NOVA AI test başarılı" },
+      { type: "finish" }
+    ]
+  });
+});
+
+test("recognizes local CPU model and RAM amount requests without AI planning", () => {
+  assert.deepEqual(parseDesktopCommand("İşlemci modeli ve RAM miktarını söyle"), {
+    intent: "computer-info"
+  });
+});
+
+test("recognizes JPG file searches on the Desktop without AI planning", () => {
+  assert.deepEqual(parseDesktopCommand("Masaüstümdeki jpg dosyalarını bul ve isimlerini listele"), {
+    intent: "search-files", query: ".jpg", location: "Desktop"
+  });
+});
+
+test("runs a two-app launch sequence locally in the requested order", () => {
+  assert.deepEqual(parseDesktopCommand("Hesap Makinesi'ni aç, ardından Not Defteri'ni aç"), {
+    intent: "computer-control",
+    done: true,
+    message: "Hesap Makinesi ve Not Defteri açıldı.",
+    actions: [
+      { type: "open-app", app: "calculator" },
+      { type: "wait", ms: 900 },
+      { type: "open-app", app: "notepad" },
+      { type: "finish" }
+    ]
+  });
+});
