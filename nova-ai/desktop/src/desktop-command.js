@@ -117,6 +117,12 @@ export function parseDesktopCommand(input) {
     };
   }
 
+  const mouseCornerMatch = command.match(/^(?:mouse|fare)\s+(?:imlecini\s+)?(?:yavaşça\s+)?ekranın\s+(sol üst|sağ üst|sol alt|sağ alt|ortasına)\s+(?:köşesine\s+)?(?:yavaşça\s+)?(?:hareket ettir|götür|taşı)$/iu);
+  if (mouseCornerMatch) {
+    const corner = { "sol üst": "top-left", "sağ üst": "top-right", "sol alt": "bottom-left", "sağ alt": "bottom-right", "ortasına": "center" }[mouseCornerMatch[1].toLocaleLowerCase("tr-TR")];
+    return { intent: "computer-control", done: true, message: "Fare imleci istenen konuma yumuşak biçimde taşındı.", actions: [{ type: "move-mouse", corner, durationMs: 900, steps: 40 }, { type: "finish" }] };
+  }
+
   const mouseDirection = command.match(/^(?:mouse|fare)(?:['’](?:u|ı|i)|yı|yi|yu|yü|u|ı|i|ü)?\s+(sağa|sola|yukarı|aşağı)\s+(?:hareket ettir|oynat|götür)$/iu);
   if (mouseDirection) {
     const direction = mouseDirection[1].toLocaleLowerCase("tr-TR");
