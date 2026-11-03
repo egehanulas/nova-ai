@@ -623,8 +623,17 @@ function registerDesktopAssistantIpc() {
               reportProgress("completed", message, completed, completed);
               return { message, steps: completed };
             }
-            reportProgress("waiting", "Bu bölüm tamamlandı; görev için ek bilgi gerekebilir.", completed, 0);
-            return { message: "Masaüstü adımları uygulandı; devam etmek için komutun kalan kısmını belirt.", steps: completed };
+            reportProgress("planning", "Mevcut adımlar bitti; NOVA görevin devamını otomatik planlıyor.", completed, 0);
+            try {
+              currentIntent = await requestInterpretation();
+            } catch (error) {
+              reportProgress("partial", "Görevin devamı planlanamadı; tamamlanan adımlar korundu.", completed, 0);
+              return { message: "Şu ana kadar " + completed + " masaüstü adımını uyguladım; ancak devamını planlama servisi yanıt vermedi (" + error.message + "). Görevi tamamlandı olarak işaretlemedim.", steps: completed, partial: true };
+            }
+            if (!currentIntent || currentIntent.intent !== "computer-control" || !Array.isArray(currentIntent.actions)) {
+              reportProgress("partial", "Görev güvenli biçimde durduruldu; devam planı alınamadı.", completed, 0);
+              return { message: "Şu ana kadar " + completed + " adım uygulandı. Devam planı alınamadığı için görevi durdurdum; tamamlandı olarak göstermiyorum.", steps: completed, partial: true };
+            }
           }
         }
         reportProgress("failed", "Görev güvenli adım sınırına ulaştı; kalan işlemler durduruldu.", completed, 0);
