@@ -311,7 +311,9 @@ export async function searchUserFiles(query, preferredLocation = "", { exactOnly
 
 function launchDetached(command, args = []) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { detached: true, stdio: "ignore", windowsHide: true });
+    // GUI applications must inherit a visible desktop session. windowsHide=true
+    // can suppress or detach packaged Windows app launchers (notably Notepad).
+    const child = spawn(command, args, { detached: true, stdio: "ignore", windowsHide: false, shell: false });
     let settled = false;
     child.once("error", (error) => {
       if (settled) return;
@@ -331,8 +333,10 @@ export async function openAllowedApp(appName, extraArgs = []) {
   const localAppData = process.env.LOCALAPPDATA || path.join(HOME, "AppData", "Local");
   const programFiles = process.env.ProgramFiles || "C:\\Program Files";
   const programFilesX86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
+  const systemRoot = process.env.SystemRoot || "C:\\Windows";
   const apps = {
-    notepad: { label: "Not Defteri", candidates: ["notepad.exe"], args: [] },
+    // Prefer the real System32 entry point over PATH/App Execution Alias resolution.
+    notepad: { label: "Not Defteri", candidates: [path.join(systemRoot, "System32", "notepad.exe"), "notepad.exe"], args: [] },
     calculator: { label: "Hesap Makinesi", candidates: ["calc.exe"], args: [] },
     explorer: { label: "Dosya Gezgini", candidates: ["explorer.exe"], args: [HOME] },
     paint: { label: "Paint", candidates: ["mspaint.exe"], args: [] },
