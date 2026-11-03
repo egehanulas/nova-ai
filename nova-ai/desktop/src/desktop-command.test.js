@@ -367,3 +367,22 @@ test("opens explicit website domains in the browser named by the user", () => {
     assert.equal(parsed.actions.at(-1).type, "finish", command);
   }
 });
+
+
+test("routes new browser navigation phrases through desktop command execution", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const vm = await import("node:vm");
+  const helperUrl = new URL("../../public/desktop-command-routing.js", import.meta.url);
+  const helper = await readFile(helperUrl, "utf8");
+  const window = {};
+  vm.runInNewContext(helper, { window, globalThis: window });
+  const route = window.NovaDesktopRouting.isLikelyDesktopCommand;
+  for (const command of [
+    "Yeni sekme aç Google'ı aç",
+    "Google'a git",
+    "Chrome'da github.com aç",
+    "Edge'de openai.com'a git",
+    "Firefox'ta example.com aç",
+    "Chrome aç ve Not Defteri aç"
+  ]) assert.equal(route(command), true, command);
+});
