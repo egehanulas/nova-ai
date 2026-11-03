@@ -146,7 +146,7 @@ export function parseDesktopCommand(input) {
       actions: [
         { type: "open-app", app: "notepad" },
         { type: "wait", ms: 900 },
-        { type: "type-text", text: value },
+        { type: "type-text", text: value, processName: "notepad" },
         { type: "finish" }
       ]
     };
