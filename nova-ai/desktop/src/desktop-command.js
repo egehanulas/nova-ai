@@ -87,7 +87,7 @@ export function parseDesktopCommand(input) {
 
   browserMatch = command.match(/^(?:youtube|youtube\.com|yt)(?:\s*['’]?(?:da|de))?\s+(.+?)\s+(?:(video(?:su|sunu)?)\s+)?(ara|aç|ac|çal|cal|oynat)$/iu);
   if (browserMatch) {
-    const query = browserMatch[1].trim() + (browserMatch[2] ? " video" : "");
+    const query = browserMatch[1].trim().replace(/^[“"]|[”"]$/g, "") + (browserMatch[2] ? " video" : "");
     const url = "https://www.youtube.com/results?search_query=" + encodeURIComponent(query);
     if (browserMatch[2] && /^(?:aç|ac|oynat)$/iu.test(browserMatch[3])) return {
       intent: "computer-control", done: false,
@@ -150,9 +150,10 @@ export function parseDesktopCommand(input) {
     actions: [{ type: "press-key", key: shortcut.key }, { type: "finish" }]
   };
 
-  const scrollMatch = text.match(/^(?:biraz )?(aşağı|yukarı)(?: (\d{1,3}))? kaydır$/u);
+  const scrollMatch = text.match(/^(?:(?:sayfayı|ekranı) )?(?:biraz )?(?:(aşağı|yukarı)(?: (\\d{1,3}))?|(\\d{1,3}) (aşağı|yukarı)) kaydır$/u);
   if (scrollMatch) {
-    const amount = Math.min(1200, Math.max(120, Number(scrollMatch[2] || 600))) * (scrollMatch[1] === "yukarı" ? -1 : 1);
+    const direction = scrollMatch[1] || scrollMatch[4];
+    const amount = Math.min(1200, Math.max(120, Number(scrollMatch[2] || scrollMatch[3] || 600))) * (direction === "yukarı" ? -1 : 1);
     return { intent: "computer-control", done: true, message: "Sayfa kaydırılıyor.", actions: [{ type: "scroll", amount }, { type: "finish" }] };
   }
 
