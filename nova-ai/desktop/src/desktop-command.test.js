@@ -81,7 +81,7 @@ test("runs the calculator then Notepad sequence locally", () => {
     message: "Hesap Makinesi ve Not Defteri açıldı.",
     actions: [
       { type: "open-app", app: "calculator" },
-      { type: "wait", ms: 500 },
+      { type: "wait", ms: 900 },
       { type: "open-app", app: "notepad" },
       { type: "finish" }
     ]
