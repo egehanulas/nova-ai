@@ -299,3 +299,38 @@ test("routes newly supported browser commands through desktop execution", async 
   for (const message of ["Chrome nedir?", "Google'da arama nasıl yapılır?", "Tarayıcı geçmişi neden tutulur?"])
     assert.equal(route(message), false, message);
 });
+
+
+test("opens Google directly in a new Chrome tab instead of searching the command text", () => {
+  for (const command of [
+    "Yeni sekme aç ve Google'ı",
+    "Yeni sekme aç ve Google'ı aç",
+    "Yeni sekme aç ve Google'ı internete",
+    "Yeni sekme aç sonra Google ana sayfasını aç",
+    "Chrome'da yeni sekme aç ve Google'ı aç",
+    "Google'ı aç",
+    "Google ana sayfasına git"
+  ]) {
+    assert.deepEqual(parseDesktopCommand(command), {
+      intent: "computer-control",
+      done: true,
+      message: "Google yeni sekmede açılıyor.",
+      actions: [
+        { type: "open-url", app: "chrome", url: "https://www.google.com/" },
+        { type: "finish" }
+      ]
+    }, command);
+  }
+});
+
+test("routes combined new-tab and Google navigation to desktop execution", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const vm = await import("node:vm");
+  const helperUrl = new URL("../../public/desktop-command-routing.js", import.meta.url);
+  const helper = await readFile(helperUrl, "utf8");
+  const window = {};
+  vm.runInNewContext(helper, { window, globalThis: window });
+  const route = window.NovaDesktopRouting.isLikelyDesktopCommand;
+  assert.equal(route("Yeni sekme aç ve Google'ı aç"), true);
+  assert.equal(route("Yeni sekme aç ve Google'ı internete"), true);
+});
