@@ -1,4 +1,5 @@
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 import { buildPowerShellArgs, isAntivirusScriptBlock, parseComputerControlOutput, resolveComputerControlScriptPath, validateComputerAction } from "./computer-control.js";
 
@@ -93,4 +94,10 @@ test("scopes RemoteSigned execution policy to the child PowerShell process", () 
   const args = buildPowerShellArgs("C:\\Program Files\\NOVA AI\\resources\\computer-control.ps1");
   assert.deepEqual(args.slice(0, 6), ["-NoLogo", "-NoProfile", "-NonInteractive", "-STA", "-ExecutionPolicy", "RemoteSigned"]);
   assert.deepEqual(args.slice(6), ["-File", "C:\\Program Files\\NOVA AI\\resources\\computer-control.ps1"]);
+});
+
+test("keeps screenshot capture out of the PowerShell automation script", async () => {
+  const script = await readFile(new URL("./computer-control.ps1", import.meta.url), "utf8");
+  assert.doesNotMatch(script, /CopyFromScreen|System\.Drawing\.Graphics|GetImageEncoders/);
+  assert.match(script, /Screenshot capture is handled by Electron/);
 });
