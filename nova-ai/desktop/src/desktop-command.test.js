@@ -26,7 +26,7 @@ test("routes YouTube first-video selection through screen inspection after searc
   const parsed = parseDesktopCommand("YouTube'da Fenerbahçe maç özeti ara ve ilk videoyu aç");
   assert.equal(parsed.intent, "computer-control");
   assert.equal(parsed.actions[0].type, "open-url");
-  assert.match(parsed.actions[0].url, /youtube\\.com\\/results\\?search_query=/);
+  assert.ok(parsed.actions[0].url.includes("youtube.com/results?search_query="));
   assert.equal(parsed.actions.at(-1).type, "inspect-screen");
 });
 
