@@ -11,6 +11,34 @@ test("recognizes Windows Notepad as the explicit local Notepad app", () => {
   });
 });
 
+test("normalizes Turkish app suffixes and diacritics without changing app identity", () => {
+  const cases = [
+    ["Visual Studio Code'u aç", "Visual Studio Code"],
+    ["NVIDIA App'i aç", "NVIDIA App"],
+    ["Windows Güvenliği'ni aç", "Windows Security"],
+    ["Epic Games Launcher'ı aç", "Epic Games Launcher"],
+    ["Notepad++'ı aç", "Notepad++"]
+  ];
+  for (const [command, app] of cases) {
+    const parsed = parseDesktopCommand(command);
+    assert.equal(parsed.intent, "open-installed-app", command);
+    assert.equal(parsed.app, app, command);
+  }
+});
+
+test("resolves known application aliases consistently in multi-app sequences", () => {
+  const parsed = parseDesktopCommand("Chrome aç, ardından VS Code aç ve sonra Discord aç");
+  assert.equal(parsed.intent, "computer-control");
+  assert.deepEqual(parsed.actions, [
+    { type: "open-app", app: "chrome" },
+    { type: "wait", ms: 900 },
+    { type: "open-installed-app", app: "Visual Studio Code" },
+    { type: "wait", ms: 900 },
+    { type: "open-app", app: "discord" },
+    { type: "finish" }
+  ]);
+});
+
 test("routes natural screen-analysis requests with a follow-up phrase to screen summary", () => {
   for (const command of [
     "Ekranımı analiz et",
