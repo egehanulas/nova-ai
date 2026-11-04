@@ -3496,6 +3496,7 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
     "- Satın alma, ödeme, hesap/güvenlik ayarı, kurulum/kaldırma ve dosya silme işlemlerinde yerel onay olmadan ilerleme.",
     "- Mesajı yalnızca kullanıcı açıkça göndermeyi isterse gönder; 'gönderme/sadece yaz' talimatında Enter üretme. enforceNoSend/enforceMessageSend kontrolleri geçerlidir.",
     "- Click/focus için önce inspect-screen kullan; tahmini metin veya koordinat üretme. Birden fazla eşleşmede dur ve netleştirme iste.",
+    "- Discord mesaj taslağı görevinde son konuşulan kişiyi yalnızca görünür sohbet listesinden belirle. Mesaj kutusu UI Automation içinde Edit/Document olarak görünmüyorsa focus-control ile rastgele deneme yapma; yalnızca son ekran görüntüsünde açıkça görülen mesaj yazma alanının bounds merkezine click yap, sonra type-text kullan. Mesajı göndermek için Enter kullanma; taslakta bırak.",
     "- Birden çok adım gerekiyorsa sırala; uygulama açıldıktan sonra bekle ve ekranı incele. Sonraki adımı yalnızca gözleme dayanarak planla.",
     "- En fazla 8 eylem ver. Tamamlandıysa done:true ve actions:[{type:'finish'}]; eksik bilgi varsa message alanında kısa soru yaz.",
     "KOMUT VE SON EKRAN GÖZLEMİ:",
