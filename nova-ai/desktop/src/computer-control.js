@@ -12,6 +12,13 @@ export function resolveComputerControlScriptPath(resourcesPath = process.resourc
 export function isAntivirusScriptBlock(message) {
   return /This script contains malicious content and has been blocked by your antivirus software|blocked by your antivirus software|AMSI.*blocked/i.test(String(message || ""));
 }
+
+export function buildPowerShellArgs(scriptPath) {
+  // Scope RemoteSigned to this child process only. This permits the locally
+  // installed app resource without changing LocalMachine/CurrentUser policy.
+  // Group Policy and antivirus protections remain in force.
+  return ["-NoLogo", "-NoProfile", "-NonInteractive", "-STA", "-ExecutionPolicy", "RemoteSigned", "-File", scriptPath];
+}
 const ALLOWED_TYPES = new Set([
   "inspect-screen", "list-windows", "system-info", "click-text", "focus-control", "type-text", "press-key",
   "click", "move-mouse", "scroll", "wait"
@@ -138,7 +145,7 @@ export async function runComputerAction(action) {
   const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
   return await new Promise((resolve, reject) => {
     const child = spawn(powershell, [
-      "-NoLogo", "-NoProfile", "-NonInteractive", "-STA", "-File", scriptPath
+      ...buildPowerShellArgs(scriptPath)
     ], {
       windowsHide: true,
       env: { ...process.env, NOVA_CONTROL_PAYLOAD: payload },
