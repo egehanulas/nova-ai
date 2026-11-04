@@ -403,7 +403,7 @@ test("opens YouTube in a new tab for the short natural Turkish command", () => {
   assert.equal(parsed.done, true);
   assert.deepEqual(parsed.actions, [
     { type: "press-key", key: "CTRL+T" },
-    { type: "wait", ms: 350 },
+    { type: "wait", ms: 300 },
     { type: "open-url", app: "chrome", url: "https://www.youtube.com/" },
     { type: "finish" }
   ]);
