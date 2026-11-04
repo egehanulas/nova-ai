@@ -1,15 +1,15 @@
 {
   "name": "nova-desktop",
-  "version": "0.2.0-alpha.64",
+  "version": "0.2.0-alpha.65",
   "private": true,
-  "description": "NOVA AI Windows desktop application — Alpha 64 resilient app discovery, safer launch and expanded Turkish app commands",
+  "description": "NOVA AI Windows desktop — Alpha 65 automatic desktop command routing and expanded regression coverage",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "test": "node --check src/main.js && node --check src/preload.cjs && node --check src/desktop-command.js && node --check src/computer-control.js && node --check src/screen-capture.js && node --test src/computer-control.test.js src/screen-capture.test.js src/desktop-assistant.test.js src/desktop-command.test.js"
+    "test": "node --check ../public/desktop-command-routing.js && node --check src/main.js && node --check src/preload.cjs && node --check src/desktop-command.js && node --check src/computer-control.js && node --check src/screen-capture.js && node --test src/computer-control.test.js src/screen-capture.test.js src/desktop-assistant.test.js src/desktop-command.test.js ../public/desktop-command-routing.test.js"
   },
   "devDependencies": {
     "@electron-forge/cli": "^8.0.1",
