@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isAntivirusScriptBlock, parseComputerControlOutput, resolveComputerControlScriptPath, validateComputerAction } from "./computer-control.js";
+import { buildPowerShellArgs, isAntivirusScriptBlock, parseComputerControlOutput, resolveComputerControlScriptPath, validateComputerAction } from "./computer-control.js";
 
 test("validates absolute and relative mouse movement actions", () => {
   assert.doesNotThrow(() => validateComputerAction({ type: "move-mouse", x: 300, y: 250 }));
@@ -86,4 +86,11 @@ test("uses a stable packaged resource path instead of a temporary PowerShell scr
 test("recognizes antivirus script blocking without treating it as a successful desktop action", () => {
   assert.equal(isAntivirusScriptBlock("This script contains malicious content and has been blocked by your antivirus software."), true);
   assert.equal(isAntivirusScriptBlock("UI Automation access denied"), false);
+});
+
+
+test("scopes RemoteSigned execution policy to the child PowerShell process", () => {
+  const args = buildPowerShellArgs("C:\\Program Files\\NOVA AI\\resources\\computer-control.ps1");
+  assert.deepEqual(args.slice(0, 6), ["-NoLogo", "-NoProfile", "-NonInteractive", "-STA", "-ExecutionPolicy", "RemoteSigned"]);
+  assert.deepEqual(args.slice(6), ["-File", "C:\\Program Files\\NOVA AI\\resources\\computer-control.ps1"]);
 });
