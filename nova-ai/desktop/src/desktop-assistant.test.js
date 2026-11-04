@@ -98,6 +98,19 @@ test("installed app resolver reports a useful failure instead of a Start Menu-on
   assert.doesNotMatch(script, /Başlat menüsünde belirtilen uygulama bulunamadı/);
 });
 
+test("installed app PowerShell resolver parses on Windows without executing it", {
+  skip: process.platform !== "win32"
+}, () => {
+  const parser = "$tokens = $null; $errors = $null; [System.Management.Automation.Language.Parser]::ParseInput([Console]::In.ReadToEnd(), [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }";
+  const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", parser], {
+    input: buildInstalledAppResolverScript(),
+    encoding: "utf8",
+    timeout: 10000,
+    windowsHide: true
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout || "PowerShell parser failed");
+});
+
 test("desktop command parser routes common and arbitrary installed apps safely", () => {
   assert.deepEqual(parseDesktopCommand("WhatsApp'ı aç"), {
     intent: "open-installed-app", app: "WhatsApp", label: "WhatsApp"
