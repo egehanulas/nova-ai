@@ -1,8 +1,8 @@
 {
   "name": "nova-desktop",
-  "version": "0.2.0-alpha.62",
+  "version": "0.2.0-alpha.63",
   "private": true,
-  "description": "NOVA AI Windows desktop application — Alpha 62 Electron screen capture and Defender compatibility improvements",
+  "description": "NOVA AI Windows desktop application — Alpha 63 resilient app discovery, safer launch and expanded Turkish app commands",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
