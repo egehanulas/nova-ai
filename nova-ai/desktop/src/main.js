@@ -721,6 +721,18 @@ function registerDesktopAssistantIpc() {
         reportProgress("failed", "Görev güvenli adım sınırına ulaştı; kalan işlemler durduruldu.", completed, 0);
         throw new Error("Masaüstü görevi güvenlik sınırına ulaştı; tamamlanmamış adımlar durduruldu.");
       }
+      case "open-file": {
+        const found = await searchUserFiles(intent.query, intent.location || "", { exactOnly: true });
+        if (found.length !== 1) {
+          if (found.length > 1) throw new Error("Aynı adlı birden fazla dosya bulundu; yanlış dosyayı açmamak için işlem durduruldu.");
+          const inaccessible = found.inaccessibleDirectories ? " (" + found.inaccessibleDirectories + " klasöre erişilemedi)" : "";
+          throw new Error("“" + intent.query + "” dosyası belirtilen konumda bulunamadı" + inaccessible + ".");
+        }
+        if (found[0].type !== "file") throw new Error("Belirtilen ad bir dosya değil, klasör.");
+        const openError = await shell.openPath(found[0].path);
+        if (openError) throw new Error("Dosya bulundu ancak açılamadı: " + openError);
+        return { message: "Dosya bulundu ve açıldı: " + found[0].name + "\\n" + found[0].path, path: found[0].path };
+      }
       case "search-files": {
         const found = await searchUserFiles(intent.query, intent.location || "");
         if (!found.length) {
