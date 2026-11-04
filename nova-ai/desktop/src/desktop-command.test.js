@@ -387,6 +387,41 @@ test("routes newly supported browser commands through desktop execution", async 
 });
 
 
+test("handles natural Chrome Google search commands without typing the instruction into search", () => {
+  const parsed = parseDesktopCommand("Chrome'da Google'ı aç ve Fenerbahçe haberlerini ara");
+  assert.equal(parsed.intent, "computer-control");
+  assert.equal(parsed.done, true);
+  assert.deepEqual(parsed.actions, [
+    { type: "open-url", app: "chrome", url: "https://www.google.com/search?q=Fenerbah%C3%A7e%20haberlerini" },
+    { type: "finish" }
+  ]);
+});
+
+test("opens YouTube in a new tab for the short natural Turkish command", () => {
+  const parsed = parseDesktopCommand("Yeni sekme aç ve YouTube'u");
+  assert.equal(parsed.intent, "computer-control");
+  assert.equal(parsed.done, true);
+  assert.deepEqual(parsed.actions, [
+    { type: "press-key", key: "CTRL+T" },
+    { type: "wait", ms: 350 },
+    { type: "open-url", app: "chrome", url: "https://www.youtube.com/" },
+    { type: "finish" }
+  ]);
+});
+
+test("inspects existing YouTube results for a request to open the first video", () => {
+  assert.deepEqual(parseDesktopCommand("YouTube'da ilk videoyu aç"), {
+    intent: "computer-control", done: false,
+    actions: [{ type: "inspect-screen" }]
+  });
+});
+
+test("routes an exact Desktop filename request to the safe open-file intent", () => {
+  assert.deepEqual(parseDesktopCommand("Masaüstümde 121.png dosyasını bul ve aç"), {
+    intent: "open-file", query: "121.png", location: "Desktop"
+  });
+});
+
 test("opens Google directly in a new Chrome tab instead of searching the command text", () => {
   for (const command of [
     "Yeni sekme aç ve Google'ı",
