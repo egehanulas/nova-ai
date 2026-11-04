@@ -79,7 +79,7 @@ test("preserves compressed screenshot payloads in structured desktop results", (
 
 test("uses a stable packaged resource path instead of a temporary PowerShell script", () => {
   const resourcesPath = "C:\\Program Files\\NOVA AI\\resources";
-  assert.equal(resolveComputerControlScriptPath(resourcesPath).endsWith("\\\\computer-control.ps1"), true);
+  assert.equal(resolveComputerControlScriptPath(resourcesPath).endsWith("\\computer-control.ps1"), true);
   assert.equal(resolveComputerControlScriptPath(""), resolveComputerControlScriptPath(undefined));
 });
 
