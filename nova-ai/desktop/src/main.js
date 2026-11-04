@@ -51,7 +51,7 @@ async function capturePrimaryScreen(result) {
     const primaryDisplay = screen.getPrimaryDisplay();
     const sources = await desktopCapturer.getSources({
       types: ["screen"],
-      thumbnailSize: { width: 1280, height: 900 },
+      thumbnailSize: { width: 960, height: 640 },
       fetchWindowIcons: false
     });
     const source = selectPrimaryScreenSource(sources, primaryDisplay.id);
