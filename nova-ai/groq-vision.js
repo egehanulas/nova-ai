@@ -31,7 +31,7 @@ function buildGroqVisionRequest({
       ]
     }],
     temperature: 0.2,
-    max_completion_tokens: 1200
+    max_completion_tokens: jsonMode ? 700 : 900
   };
   if (jsonMode) body.response_format = { type: "json_object" };
   return body;
