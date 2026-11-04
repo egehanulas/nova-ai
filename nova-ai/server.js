@@ -8,6 +8,7 @@ const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 const { researchWeb, hasRelevantTopicEvidence } = require("./web-research");
 const { normalizeDesktopIntent, enforceNoSend, enforceMessageSend } = require("./desktop-plan");
+const { buildScreenTextFallbackPrompt, buildTextOnlyDesktopFallbackInstruction } = require("./desktop-ai-fallback");
 
 let helmet;
 
@@ -3343,10 +3344,28 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
         screenshot,
         mimeType
       );
-      return res.json({ success: true, analysis: vision.answer, provider: vision.provider, model: vision.model });
-    } catch (error) {
-      console.error("[NOVA AI] Görsel ekran analizi başarısız:", error.message);
-      return res.status(503).json({ success: false, error: error.message || "Görsel ekran analizi şu anda kullanılamıyor." });
+      return res.json({ success: true, analysis: vision.answer, provider: vision.provider, model: vision.model, visualAnalysis: true });
+    } catch (visionError) {
+      console.warn("[NOVA AI] Gemini görsel analiz kullanılamadı; metin sağlayıcılarına geçiliyor:", visionError.message);
+      try {
+        const fallback = await generateAnswer(
+          [{ role: "user", content: buildScreenTextFallbackPrompt({ activeWindow, visibleItems }) }],
+          "Yalnızca erişilebilir arayüz bilgilerini değerlendir. Görseli görmediğini saklama ve eksik bilgileri uydurma."
+        );
+        return res.json({
+          success: true,
+          analysis: "Not: Görüntünün kendisi analiz edilemedi; aşağıdaki açıklama yalnızca erişilebilir pencere ve arayüz bilgilerinden oluşturuldu.\\n\\n" + fallback.answer,
+          provider: fallback.provider + "-text-fallback",
+          model: fallback.model,
+          visualAnalysis: false
+        });
+      } catch (fallbackError) {
+        console.error("[NOVA AI] Görsel ve metin yedek analizi başarısız:", fallbackError.message);
+        return res.status(503).json({
+          success: false,
+          error: "Gemini görsel kredisi kullanılamıyor ve yedek yapay zekâ sağlayıcılarından da yanıt alınamadı. Sağlayıcı ayarlarını/kredilerini kontrol et."
+        });
+      }
     }
   }
   const command = typeof req.body?.command === "string" ? req.body.command.trim().slice(0, 1200) : "";
@@ -3418,9 +3437,23 @@ app.post("/api/desktop/interpret", requireAuth, asyncRoute(async (req, res) => {
   ].join("\n");
 
   try {
-    const generated = latestScreenshot && GEMINI_API_KEY
-      ? await generateGeminiVisionAnswer(instruction, latestScreenshot, latestScreenshotMimeType)
-      : await generateAnswer([{ role: "user", content: "Bu masaüstü isteği için sıradaki güvenli eylem planını üret." }], instruction);
+    let generated;
+    if (latestScreenshot && GEMINI_API_KEY) {
+      try {
+        generated = await generateGeminiVisionAnswer(instruction, latestScreenshot, latestScreenshotMimeType);
+      } catch (visionError) {
+        console.warn("[NOVA AI] Masaüstü planında Gemini Vision kullanılamadı; metin sağlayıcılarına geçiliyor:", visionError.message);
+        generated = await generateAnswer(
+          [{ role: "user", content: "Bu masaüstü isteği için sıradaki güvenli eylem planını üret. Ekran görüntüsü analiz edilemiyor; yalnızca erişilebilir arayüz gözlemlerine dayan." }],
+          buildTextOnlyDesktopFallbackInstruction(instruction)
+        );
+      }
+    } else {
+      generated = await generateAnswer(
+        [{ role: "user", content: "Bu masaüstü isteği için sıradaki güvenli eylem planını üret." }],
+        instruction
+      );
+    }
     const raw = String(generated.answer || "").trim();
     const first = raw.indexOf("{");
     const last = raw.lastIndexOf("}");
