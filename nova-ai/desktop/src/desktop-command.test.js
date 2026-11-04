@@ -36,6 +36,20 @@ test("finds an exact named file in Desktop without asking the AI planner", () =>
   });
 });
 
+
+test("writes a Notepad preview without saving and without planner dependency", () => {
+  const parsed = parseDesktopCommand("Not Defteri'ni aç, içine NOVA Alpha 65 test başarılı yaz ve kaydetmeden önce bana göster");
+  assert.equal(parsed.intent, "computer-control");
+  assert.equal(parsed.done, true);
+  assert.equal(parsed.message, "Metin Not Defteri'ne yazıldı; dosya kaydedilmedi.");
+  assert.deepEqual(parsed.actions, [
+    { type: "open-app", app: "notepad" },
+    { type: "wait", ms: 900 },
+    { type: "type-text", text: "NOVA Alpha 65 test başarılı", processName: "notepad" },
+    { type: "finish" }
+  ]);
+});
+
 test("recognizes Windows Notepad as the explicit local Notepad app", () => {
   assert.deepEqual(parseDesktopCommand("Windows Not Defteri uygulamasını başlat"), {
     intent: "open-app", app: "notepad", label: "Not Defteri"
