@@ -89,6 +89,33 @@ export function parseDesktopCommand(input) {
   if (/^(?:açık pencereleri(?: listele| göster)?|şu anda açık olan pencereleri listele|açık olan uygulama pencerelerini listele|windows.?ta şu anda açık olan uygulama pencerelerinin listesini getir|hangi pencereler açık|açık uygulamaları(?: listele| göster)?|önde hangi pencere var)$/iu.test(text)) return { intent: "list-windows" };
   if (/^(?:ekranımı analiz et|ekranı analiz et|ekrandaki erişilebilir arayüz öğelerini listele|erişilebilir arayüz öğelerini listele|ekranda ne var|ekranımda ne görüyorsun|açık ekranı anlat|ekranı incele)(?:\s+(?:ve\s+)?(?:ne gördüğünü|ne olduğunu|neler olduğunu|gördüklerini)\s+(?:anlat|açıkla|söyle)|\s+(?:ve\s+)?(?:bana\s+)?(?:ekranı|görüntüyü)\s+(?:anlat|açıkla))?$/iu.test(text)) return { intent: "screen-summary" };
 
+  // Natural Turkish browser workflows are handled locally so their words never
+  // fall through into a browser search box or a generic chat response.
+  const chromeGoogleNaturalMatch = command.match(/^(?:chrome|google chrome)(?:['’](?:da|de)|da|de)\\s+google(?:['’](?:ı|i|yu|yü|a|e))?\\s+aç\\s+ve\\s+(.+?)\\s+(?:ara|bul)$/iu);
+  if (chromeGoogleNaturalMatch) return {
+    intent: "computer-control", done: true,
+    message: "Chrome'da Google araması açılıyor.",
+    actions: [{ type: "open-url", app: "chrome", url: "https://www.google.com/search?q=" + encodeURIComponent(chromeGoogleNaturalMatch[1].trim()) }, { type: "finish" }]
+  };
+
+  const youtubeNewTabNaturalMatch = command.match(/^(?:(?:chrome|google chrome)(?:['’](?:da|de)|da|de)\\s+)?yeni\\s+sekme(?:\\s+(?:aç|oluştur|olustur))?\\s+(?:ve\\s+)?youtube(?:['’](?:u|ü|yu|yü|a|ya))?(?:\\s+(?:aç|gir|git))?$/iu);
+  if (youtubeNewTabNaturalMatch) return {
+    intent: "computer-control", done: true,
+    message: "Yeni sekmede YouTube açılıyor.",
+    actions: [{ type: "press-key", key: "CTRL+T" }, { type: "wait", ms: 350 }, { type: "open-url", app: "chrome", url: "https://www.youtube.com/" }, { type: "finish" }]
+  };
+
+  const firstYoutubeVideoOnlyMatch = command.match(/^youtube(?:['’]da|da|de)\\s+ilk\\s+(?:çıkan\\s+)?videoyu\\s+(?:aç|oynat)$/iu);
+  if (firstYoutubeVideoOnlyMatch) return {
+    intent: "computer-control", done: false,
+    actions: [{ type: "inspect-screen" }]
+  };
+
+  const desktopFileOpenMatch = command.match(/^(?:masaüstümde|masaüstümdeki|masaüstündeki|desktop(?:\\s+klasörümde)?)\\s+(.+?)\\s+dosyasını\\s+bul\\s+ve\\s+aç$/iu);
+  if (desktopFileOpenMatch) return {
+    intent: "open-file", query: cleanTarget(desktopFileOpenMatch[1]), location: "Desktop"
+  };
+
   // Deterministic routes for common multi-step tasks; do not call the remote
   // planner just to open Chrome, search Google, or create a browser tab.
   const chromeGoogleSearchMatch = command.match(/^(?:google\s+)?chrome(?:['’](?:u|ı|yu|yü))?\s+aç\s+ve\s+google(?:['’]da|da|de)\s+(.+?)\s+(?:ara|bul)$/iu);
