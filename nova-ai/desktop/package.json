@@ -1,8 +1,8 @@
 {
   "name": "nova-desktop",
-  "version": "0.2.0-alpha.59",
+  "version": "0.2.0-alpha.60",
   "private": true,
-  "description": "NOVA AI Windows desktop application — Alpha 59 visual screen intelligence and reliable desktop control",
+  "description": "NOVA AI Windows desktop application — Alpha 60 hardened desktop control execution and expanded screen analysis",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
