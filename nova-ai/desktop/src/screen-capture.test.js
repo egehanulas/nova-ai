@@ -17,7 +17,7 @@ test("serializes a non-empty Electron screen thumbnail as JPEG", () => {
       isEmpty: () => false,
       getSize: () => ({ width: 1280, height: 720 }),
       toJPEG: (quality) => {
-        assert.equal(quality, 62);
+        assert.equal(quality, 50);
         return Buffer.from("nova-screen");
       }
     }
