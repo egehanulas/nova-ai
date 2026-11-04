@@ -231,7 +231,7 @@ export function parseDesktopCommand(input) {
     return { intent: "computer-control", done: true, message: "Sayfa kaydırılıyor.", actions: [{ type: "scroll", amount }, { type: "finish" }] };
   }
 
-  const appSequenceMatch = command.match(/^(?:(?:lütfen|önce)\s+)?(.+?)\s+aç\s*[,;]?\s*(?:ardından|daha sonra|sonra|ve)\s+(.+?)\s+aç(?:\s*[,;]?\s*(?:ardından|daha sonra|sonra|ve)\s+(.+?)\s+aç)?$/iu);
+  const appSequenceMatch = command.match(/^(?:(?:lütfen|önce)\\s+)?(.+?)\\s+aç\\s*[,;]?\\s*(?:ardından|daha sonra|sonra|ve(?:\\s+sonra)?)\\s+(.+?)\\s+aç(?:\\s*[,;]?\\s*(?:ardından|daha sonra|sonra|ve(?:\\s+sonra)?)\\s+(.+?)\\s+aç)?$/iu);
   if (appSequenceMatch) {
     const requestedApps = [appSequenceMatch[1], appSequenceMatch[2], appSequenceMatch[3]].filter(Boolean);
     const selectedApps = requestedApps.map((name) =>
