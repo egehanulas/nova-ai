@@ -102,7 +102,7 @@ export function parseDesktopCommand(input) {
   if (youtubeNewTabNaturalMatch) return {
     intent: "computer-control", done: true,
     message: "Yeni sekmede YouTube açılıyor.",
-    actions: [{ type: "press-key", key: "CTRL+T" }, { type: "wait", ms: 350 }, { type: "open-url", app: "chrome", url: "https://www.youtube.com/" }, { type: "finish" }]
+    actions: [{ type: "press-key", key: "CTRL+T" }, { type: "wait", ms: 300 }, { type: "open-url", app: "chrome", url: "https://www.youtube.com/" }, { type: "finish" }]
   };
 
   const firstYoutubeVideoOnlyMatch = command.match(/^youtube(?:['’]da|da|de)\s+ilk\s+(?:çıkan\s+)?videoyu\s+(?:aç|oynat)$/iu);
