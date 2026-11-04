@@ -18,7 +18,7 @@ export function serializeScreenThumbnail(source) {
       size.width < 1 || size.height < 1) {
     throw new Error("Electron ekran görüntüsü boyutları geçersiz.");
   }
-  const jpeg = thumbnail.toJPEG(62);
+  const jpeg = thumbnail.toJPEG(50);
   if (!jpeg || jpeg.length === 0) {
     throw new Error("Electron ekran görüntüsü JPEG biçimine dönüştürülemedi.");
   }
