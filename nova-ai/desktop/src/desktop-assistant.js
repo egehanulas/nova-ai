@@ -377,15 +377,15 @@ export function normalizeInstalledAppQuery(value) {
 }
 
 export function buildInstalledAppResolverScript() {
-  return String.raw\`$ErrorActionPreference = "Stop"
+  return String.raw`$ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $query = [string]$env:NOVA_APP_QUERY
 $normalizer = {
   param([string]$value)
   $decomposed = $value.Normalize([Text.NormalizationForm]::FormD)
-  $plain = [regex]::Replace($decomposed, '\\p{Mn}', '')
-  return (($plain.ToLowerInvariant() -replace 'ı', 'i') -replace '[^\\p{L}\\p{Nd}]', '')
+  $plain = [regex]::Replace($decomposed, '\p{Mn}', '')
+  return (($plain.ToLowerInvariant() -replace 'ı', 'i') -replace '[^\p{L}\p{Nd}]', '')
 }
 $queryKey = & $normalizer $query
 $explorer = Join-Path $env:WINDIR "explorer.exe"
@@ -396,7 +396,7 @@ try {
     exit 0
   }
   if ($queryKey -in @("taskmanager", "gorevyöneticisi", "gorevyoneticisi")) {
-    $taskManager = Join-Path $env:WINDIR "System32\\Taskmgr.exe"
+    $taskManager = Join-Path $env:WINDIR "System32\Taskmgr.exe"
     if (-not (Test-Path -LiteralPath $taskManager)) { throw "Görev Yöneticisi dosyası bulunamadı." }
     Start-Process -FilePath $taskManager
     [pscustomobject]@{ success = $true; name = "Görev Yöneticisi"; method = "system-executable" } | ConvertTo-Json -Compress
@@ -421,12 +421,12 @@ try {
   }
   if ($selectedApp) {
     $appId = [string]$selectedApp.AppID
-    if ($appId -match '^[A-Za-z0-9_.!+ -]+$' -and $appId -notmatch '[:\\\\/]') {
-      Start-Process -FilePath $explorer -ArgumentList @("shell:AppsFolder\\$appId")
+    if ($appId -match '^[A-Za-z0-9_.!+ -]+$' -and $appId -notmatch '[:\\/]') {
+      Start-Process -FilePath $explorer -ArgumentList @("shell:AppsFolder\$appId")
       [pscustomobject]@{ success = $true; name = [string]$selectedApp.Name; method = "start-apps" } | ConvertTo-Json -Compress
       exit 0
     }
-    if ($appId -match '^[A-Za-z]:\\\\' -and $appId -match '\\\\Start Menu\\\\Programs\\\\' -and (Test-Path -LiteralPath $appId)) {
+    if ($appId -match '^[A-Za-z]:\\' -and $appId -match '\\Start Menu\\Programs\\' -and (Test-Path -LiteralPath $appId)) {
       Start-Process -FilePath $explorer -ArgumentList @($appId)
       [pscustomobject]@{ success = $true; name = [string]$selectedApp.Name; method = "start-menu-path" } | ConvertTo-Json -Compress
       exit 0
@@ -435,8 +435,8 @@ try {
 
   # 2) Start Menu shortcuts: handles classic desktop applications missing from Get-StartApps.
   $shortcutRoots = @(
-    (Join-Path $env:APPDATA "Microsoft\\Windows\\Start Menu\\Programs"),
-    (Join-Path $env:ProgramData "Microsoft\\Windows\\Start Menu\\Programs")
+    (Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"),
+    (Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs")
   ) | Where-Object { Test-Path -LiteralPath $_ }
   $shortcuts = @()
   if ($shortcutRoots.Count -gt 0) {
@@ -461,11 +461,11 @@ try {
   }
 
   # 3) Registered executable paths, useful when an app has no Start Menu shortcut.
-  $exeName = if ($query -match '\\.exe$') { $query } else { $query + ".exe" }
+  $exeName = if ($query -match '\.exe$') { $query } else { $query + ".exe" }
   $registryRoots = @(
-    "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths",
-    "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths",
-    "HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\App Paths"
+    "HKCU:\Software\Microsoft\Windows\CurrentVersion\App Paths",
+    "HKLM:\Software\Microsoft\Windows\CurrentVersion\App Paths",
+    "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths"
   )
   foreach ($registryRoot in $registryRoots) {
     if (-not (Test-Path -LiteralPath $registryRoot)) { continue }
@@ -494,7 +494,7 @@ try {
 } catch {
   [Console]::Out.WriteLine((@{ success = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress))
   exit 1
-}\`;
+}`;
 }
 
 export function buildInstalledAppPowerShellArgs(script, systemRoot = process.env.SystemRoot || "C:\\Windows") {
