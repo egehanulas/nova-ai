@@ -128,7 +128,7 @@ test("desktop command parser routes common and arbitrary installed apps safely",
     intent: "open-installed-app", app: "Settings", label: "Windows Ayarları"
   });
   assert.deepEqual(parseDesktopCommand("Visual Studio Code'u aç"), {
-    intent: "open-installed-app", app: "Visual Studio Code"
+    intent: "open-installed-app", app: "Visual Studio Code", label: "Visual Studio Code"
   });
   assert.deepEqual(parseDesktopCommand("Görev Yöneticisi'ni aç"), {
     intent: "open-installed-app", app: "Task Manager", label: "Görev Yöneticisi"
