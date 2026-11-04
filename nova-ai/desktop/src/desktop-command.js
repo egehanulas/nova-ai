@@ -91,27 +91,27 @@ export function parseDesktopCommand(input) {
 
   // Natural Turkish browser workflows are handled locally so their words never
   // fall through into a browser search box or a generic chat response.
-  const chromeGoogleNaturalMatch = command.match(/^(?:chrome|google chrome)(?:['’](?:da|de)|da|de)\\s+google(?:['’](?:ı|i|yu|yü|a|e))?\\s+aç\\s+ve\\s+(.+?)\\s+(?:ara|bul)$/iu);
+  const chromeGoogleNaturalMatch = command.match(/^(?:chrome|google chrome)(?:['’](?:da|de)|da|de)\s+google(?:['’](?:ı|i|yu|yü|a|e))?\s+aç\s+ve\s+(.+?)\s+(?:ara|bul)$/iu);
   if (chromeGoogleNaturalMatch) return {
     intent: "computer-control", done: true,
     message: "Chrome'da Google araması açılıyor.",
     actions: [{ type: "open-url", app: "chrome", url: "https://www.google.com/search?q=" + encodeURIComponent(chromeGoogleNaturalMatch[1].trim()) }, { type: "finish" }]
   };
 
-  const youtubeNewTabNaturalMatch = command.match(/^(?:(?:chrome|google chrome)(?:['’](?:da|de)|da|de)\\s+)?yeni\\s+sekme(?:\\s+(?:aç|oluştur|olustur))?\\s+(?:ve\\s+)?youtube(?:['’](?:u|ü|yu|yü|a|ya))?(?:\\s+(?:aç|gir|git))?$/iu);
+  const youtubeNewTabNaturalMatch = command.match(/^(?:(?:chrome|google chrome)(?:['’](?:da|de)|da|de)\s+)?yeni\s+sekme(?:\s+(?:aç|oluştur|olustur))?\s+(?:ve\s+)?youtube(?:['’](?:u|ü|yu|yü|a|ya))?(?:\s+(?:aç|gir|git))?$/iu);
   if (youtubeNewTabNaturalMatch) return {
     intent: "computer-control", done: true,
     message: "Yeni sekmede YouTube açılıyor.",
     actions: [{ type: "press-key", key: "CTRL+T" }, { type: "wait", ms: 350 }, { type: "open-url", app: "chrome", url: "https://www.youtube.com/" }, { type: "finish" }]
   };
 
-  const firstYoutubeVideoOnlyMatch = command.match(/^youtube(?:['’]da|da|de)\\s+ilk\\s+(?:çıkan\\s+)?videoyu\\s+(?:aç|oynat)$/iu);
+  const firstYoutubeVideoOnlyMatch = command.match(/^youtube(?:['’]da|da|de)\s+ilk\s+(?:çıkan\s+)?videoyu\s+(?:aç|oynat)$/iu);
   if (firstYoutubeVideoOnlyMatch) return {
     intent: "computer-control", done: false,
     actions: [{ type: "inspect-screen" }]
   };
 
-  const desktopFileOpenMatch = command.match(/^(?:masaüstümde|masaüstümdeki|masaüstündeki|desktop(?:\\s+klasörümde)?)\\s+(.+?)\\s+dosyasını\\s+bul\\s+ve\\s+aç$/iu);
+  const desktopFileOpenMatch = command.match(/^(?:masaüstümde|masaüstümdeki|masaüstündeki|desktop(?:\s+klasörümde)?)\s+(.+?)\s+dosyasını\s+bul\s+ve\s+aç$/iu);
   if (desktopFileOpenMatch) return {
     intent: "open-file", query: cleanTarget(desktopFileOpenMatch[1]), location: "Desktop"
   };
