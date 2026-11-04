@@ -14,6 +14,7 @@ test("Groq vision request uses configured multimodal model and base64 image data
     model: "qwen/qwen3.8-27b"
   });
   assert.equal(body.model, "qwen/qwen3.8-27b");
+  assert.equal(body.max_completion_tokens, 900);
   assert.equal(body.messages[0].content[0].text, "Ekranı açıkla");
   assert.equal(
     body.messages[0].content[1].image_url.url,
@@ -24,6 +25,7 @@ test("Groq vision request uses configured multimodal model and base64 image data
 test("Groq vision planner can request JSON mode", () => {
   const body = buildGroqVisionRequest({ prompt: "JSON döndür", screenshot, jsonMode: true });
   assert.deepEqual(body.response_format, { type: "json_object" });
+  assert.equal(body.max_completion_tokens, 700);
 });
 
 test("Groq vision rejects invalid image payloads and MIME types", () => {
