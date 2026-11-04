@@ -1,10 +1,17 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT_PATH = fileURLToPath(new URL("./computer-control.ps1", import.meta.url));
+
+export function resolveComputerControlScriptPath(resourcesPath = process.resourcesPath) {
+  return resourcesPath ? path.join(resourcesPath, "computer-control.ps1") : SCRIPT_PATH;
+}
+
+export function isAntivirusScriptBlock(message) {
+  return /This script contains malicious content and has been blocked by your antivirus software|blocked by your antivirus software|AMSI.*blocked/i.test(String(message || ""));
+}
 const ALLOWED_TYPES = new Set([
   "inspect-screen", "list-windows", "system-info", "click-text", "focus-control", "type-text", "press-key",
   "click", "move-mouse", "scroll", "wait"
@@ -123,20 +130,15 @@ export async function runComputerAction(action) {
   validateComputerAction(action);
   if (process.platform !== "win32") throw new Error("Masaüstü kontrolü yalnızca Windows'ta kullanılabilir.");
   const payload = Buffer.from(JSON.stringify(action), "utf8").toString("base64");
-  // Electron ASAR paths are readable through Node, but PowerShell cannot open a
-  // script inside app.asar. Copy the bundled, trusted script to a private temp
-  // directory and invoke it by file path to avoid Windows command-line limits.
-  const script = await fs.readFile(SCRIPT_PATH, "utf8");
-  const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "nova-desktop-control-"));
-  const tempScriptPath = path.join(tempDirectory, "computer-control.ps1");
-  try {
-    // Windows PowerShell 5.1 otherwise treats UTF-8 without a BOM as the active ANSI code page.
-    await fs.writeFile(tempScriptPath, "\uFEFF" + script, { encoding: "utf8", mode: 0o600 });
-    const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
-    return await new Promise((resolve, reject) => {
+  // Keep the signed/packaged application resource at a stable install path.
+  // Running a bundled script directly avoids creating executable PowerShell files
+  // in a random temporary directory and does not weaken the machine execution policy.
+  const scriptPath = resolveComputerControlScriptPath();
+  await fs.access(scriptPath);
+  const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  return await new Promise((resolve, reject) => {
     const child = spawn(powershell, [
-      "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-      "-STA", "-File", tempScriptPath
+      "-NoLogo", "-NoProfile", "-NonInteractive", "-STA", "-File", scriptPath
     ], {
       windowsHide: true,
       env: { ...process.env, NOVA_CONTROL_PAYLOAD: payload },
@@ -167,7 +169,11 @@ export async function runComputerAction(action) {
           stdout.trim() ? "PowerShell stdout: " + stdout.trim().slice(-1200) : "",
           "PowerShell çıkış kodu: " + code
         ].filter(Boolean).join(" | ");
-        finish(reject, new Error(error.message + (diagnostic ? " | " + diagnostic : "")));
+        const fullDiagnostic = error.message + (diagnostic ? " | " + diagnostic : "");
+        const message = isAntivirusScriptBlock(fullDiagnostic)
+          ? "Windows Güvenliği NOVA masaüstü kontrol betiğini engelledi. Koruma kapatılmadı ve engel aşılmadı. Windows Güvenliği > Virüs ve tehdit koruması > Koruma geçmişi bölümündeki algılama adını kontrol edin; bu bilgi olmadan güvenli bir düzeltme doğrulanamaz."
+          : fullDiagnostic;
+        finish(reject, new Error(message));
         return;
       }
       if (!result.success) {
@@ -185,8 +191,5 @@ export async function runComputerAction(action) {
       finish(reject, new Error("Windows masaüstü işlemi 45 saniyede tamamlanamadı; takılan işlem sonlandırıldı."));
     }, 45_000);
     timeout.unref?.();
-    });
-  } finally {
-    await fs.rm(tempDirectory, { recursive: true, force: true }).catch(() => {});
-  }
+  });
 }
