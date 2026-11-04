@@ -2,7 +2,7 @@
   "name": "nova-desktop",
   "version": "0.2.0-alpha.65",
   "private": true,
-  "description": "NOVA AI Windows desktop — Alpha 65 automatic desktop command routing and expanded regression coverage",
+  "description": "NOVA AI Windows desktop — Alpha 65 automatic command routing, Turkish intent coverage, regression-tested release",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
