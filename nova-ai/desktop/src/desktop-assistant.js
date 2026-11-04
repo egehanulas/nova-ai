@@ -376,67 +376,185 @@ export function normalizeInstalledAppQuery(value) {
   return query;
 }
 
+export function buildInstalledAppResolverScript() {
+  return String.raw\`$ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$query = [string]$env:NOVA_APP_QUERY
+$normalizer = {
+  param([string]$value)
+  $decomposed = $value.Normalize([Text.NormalizationForm]::FormD)
+  $plain = [regex]::Replace($decomposed, '\\p{Mn}', '')
+  return (($plain.ToLowerInvariant() -replace 'ı', 'i') -replace '[^\\p{L}\\p{Nd}]', '')
+}
+$queryKey = & $normalizer $query
+$explorer = Join-Path $env:WINDIR "explorer.exe"
+try {
+  if ($queryKey -in @("settings", "windowssettings", "ayarlar", "windowsayarlari")) {
+    Start-Process -FilePath $explorer -ArgumentList @("ms-settings:")
+    [pscustomobject]@{ success = $true; name = "Windows Ayarları"; method = "settings-uri" } | ConvertTo-Json -Compress
+    exit 0
+  }
+  if ($queryKey -in @("taskmanager", "gorevyöneticisi", "gorevyoneticisi")) {
+    $taskManager = Join-Path $env:WINDIR "System32\\Taskmgr.exe"
+    if (-not (Test-Path -LiteralPath $taskManager)) { throw "Görev Yöneticisi dosyası bulunamadı." }
+    Start-Process -FilePath $taskManager
+    [pscustomobject]@{ success = $true; name = "Görev Yöneticisi"; method = "system-executable" } | ConvertTo-Json -Compress
+    exit 0
+  }
+
+  # 1) Windows Start Apps catalog: best source for packaged/UWP apps.
+  $startApps = @()
+  try { $startApps = @(Get-StartApps -ErrorAction Stop) } catch {}
+  $exactApps = @($startApps | Where-Object { (& $normalizer ([string]$_.Name)) -eq $queryKey })
+  if ($exactApps.Count -gt 1) { throw ("Uygulama adı birden fazla eşleşti: " + ((@($exactApps | Select-Object -First 8 -ExpandProperty Name)) -join ", ")) }
+  $selectedApp = if ($exactApps.Count -eq 1) { $exactApps[0] } else { $null }
+  if (-not $selectedApp -and $queryKey.Length -ge 3) {
+    $nearApps = @($startApps | Where-Object {
+      $candidateKey = & $normalizer ([string]$_.Name)
+      $candidateKey.StartsWith($queryKey) -or $candidateKey.Contains($queryKey)
+    })
+    if ($nearApps.Count -gt 1) {
+      throw ("Birden fazla uygulama eşleşti: " + ((@($nearApps | Select-Object -First 8 -ExpandProperty Name)) -join ", "))
+    }
+    if ($nearApps.Count -eq 1) { $selectedApp = $nearApps[0] }
+  }
+  if ($selectedApp) {
+    $appId = [string]$selectedApp.AppID
+    if ($appId -match '^[A-Za-z0-9_.!+ -]+$' -and $appId -notmatch '[:\\\\/]') {
+      Start-Process -FilePath $explorer -ArgumentList @("shell:AppsFolder\\$appId")
+      [pscustomobject]@{ success = $true; name = [string]$selectedApp.Name; method = "start-apps" } | ConvertTo-Json -Compress
+      exit 0
+    }
+    if ($appId -match '^[A-Za-z]:\\\\' -and $appId -match '\\\\Start Menu\\\\Programs\\\\' -and (Test-Path -LiteralPath $appId)) {
+      Start-Process -FilePath $explorer -ArgumentList @($appId)
+      [pscustomobject]@{ success = $true; name = [string]$selectedApp.Name; method = "start-menu-path" } | ConvertTo-Json -Compress
+      exit 0
+    }
+  }
+
+  # 2) Start Menu shortcuts: handles classic desktop applications missing from Get-StartApps.
+  $shortcutRoots = @(
+    (Join-Path $env:APPDATA "Microsoft\\Windows\\Start Menu\\Programs"),
+    (Join-Path $env:ProgramData "Microsoft\\Windows\\Start Menu\\Programs")
+  ) | Where-Object { Test-Path -LiteralPath $_ }
+  $shortcuts = @()
+  if ($shortcutRoots.Count -gt 0) {
+    $shortcuts = @(Get-ChildItem -Path $shortcutRoots -Filter "*.lnk" -File -Recurse -ErrorAction SilentlyContinue)
+  }
+  $exactShortcuts = @($shortcuts | Where-Object { (& $normalizer ([IO.Path]::GetFileNameWithoutExtension($_.Name))) -eq $queryKey })
+  $selectedShortcut = if ($exactShortcuts.Count -gt 0) { $exactShortcuts[0] } else { $null }
+  if (-not $selectedShortcut -and $queryKey.Length -ge 3) {
+    $nearShortcuts = @($shortcuts | Where-Object {
+      $candidateKey = & $normalizer ([IO.Path]::GetFileNameWithoutExtension($_.Name))
+      $candidateKey.StartsWith($queryKey) -or $candidateKey.Contains($queryKey)
+    })
+    if ($nearShortcuts.Count -gt 1) {
+      throw ("Birden fazla Başlat menüsü kısayolu eşleşti: " + ((@($nearShortcuts | Select-Object -First 8 -ExpandProperty Name)) -join ", "))
+    }
+    if ($nearShortcuts.Count -eq 1) { $selectedShortcut = $nearShortcuts[0] }
+  }
+  if ($selectedShortcut) {
+    Start-Process -FilePath $explorer -ArgumentList @($selectedShortcut.FullName)
+    [pscustomobject]@{ success = $true; name = [IO.Path]::GetFileNameWithoutExtension($selectedShortcut.Name); method = "start-menu-shortcut" } | ConvertTo-Json -Compress
+    exit 0
+  }
+
+  # 3) Registered executable paths, useful when an app has no Start Menu shortcut.
+  $exeName = if ($query -match '\\.exe$') { $query } else { $query + ".exe" }
+  $registryRoots = @(
+    "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths",
+    "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths",
+    "HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\App Paths"
+  )
+  foreach ($registryRoot in $registryRoots) {
+    if (-not (Test-Path -LiteralPath $registryRoot)) { continue }
+    $registered = @(Get-ChildItem -LiteralPath $registryRoot -ErrorAction SilentlyContinue |
+      Where-Object { (& $normalizer ([string]$_.PSChildName)) -eq (& $normalizer $exeName) })
+    if ($registered.Count -gt 0) {
+      $registeredPath = [string](Get-Item -LiteralPath $registered[0].PSPath).GetValue("")
+      if ($registeredPath -match '^"([^"]+)"') { $registeredPath = $Matches[1] }
+      if (Test-Path -LiteralPath $registeredPath -PathType Leaf) {
+        Start-Process -FilePath $registeredPath
+        [pscustomobject]@{ success = $true; name = $query; method = "app-paths-registry" } | ConvertTo-Json -Compress
+        exit 0
+      }
+    }
+  }
+
+  # 4) PATH applications, using Get-Command without shell interpolation.
+  $pathCommand = Get-Command -Name $exeName -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($pathCommand -and (Test-Path -LiteralPath $pathCommand.Source -PathType Leaf)) {
+    Start-Process -FilePath $pathCommand.Source
+    [pscustomobject]@{ success = $true; name = $query; method = "path-executable" } | ConvertTo-Json -Compress
+    exit 0
+  }
+
+  throw ("Uygulama yüklü uygulamalar, Başlat menüsü kısayolları, kayıtlı uygulama yolları veya PATH içinde bulunamadı: " + $query)
+} catch {
+  [Console]::Out.WriteLine((@{ success = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress))
+  exit 1
+}\`;
+}
+
+export function buildInstalledAppPowerShellArgs(script, systemRoot = process.env.SystemRoot || "C:\\Windows") {
+  const encodedScript = Buffer.from(String(script), "utf16le").toString("base64");
+  const powershell = path.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  return {
+    command: powershell,
+    args: ["-NoLogo", "-NoProfile", "-NonInteractive", "-STA", "-EncodedCommand", encodedScript]
+  };
+}
+
 export async function openInstalledApp(appName) {
   const query = normalizeInstalledAppQuery(appName);
   if (process.platform !== "win32") throw new Error("Yüklü uygulama keşfi yalnızca Windows üzerinde kullanılabilir.");
-  const script = [
-    '$ErrorActionPreference = "Stop"',
-    '$ProgressPreference = "SilentlyContinue"',
-    '[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)',
-    '$query = [string]$env:NOVA_APP_QUERY',
-    'try {',
-    '  if ($query -ieq "Settings" -or $query -ieq "Windows Settings") {',
-    '    Start-Process -FilePath (Join-Path $env:WINDIR "explorer.exe") -ArgumentList @("ms-settings:")',
-    '    [pscustomobject]@{ success = $true; name = "Windows Ayarları" } | ConvertTo-Json -Compress',
-    '    exit 0',
-    '  }',
-    '  if ($query -ieq "Task Manager") {',
-    '    Start-Process -FilePath (Join-Path $env:WINDIR "System32\\Taskmgr.exe")',
-    '    [pscustomobject]@{ success = $true; name = "Görev Yöneticisi" } | ConvertTo-Json -Compress',
-    '    exit 0',
-    '  }',
-    '  $apps = @(Get-StartApps)',
-    '$exact = @($apps | Where-Object { [string]$_.Name -ieq $query })',
-    'if ($exact.Count -gt 1) { throw "Bu isimde birden fazla uygulama bulundu." }',
-    'if ($exact.Count -eq 1) { $selected = $exact[0] } else {',
-    '  $matches = @($apps | Where-Object { ([string]$_.Name).IndexOf($query, [System.StringComparison]::OrdinalIgnoreCase) -ge 0 })',
-    '  if ($matches.Count -eq 0) { throw "Başlat menüsünde belirtilen uygulama bulunamadı." }',
-    '  if ($matches.Count -gt 1) { throw ("Birden fazla uygulama eşleşti: " + ((@($matches | Select-Object -First 8 -ExpandProperty Name)) -join ", ")) }',
-    '  $selected = $matches[0]',
-    '}',
-    '$appId = [string]$selected.AppID',
-    'if ($appId -match "^[A-Za-z0-9_.!+ -]+$" -and $appId -notmatch "[:\\\\/]") {',
-    '  Start-Process -FilePath "$env:WINDIR\\explorer.exe" -ArgumentList @("shell:AppsFolder\\$appId")',
-    '} elseif ($appId -match "^[A-Za-z]:\\\\" -and $appId -match "\\\\Start Menu\\\\Programs\\\\" -and (Test-Path -LiteralPath $appId)) {',
-    '  Start-Process -FilePath $appId',
-    '} else { throw "Uygulamanın Başlat menüsü kaydı güvenli biçimde açılamadı." }',
-    '  [pscustomobject]@{ success = $true; name = [string]$selected.Name } | ConvertTo-Json -Compress',
-    '} catch {',
-    '  [Console]::Out.WriteLine((@{ success = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress))',
-    '  exit 1',
-    '}'
-  ].join("\n");
-  const encodedScript = Buffer.from(script, "utf16le").toString("base64");
-  const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  const { command: powershell, args } = buildInstalledAppPowerShellArgs(buildInstalledAppResolverScript());
   return await new Promise((resolve, reject) => {
-    const child = spawn(powershell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encodedScript], {
-      windowsHide: true, env: { ...process.env, NOVA_APP_QUERY: query }, stdio: ["ignore", "pipe", "pipe"]
+    const child = spawn(powershell, args, {
+      windowsHide: true,
+      env: { ...process.env, NOVA_APP_QUERY: query },
+      stdio: ["ignore", "pipe", "pipe"]
     });
-    let stdout = ""; let stderr = ""; let settled = false; let timeout;
-    const finish = (callback, value) => { if (settled) return; settled = true; if (timeout) clearTimeout(timeout); callback(value); };
-    child.stdout.setEncoding("utf8"); child.stderr.setEncoding("utf8");
-    child.stdout.on("data", chunk => { stdout = (stdout + chunk).slice(-12000); });
-    child.stderr.on("data", chunk => { stderr = (stderr + chunk).slice(-4000); });
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+    let timeout;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      callback(value);
+    };
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", chunk => { stdout = (stdout + chunk).slice(-16000); });
+    child.stderr.on("data", chunk => { stderr = (stderr + chunk).slice(-5000); });
     child.once("error", error => finish(reject, new Error("Uygulama araması başlatılamadı: " + error.message)));
     child.once("close", code => {
       if (settled) return;
-      const lines = stdout.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      const lines = stdout.split(/\\r?\\n/).map(line => line.trim()).filter(Boolean);
       let result = null;
-      for (let index = lines.length - 1; index >= 0; index -= 1) { try { result = JSON.parse(lines[index]); break; } catch {} }
-      if (code !== 0 || !result?.success) { finish(reject, new Error(result?.error || stderr.trim() || "Uygulama başlatılamadı. Başlat menüsündeki uygulama adını kontrol et.")); return; }
-      finish(resolve, { message: result.name + " uygulaması açılıyor.", app: result.name });
+      for (let index = lines.length - 1; index >= 0; index -= 1) {
+        try {
+          const candidate = JSON.parse(lines[index]);
+          if (candidate && typeof candidate === "object") { result = candidate; break; }
+        } catch {}
+      }
+      if (code !== 0 || !result?.success) {
+        finish(reject, new Error(result?.error || stderr.trim() || "Uygulama başlatılamadı; uygulama adı ve kurulum kaydı kontrol edilmeli."));
+        return;
+      }
+      finish(resolve, {
+        message: result.name + " uygulaması için başlatma isteği Windows'a iletildi.",
+        app: result.name,
+        launchMethod: result.method || "windows-shell"
+      });
     });
-    timeout = setTimeout(() => { try { child.kill(); } catch {} finish(reject, new Error("Uygulama araması 20 saniyede tamamlanamadı; işlem durduruldu.")); }, 20000);
+    timeout = setTimeout(() => {
+      try { child.kill(); } catch {}
+      finish(reject, new Error("Uygulama araması 20 saniyede tamamlanamadı; işlem durduruldu."));
+    }, 20000);
     timeout.unref?.();
   });
 }
