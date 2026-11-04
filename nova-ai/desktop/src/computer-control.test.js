@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import path from "node:path";
 import { isAntivirusScriptBlock, parseComputerControlOutput, resolveComputerControlScriptPath, validateComputerAction } from "./computer-control.js";
 
 test("validates absolute and relative mouse movement actions", () => {
@@ -78,7 +79,8 @@ test("preserves compressed screenshot payloads in structured desktop results", (
 
 
 test("uses a stable packaged resource path instead of a temporary PowerShell script", () => {
-  assert.equal(resolveComputerControlScriptPath("C:\\\\Program Files\\\\NOVA AI\\\\resources"), "C:\\\\Program Files\\\\NOVA AI\\\\resources\\\\computer-control.ps1");
+  const resourcesPath = "C:\\Program Files\\NOVA AI\\resources";
+  assert.equal(resolveComputerControlScriptPath(resourcesPath), path.join(resourcesPath, "computer-control.ps1"));
   assert.equal(resolveComputerControlScriptPath(""), resolveComputerControlScriptPath(undefined));
 });
 
