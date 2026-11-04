@@ -148,6 +148,26 @@ public static class NovaDesktopInput {
           }
         } catch {}
       }
+      # Discord and some Chromium/Electron composers expose their editable
+      # message surface as a UIA Document rather than an Edit control.
+      # Only use this fallback when there is exactly one visible, enabled,
+      # keyboard-focusable Document; never guess between multiple candidates.
+      if ($matches.Count -eq 0 -and $controlType -eq "Edit") {
+        $documentMatches = @()
+        for ($i = 0; $i -lt $limit; $i++) {
+          $element = $all.Item($i)
+          try {
+            $current = $element.Current
+            $type = $current.ControlType.ProgrammaticName.Replace("ControlType.", "")
+            if (-not $current.IsOffscreen -and $current.IsEnabled -and $type -eq "Document" -and $current.IsKeyboardFocusable) {
+              $nameMatches = (-not $action.name) -or ([string]$current.Name -eq [string]$action.name)
+              $idMatches = (-not $action.automationId) -or ([string]$current.AutomationId -eq [string]$action.automationId)
+              if ($nameMatches -and $idMatches) { $documentMatches += $element }
+            }
+          } catch {}
+        }
+        if ($documentMatches.Count -eq 1) { $matches = @($documentMatches[0]) }
+      }
       if ($matches.Count -ne 1) { throw "Odaklanılacak $controlType denetimi tekil olarak belirlenemedi ($($matches.Count) eşleşme)." }
       $matches[0].SetFocus()
       $result.message = "$controlType denetimine odaklanıldı."
