@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseComputerControlOutput, validateComputerAction } from "./computer-control.js";
+import { isAntivirusScriptBlock, parseComputerControlOutput, resolveComputerControlScriptPath, validateComputerAction } from "./computer-control.js";
 
 test("validates absolute and relative mouse movement actions", () => {
   assert.doesNotThrow(() => validateComputerAction({ type: "move-mouse", x: 300, y: 250 }));
@@ -74,4 +74,15 @@ test("preserves compressed screenshot payloads in structured desktop results", (
   assert.equal(parsed.screenshot, screenshot);
   assert.equal(parsed.screenshotMimeType, "image/jpeg");
   assert.equal(parsed.screenshotWidth, 1280);
+});
+
+
+test("uses a stable packaged resource path instead of a temporary PowerShell script", () => {
+  assert.equal(resolveComputerControlScriptPath("C:\\\\Program Files\\\\NOVA AI\\\\resources"), "C:\\\\Program Files\\\\NOVA AI\\\\resources\\\\computer-control.ps1");
+  assert.equal(resolveComputerControlScriptPath(""), resolveComputerControlScriptPath(undefined));
+});
+
+test("recognizes antivirus script blocking without treating it as a successful desktop action", () => {
+  assert.equal(isAntivirusScriptBlock("This script contains malicious content and has been blocked by your antivirus software."), true);
+  assert.equal(isAntivirusScriptBlock("UI Automation access denied"), false);
 });
