@@ -11,6 +11,16 @@ test("recognizes Windows Notepad as the explicit local Notepad app", () => {
   });
 });
 
+test("routes natural screen-analysis requests with a follow-up phrase to screen summary", () => {
+  for (const command of [
+    "Ekranımı analiz et",
+    "Ekranımı analiz et ve ne gördüğünü anlat",
+    "Ekranı analiz et ve bana görüntüyü açıkla"
+  ]) {
+    assert.deepEqual(parseDesktopCommand(command), { intent: "screen-summary" });
+  }
+});
+
 test("recognizes common Turkish system information requests locally", () => {
   assert.deepEqual(parseDesktopCommand("Bilgisayarımın CPU, RAM ve pil durumunu göster"), {
     intent: "computer-info"
