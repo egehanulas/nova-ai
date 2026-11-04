@@ -1,6 +1,7 @@
 export default {
   packagerConfig: {
     asar: true,
+    extraResource: ["src/computer-control.ps1"],
     executableName: "NOVA AI"
   },
   rebuildConfig: {},
