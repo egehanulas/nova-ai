@@ -7,6 +7,8 @@ import {
   Notification,
   globalShortcut,
   nativeImage,
+  desktopCapturer,
+  screen,
   dialog,
   shell,
   session,
@@ -19,6 +21,7 @@ import path from "node:path";
 import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, openUserPath, resolveUserFileForTrash, createUserFolder, moveUserFile, configureComputerFileAccess, discoverDriveRoots, getUserFolderPath, resolveUserFolder, launchSteamGame, searchSpotify, openSpotify, openInstalledApp, launchDownloadedInstaller } from "./desktop-assistant.js";
 import { parseDesktopCommand } from "./desktop-command.js";
 import { runComputerAction } from "./computer-control.js";
+import { selectPrimaryScreenSource, serializeScreenThumbnail } from "./screen-capture.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
 
 const NOVA_URL = "https://nova-ai-xxid.onrender.com/";
@@ -42,6 +45,27 @@ let updateCheckTimeout;
 let updateDownloadTimeout;
 let updateRetryScheduler;
 let lastUpdateStatus = "idle";
+
+async function capturePrimaryScreen(result) {
+  try {
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const sources = await desktopCapturer.getSources({
+      types: ["screen"],
+      thumbnailSize: { width: 1280, height: 900 },
+      fetchWindowIcons: false
+    });
+    const source = selectPrimaryScreenSource(sources, primaryDisplay.id);
+    if (!source) {
+      return { ...result, screenshotError: "Birincil ekran görüntüsü kaynağı bulunamadı." };
+    }
+    return { ...result, ...serializeScreenThumbnail(source) };
+  } catch (error) {
+    return {
+      ...result,
+      screenshotError: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
 
 function openExternal(value) {
   let url;
@@ -467,7 +491,7 @@ function registerDesktopAssistantIpc() {
           : "Başlık bilgisi okunabilen açık uygulama penceresi bulunamadı." };
       }
       case "screen-summary": {
-        const result = await runComputerAction({ type: "inspect-screen" });
+        const result = await capturePrimaryScreen(await runComputerAction({ type: "inspect-screen" }));
         const items = Array.isArray(result.items) ? result.items : [];
         if (result.screenshot && accessToken) {
           const approval = await dialog.showMessageBox(parent, {
@@ -613,6 +637,7 @@ function registerDesktopAssistantIpc() {
                 reportProgress("retrying", "Ekran okuma başarısız oldu; güvenli okuma işlemi bir kez yeniden deneniyor.", completed + 1, 0);
                 result = await runComputerAction(action);
               }
+              result = await capturePrimaryScreen(result);
               observations.push({ activeWindow: result.activeWindow || "", items: result.items || [], screenshot: typeof result.screenshot === "string" ? result.screenshot : "", screenshotMimeType: result.screenshotMimeType || "image/jpeg" });
               reportProgress("planning", "Ekran okundu; NOVA sonraki adımı belirliyor.", completed, 0);
               try {
