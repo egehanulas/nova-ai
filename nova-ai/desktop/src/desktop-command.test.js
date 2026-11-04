@@ -2,6 +2,40 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { parseDesktopCommand } from "./desktop-command.js";
 
+
+test("routes Chrome plus Google search as a deterministic local sequence", () => {
+  const parsed = parseDesktopCommand("Chrome'u aç ve Google'da GTA 6 çıkış tarihini ara");
+  assert.equal(parsed.intent, "computer-control");
+  assert.deepEqual(parsed.actions.map(a => a.type), ["open-app", "wait", "open-url", "finish"]);
+  assert.equal(parsed.actions[2].app, "chrome");
+  assert.equal(parsed.actions[2].url, "https://www.google.com/search?q=" + encodeURIComponent("GTA 6 çıkış tarihini"));
+});
+
+test("routes Chrome new tab and YouTube navigation without the AI planner", () => {
+  const parsed = parseDesktopCommand("Chrome'da yeni sekme oluştur ve YouTube'a gir");
+  assert.equal(parsed.intent, "computer-control");
+  assert.deepEqual(parsed.actions, [
+    { type: "press-key", key: "CTRL+T" },
+    { type: "wait", ms: 300 },
+    { type: "open-url", app: "chrome", url: "https://www.youtube.com/" },
+    { type: "finish" }
+  ]);
+});
+
+test("routes YouTube first-video selection through screen inspection after search", () => {
+  const parsed = parseDesktopCommand("YouTube'da Fenerbahçe maç özeti ara ve ilk videoyu aç");
+  assert.equal(parsed.intent, "computer-control");
+  assert.equal(parsed.actions[0].type, "open-url");
+  assert.match(parsed.actions[0].url, /youtube\\.com\\/results\\?search_query=/);
+  assert.equal(parsed.actions.at(-1).type, "inspect-screen");
+});
+
+test("finds an exact named file in Desktop without asking the AI planner", () => {
+  assert.deepEqual(parseDesktopCommand("Masaüstümde 121.png dosyasını bul ve konumunu söyle"), {
+    intent: "search-files", query: "121.png", location: "Desktop"
+  });
+});
+
 test("recognizes Windows Notepad as the explicit local Notepad app", () => {
   assert.deepEqual(parseDesktopCommand("Windows Not Defteri uygulamasını başlat"), {
     intent: "open-app", app: "notepad", label: "Not Defteri"
