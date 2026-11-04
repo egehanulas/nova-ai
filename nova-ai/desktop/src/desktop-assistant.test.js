@@ -81,6 +81,13 @@ test("installed app resolver searches Start Apps, Start Menu shortcuts, App Path
   assert.match(script, /OrdinalIgnoreCase|ToLowerInvariant/);
 });
 
+test("Windows Security uses its registered system URI instead of Start Menu search", () => {
+  const script = buildInstalledAppResolverScript();
+  assert.match(script, /windowsdefender:/);
+  assert.match(script, /windowssecurity/);
+  assert.match(script, /windowsdefender-uri/);
+});
+
 test("installed app resolver never bypasses PowerShell execution policy", () => {
   const script = buildInstalledAppResolverScript();
   const invocation = buildInstalledAppPowerShellArgs(script, "C:\\Windows");
