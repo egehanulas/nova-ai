@@ -122,6 +122,31 @@ test("desktop command parser routes common and arbitrary installed apps safely",
   });
 });
 
+test("desktop parser recognizes additional installed apps and Turkish suffixes", () => {
+  const cases = [
+    ["VS Code'u aç", "Visual Studio Code"],
+    ["Microsoft Store'u aç", "Microsoft Store"],
+    ["Xbox'ı aç", "Xbox"],
+    ["NVIDIA App'i aç", "NVIDIA App"],
+    ["SteelSeries GG'yi aç", "SteelSeries GG"],
+    ["Epic Games Launcher'ı aç", "Epic Games Launcher"],
+    ["EA App'i aç", "EA app"],
+    ["Ubisoft Connect'i aç", "Ubisoft Connect"],
+    ["Riot Client'ı aç", "Riot Client"],
+    ["Battle.net'i aç", "Battle.net"],
+    ["VLC'yi aç", "VLC"],
+    ["OBS Studio'yu aç", "OBS Studio"],
+    ["Notepad++'ı aç", "Notepad++"],
+    ["7-Zip'i aç", "7-Zip"],
+    ["Windows Güvenliği'ni aç", "Windows Security"]
+  ];
+  for (const [command, app] of cases) {
+    const intent = parseDesktopCommand(command);
+    assert.equal(intent.intent, "open-installed-app", command);
+    assert.equal(intent.app, app, command);
+  }
+});
+
 test("desktop parser handles Turkish Settings inflections, YouTube search, file overview and mouse motion", () => {
   assert.deepEqual(parseDesktopCommand("Windows ayarlarını aç"), {
     intent: "open-installed-app", app: "Settings", label: "Windows Ayarları"
