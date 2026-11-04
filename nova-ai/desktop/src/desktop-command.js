@@ -91,7 +91,7 @@ export function parseDesktopCommand(input) {
 
   // Deterministic routes for common multi-step tasks; do not call the remote
   // planner just to open Chrome, search Google, or create a browser tab.
-  const chromeGoogleSearchMatch = command.match(/^(?:google\\s+)?chrome(?:['’](?:u|ı|yu|yü))?\\s+aç\\s+ve\\s+google(?:['’]da|da|de)\\s+(.+?)\\s+(?:ara|bul)$/iu);
+  const chromeGoogleSearchMatch = command.match(/^(?:google\s+)?chrome(?:['’](?:u|ı|yu|yü))?\s+aç\s+ve\s+google(?:['’]da|da|de)\s+(.+?)\s+(?:ara|bul)$/iu);
   if (chromeGoogleSearchMatch) return {
     intent: "computer-control", done: true,
     message: "Chrome açıldı ve Google araması başlatıldı.",
@@ -103,7 +103,7 @@ export function parseDesktopCommand(input) {
     ]
   };
 
-  const chromeNewTabMatch = command.match(/^(?:google\\s+)?chrome(?:['’](?:da|de)|da|de)\\s+yeni\\s+sekme(?:\\s+(?:oluştur|olustur|aç))?\\s+ve\\s+(?:youtube(?:['’]a|a)|youtube\\.com)\\s+(?:gir|aç)$/iu);
+  const chromeNewTabMatch = command.match(/^(?:google\s+)?chrome(?:['’](?:da|de)|da|de)\s+yeni\s+sekme(?:\s+(?:oluştur|olustur|aç))?\s+ve\s+(?:youtube(?:['’]a|a)|youtube\.com)\s+(?:gir|aç)$/iu);
   if (chromeNewTabMatch) return {
     intent: "computer-control", done: true,
     message: "Chrome'da yeni sekme açıldı ve YouTube'a gidildi.",
@@ -115,7 +115,7 @@ export function parseDesktopCommand(input) {
     ]
   };
 
-  const firstYoutubeVideoMatch = command.match(/^youtube(?:['’]da|da|de)\\s+(.+?)\\s+ara\\s+ve\\s+ilk\\s+(?:çıkan\\s+)?videoyu\\s+(?:aç|oynat)$/iu);
+  const firstYoutubeVideoMatch = command.match(/^youtube(?:['’]da|da|de)\s+(.+?)\s+ara\s+ve\s+ilk\s+(?:çıkan\s+)?videoyu\s+(?:aç|oynat)$/iu);
   if (firstYoutubeVideoMatch) return {
     intent: "computer-control", done: false,
     actions: [
@@ -125,7 +125,7 @@ export function parseDesktopCommand(input) {
     ]
   };
 
-  const desktopFileFindMatch = command.match(/^(?:masaüstümde|masaüstümdeki|masaüstündeki|desktop(?:\\s+klasörümde)?)\\s+(.+?)\\s+dosyasını\\s+bul(?:\\s+ve\\s+(?:konumunu\\s+)?(?:söyle|göster))?$/iu);
+  const desktopFileFindMatch = command.match(/^(?:masaüstümde|masaüstümdeki|masaüstündeki|desktop(?:\s+klasörümde)?)\s+(.+?)\s+dosyasını\s+bul(?:\s+ve\s+(?:konumunu\s+)?(?:söyle|göster))?$/iu);
   if (desktopFileFindMatch) return {
     intent: "search-files",
     query: cleanTarget(desktopFileFindMatch[1]),
