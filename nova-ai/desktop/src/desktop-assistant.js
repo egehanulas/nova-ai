@@ -390,6 +390,11 @@ $normalizer = {
 $queryKey = & $normalizer $query
 $explorer = Join-Path $env:WINDIR "explorer.exe"
 try {
+  if ($queryKey -in @("windowssecurity", "windowsdefender", "guvenlik")) {
+    Start-Process -FilePath $explorer -ArgumentList @("windowsdefender:")
+    [pscustomobject]@{ success = $true; name = "Windows Güvenliği"; method = "windowsdefender-uri" } | ConvertTo-Json -Compress
+    exit 0
+  }
   if ($queryKey -in @("settings", "windowssettings", "ayarlar", "windowsayarlari")) {
     Start-Process -FilePath $explorer -ArgumentList @("ms-settings:")
     [pscustomobject]@{ success = $true; name = "Windows Ayarları"; method = "settings-uri" } | ConvertTo-Json -Compress
