@@ -1,6 +1,6 @@
 {
   "name": "nova-desktop",
-  "version": "0.2.0-alpha.67",
+  "version": "0.2.0-alpha.68",
   "private": true,
   "description": "NOVA AI Windows desktop — Alpha 66 rate-limit recovery, compact vision capture, deterministic browser and file workflows",
   "type": "module",
@@ -17,5 +17,5 @@
     "electron": "^45.2.1"
   },
   "productName": "NOVA AI",
-  "releaseNotes": "NOVA AI Windows desktop — Alpha 67 natural browser command routing, exact Desktop file opening, and Document-based message composer focus fallback"
+  "releaseNotes": "NOVA AI Windows desktop — Alpha 68 natural browser command routing, exact Desktop file opening, Discord composer fallback, and autonomous routine desktop execution"
 }
