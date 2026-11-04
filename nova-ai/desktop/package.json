@@ -1,8 +1,8 @@
 {
   "name": "nova-desktop",
-  "version": "0.2.0-alpha.65",
+  "version": "0.2.0-alpha.66",
   "private": true,
-  "description": "NOVA AI Windows desktop — Alpha 65 auto computer control, Windows Security URI launcher, expanded regression-tested commands",
+  "description": "NOVA AI Windows desktop — Alpha 66 rate-limit recovery, compact vision capture, deterministic browser and file workflows",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
