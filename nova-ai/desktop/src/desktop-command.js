@@ -297,6 +297,22 @@ export function parseDesktopCommand(input) {
     }
   }
 
+
+  const notepadPreviewMatch = command.match(/^(?:(?:windows\s+)?not defteri|notepad)(?:['’](?:ni|nı|nu|nü))?(?:\s+uygulamasını)?\s+aç[,;]?\s+(?:ve\s+)?(?:içine|içerisine)\s+["“]?([\s\S]+?)["”]?\s+yaz\s+ve\s+kaydetmeden\s+önce\s+(?:bana\s+)?göster$/iu);
+  if (notepadPreviewMatch) {
+    const value = notepadPreviewMatch[1].trim().replace(/^[“"]|[”"]$/g, "");
+    if (value && value.length <= 4000) return {
+      intent: "computer-control", done: true,
+      message: "Metin Not Defteri'ne yazıldı; dosya kaydedilmedi.",
+      actions: [
+        { type: "open-app", app: "notepad" },
+        { type: "wait", ms: 900 },
+        { type: "type-text", text: value, processName: "notepad" },
+        { type: "finish" }
+      ]
+    };
+  }
+
   const notepadWriteMatch = command.match(/^(?:(?:windows\s+)?not defteri|notepad)(?:['’](?:ni|nı|nu|nü))?(?:\s+uygulamasını)?\s+aç\s+ve\s+(?:içine|içerisine)\s+["“]?([\s\S]+?)["”]?\s+yaz$/iu);
   if (notepadWriteMatch) {
     const value = notepadWriteMatch[1].trim().replace(/^[“"]|[”"]$/g, "");
