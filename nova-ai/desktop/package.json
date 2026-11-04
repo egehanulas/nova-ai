@@ -1,8 +1,8 @@
 {
   "name": "nova-desktop",
-  "version": "0.2.0-alpha.63",
+  "version": "0.2.0-alpha.64",
   "private": true,
-  "description": "NOVA AI Windows desktop application — Alpha 63 resilient app discovery, safer launch and expanded Turkish app commands",
+  "description": "NOVA AI Windows desktop application — Alpha 64 resilient app discovery, safer launch and expanded Turkish app commands",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
