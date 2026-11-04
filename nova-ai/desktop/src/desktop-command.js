@@ -9,8 +9,23 @@ const APP_ALIASES = [
   { names: ["not defteri", "notepad", "windows not defteri", "windows notepad"], app: "notepad", label: "Not Defteri" },
   { names: ["hesap makinesi", "calculator", "calc"], app: "calculator", label: "Hesap Makinesi" },
   { names: ["dosya gezgini", "dosya yöneticisi", "explorer"], app: "explorer", label: "Dosya Gezgini" },
-  { names: ["whatsapp"], app: "WhatsApp", label: "WhatsApp", installed: true },
-  { names: ["telegram"], app: "Telegram", label: "Telegram", installed: true },
+  { names: ["whatsapp", "whats app"], app: "WhatsApp", label: "WhatsApp", installed: true },
+  { names: ["telegram", "telegram desktop"], app: "Telegram", label: "Telegram", installed: true },
+  { names: ["visual studio code", "vs code", "vscode"], app: "Visual Studio Code", label: "Visual Studio Code", installed: true },
+  { names: ["microsoft store", "windows store"], app: "Microsoft Store", label: "Microsoft Store", installed: true },
+  { names: ["xbox", "xbox app"], app: "Xbox", label: "Xbox", installed: true },
+  { names: ["nvidia app", "nvidia"], app: "NVIDIA App", label: "NVIDIA App", installed: true },
+  { names: ["steelseries gg", "steelseries"], app: "SteelSeries GG", label: "SteelSeries GG", installed: true },
+  { names: ["epic games launcher", "epic games"], app: "Epic Games Launcher", label: "Epic Games Launcher", installed: true },
+  { names: ["ea app", "electronic arts"], app: "EA app", label: "EA app", installed: true },
+  { names: ["ubisoft connect", "ubisoft"], app: "Ubisoft Connect", label: "Ubisoft Connect", installed: true },
+  { names: ["riot client", "riot games"], app: "Riot Client", label: "Riot Client", installed: true },
+  { names: ["battle.net", "battle net"], app: "Battle.net", label: "Battle.net", installed: true },
+  { names: ["vlc", "vlc media player"], app: "VLC", label: "VLC", installed: true },
+  { names: ["obs", "obs studio"], app: "OBS Studio", label: "OBS Studio", installed: true },
+  { names: ["notepad++", "notepad plus plus"], app: "Notepad++", label: "Notepad++", installed: true },
+  { names: ["7-zip", "7zip"], app: "7-Zip", label: "7-Zip", installed: true },
+  { names: ["windows güvenliği", "windows security"], app: "Windows Security", label: "Windows Güvenliği", installed: true },
   { names: ["windows ayarları", "windows ayar", "windows ay", "windows settings", "ayarlar", "ayar", "settings"], app: "Settings", label: "Windows Ayarları", installed: true },
   { names: ["görev yöneticisi", "task manager"], app: "Task Manager", label: "Görev Yöneticisi", installed: true }
 ];
@@ -149,7 +164,12 @@ export function parseDesktopCommand(input) {
     .replace(/[’']/g, "'")
     .replace(/'(?:nı|ni|nu|nü|yı|yi|yu|yü|ı|i|u|ü)$/iu, "")
     .replace(/\s+uygulamasını$/iu, "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
     .toLocaleLowerCase("tr-TR")
+    .replace(/ı/g, "i")
+    .replace(/[^a-z0-9+]+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
   const keyboardShortcuts = [
     { pattern: /^(?:hepsini|tümünü|bütününü) seç(?:\s+lütfen)?$/iu, key: "CTRL+A", message: "Tüm içerik seçiliyor." },
@@ -215,7 +235,7 @@ export function parseDesktopCommand(input) {
   if (appSequenceMatch) {
     const requestedApps = [appSequenceMatch[1], appSequenceMatch[2], appSequenceMatch[3]].filter(Boolean);
     const selectedApps = requestedApps.map((name) =>
-      APP_ALIASES.find((entry) => entry.names.includes(normalizeAppName(name)))
+      APP_ALIASES.find((entry) => entry.names.some((alias) => normalizeAppName(alias) === normalizeAppName(name)))
     );
     if (selectedApps.every(Boolean)) {
       const actions = [];
@@ -268,7 +288,7 @@ export function parseDesktopCommand(input) {
     .replace(/\s+(?:uygulamasını\s+)?(?:aç|başlat|çalıştır)(?:\s+(?:lütfen|artık))?$/i, "")
     .replace(/(?:['’](?:nı|ni|nu|nü|yı|yi|yu|yü|ı|i|u|ü)|(?:larını|lerini|ları|leri|sini|sını|nı|ni|nu|nü|yı|yi|yu|yü))$/iu, "")
     .trim();
-  const app = APP_ALIASES.find((entry) => entry.names.includes(appText));
+  const app = APP_ALIASES.find((entry) => entry.names.some((alias) => normalizeAppName(alias) === normalizeAppName(appText)));
   if (app) return app.installed ? { intent: "open-installed-app", app: app.app, label: app.label } : { intent: "open-app", app: app.app, label: app.label };
 
   const discordRecentConversationTask =
