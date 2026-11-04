@@ -12,6 +12,8 @@ import {
   searchUserFiles,
   openAllowedApp,
   normalizeInstalledAppQuery,
+  buildInstalledAppResolverScript,
+  buildInstalledAppPowerShellArgs,
   openUserPath,
   resolveUserItem,
   moveUserFile,
@@ -68,6 +70,32 @@ test("installed application query validation rejects empty, oversized and multil
   assert.throws(() => normalizeInstalledAppQuery(""), /uygulamanın adını/);
   assert.throws(() => normalizeInstalledAppQuery("x".repeat(101)), /uygulamanın adını/);
   assert.throws(() => normalizeInstalledAppQuery("Telegram" + String.fromCharCode(10) + "Start-Process powershell"), /uygulamanın adını/);
+});
+
+test("installed app resolver searches Start Apps, Start Menu shortcuts, App Paths and PATH", () => {
+  const script = buildInstalledAppResolverScript();
+  assert.match(script, /Get-StartApps/);
+  assert.match(script, /Get-ChildItem -Path \$shortcutRoots -Filter "\*\.lnk" -File -Recurse/);
+  assert.match(script, /CurrentVersion\\App Paths/);
+  assert.match(script, /Get-Command -Name \$exeName -CommandType Application/);
+  assert.match(script, /OrdinalIgnoreCase|ToLowerInvariant/);
+});
+
+test("installed app resolver never bypasses PowerShell execution policy", () => {
+  const script = buildInstalledAppResolverScript();
+  const invocation = buildInstalledAppPowerShellArgs(script, "C:\\Windows");
+  assert.equal(invocation.command, "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe");
+  assert.deepEqual(invocation.args.slice(0, 5), ["-NoLogo", "-NoProfile", "-NonInteractive", "-STA", "-EncodedCommand"]);
+  assert.equal(invocation.args.includes("Bypass"), false);
+  assert.equal(invocation.args.includes("-ExecutionPolicy"), false);
+  const decoded = Buffer.from(invocation.args[5], "base64").toString("utf16le");
+  assert.equal(decoded, script);
+});
+
+test("installed app resolver reports a useful failure instead of a Start Menu-only error", () => {
+  const script = buildInstalledAppResolverScript();
+  assert.match(script, /yüklü uygulamalar, Başlat menüsü kısayolları, kayıtlı uygulama yolları veya PATH içinde bulunamadı/);
+  assert.doesNotMatch(script, /Başlat menüsünde belirtilen uygulama bulunamadı/);
 });
 
 test("desktop command parser routes common and arbitrary installed apps safely", () => {
