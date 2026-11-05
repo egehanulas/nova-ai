@@ -6,10 +6,10 @@ const path = require("node:path");
 const html = fs.readFileSync(path.join(__dirname, "public", "sim.html"), "utf8");
 const script = fs.readFileSync(path.join(__dirname, "public", "sim.js"), "utf8");
 
-test("NOVA Sim Alpha 7 page loads its versioned physics script and canvas", () => {
+test("NOVA Sim Alpha 8 page loads its versioned physics script and canvas", () => {
   assert.match(html, /<canvas[^>]+id="world"/);
-  assert.match(html, /src="\/sim\.js\?v=alpha7-field-drag1"/);
-  assert.match(html, /Fizik Laboratuvarı · Alpha 7/);
+  assert.match(html, /src="\/sim\.js\?v=alpha8-field-cards-telemetry"/);
+  assert.match(html, /Fizik Laboratuvarı · Alpha 8/);
   assert.match(html, /href="\/"[^>]*>← NOVA AI'ye dön/);
 });
 
@@ -37,7 +37,7 @@ test("balls can be grabbed, dragged, released and launched with pointer velocity
   assert.match(script, /if \(b === draggedBall\) continue/);
 });
 
-test("Alpha 7 exposes circle, box and triangle shape selectors", () => {
+test("Alpha 8 exposes circle, box and triangle shape selectors", () => {
   for (const id of ["spawnCircle", "spawnBox", "spawnTriangle", "shapeState"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(script, /currentShape = "circle"/);
   assert.match(script, /shape: currentShape/);
@@ -45,7 +45,7 @@ test("Alpha 7 exposes circle, box and triangle shape selectors", () => {
   assert.match(script, /b\.shape === "triangle"/);
 });
 
-test("Alpha 7 exposes mass and friction material controls", () => {
+test("Alpha 8 exposes mass and friction material controls", () => {
   for (const id of ["mass", "massValue", "friction", "frictionValue"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(script, /massInput\.addEventListener\("input"/);
   assert.match(script, /frictionInput\.addEventListener\("input"/);
@@ -53,7 +53,7 @@ test("Alpha 7 exposes mass and friction material controls", () => {
   assert.match(script, /mass, friction,/);
 });
 
-test("Alpha 7 uses polygon SAT manifolds and mass-weighted collision response", () => {
+test("Alpha 8 uses polygon SAT manifolds and mass-weighted collision response", () => {
   assert.match(script, /function vertices\(/);
   assert.match(script, /function project\(/);
   assert.match(script, /function collisionManifold\(/);
@@ -62,7 +62,7 @@ test("Alpha 7 uses polygon SAT manifolds and mass-weighted collision response", 
   assert.match(script, /Math\.sqrt\(Math\.max\(0, a\.friction \* b\.friction\)\)/);
 });
 
-test("Alpha 7 exposes custom gravity direction, speed cap, force fields and presets", () => {
+test("Alpha 8 exposes custom gravity direction, speed cap, force fields and presets", () => {
   for (const id of ["gravityAngle","gravityAngleValue","maxSpeed","maxSpeedValue","addAttract","addRepel","clearFields","savePreset","loadPreset","presetState"]) assert.ok(html.includes(`id="${id}"`));
   assert.ok(script.includes("gravityAngleInput"));
   assert.ok(script.includes("for (const field of fields)"));
@@ -71,7 +71,7 @@ test("Alpha 7 exposes custom gravity direction, speed cap, force fields and pres
   assert.match(script, /\[1, 2\]\.includes\(data\.version\)/);
 });
 
-test("Alpha 7 adapts physics substeps to object speed and prevents duplicate spin impulse", () => {
+test("Alpha 8 adapts physics substeps to object speed and prevents duplicate spin impulse", () => {
   assert.match(script, /const fastest = balls\.reduce/);
   assert.match(script, /const safeTravel = Number\.isFinite\(smallest\)/);
   assert.match(script, /Math\.ceil\(\(fastest \* dt\) \/ safeTravel\)/);
@@ -82,7 +82,7 @@ test("Alpha 7 adapts physics substeps to object speed and prevents duplicate spi
 });
 
 
-test("Alpha 7 adds selected-object merge and split universe tools", () => {
+test("Alpha 8 adds selected-object merge and split universe tools", () => {
   for (const id of ["mergeSelected", "splitSelected", "universeState", "fieldStrength", "fieldRadius"]) assert.ok(html.includes('id="' + id + '"'));
   assert.match(script, /function mergeSelected\(/);
   assert.match(script, /function splitSelected\(/);
@@ -93,7 +93,7 @@ test("Alpha 7 adds selected-object merge and split universe tools", () => {
 });
 
 
-test("Alpha 7 keeps the full controls reachable with page and panel scrolling", () => {
+test("Alpha 8 keeps the full controls reachable with page and panel scrolling", () => {
   assert.match(html, /html\{min-height:100%;overflow-y:auto\}/);
   assert.match(html, /body\{min-height:100vh;overflow-y:auto!important/);
   assert.match(html, /max-height:calc\(100vh - 125px\);overflow-y:auto/);
@@ -101,10 +101,10 @@ test("Alpha 7 keeps the full controls reachable with page and panel scrolling", 
   assert.match(html, /Birleştir \/ Böl/);
   assert.match(html, /id="mergeSelected"/);
   assert.match(html, /id="splitSelected"/);
-  assert.match(html, /sim.js\?v=alpha7-field-drag1/);
+  assert.match(html, /sim.js\?v=alpha8-field-cards-telemetry/);
 });
 
-test("Alpha 7 merge preserves mass-weighted linear and angular momentum calculations", () => {
+test("Alpha 8 merge preserves mass-weighted linear and angular momentum calculations", () => {
   assert.match(script, /const mergedVX = \(a\.vx \* a\.mass \+ b\.vx \* b\.mass\) \/ totalMass/);
   assert.match(script, /const mergedVY = \(a\.vy \* a\.mass \+ b\.vy \* b\.mass\) \/ totalMass/);
   assert.match(script, /const mergedSpin = \(a\.angularVelocity \* a\.mass \+ b\.angularVelocity \* b\.mass\) \/ totalMass/);
@@ -122,4 +122,10 @@ test("force fields can be selected, moved independently, edited and deleted", ()
   assert.match(script, /if \(selectedField\) selectedField\.strength = fieldStrength/);
   assert.match(script, /fields\.splice\(index, 1\)/);
   assert.match(script, /canvas\.setPointerCapture\(pointerId\)/);
+});
+
+test("Alpha 8 exposes field cards, telemetry, comparison and initial velocity controls",()=>{
+ for(const id of ["fieldCards","initialSpeed","initialDirection","chart-speed","chart-energy","chart-force","saveComparison","compareExperiment"])assert.ok(html.includes('id="'+id+'"'));
+ assert.match(script,/function renderFieldCards\(/);assert.match(script,/function recordTelemetry\(/);assert.match(script,/function drawTelemetry\(/);
+ assert.match(script,/nova-sim-alpha8-comparison/);assert.doesNotMatch(html,/id="moveFields"/);
 });
