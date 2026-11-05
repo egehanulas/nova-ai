@@ -157,3 +157,18 @@ test("NOVA Sim 3D Alpha 2 supports keyboard free-camera movement", () => {
   assert.match(threeD, /cameraKeys\.has\(" "\)/);
   assert.match(threeD, /window\.addEventListener\("blur",\(\)=>cameraKeys\.clear\(\)\)/);
 });
+
+
+test("NOVA Sim 3D Alpha 3 adds adaptive substeps, friction impulses, angular motion and drag throwing", () => {
+  const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
+  for (const id of ["friction3d", "friction3dValue", "air3d", "air3dValue"]) assert.ok(html.includes('id="' + id + '"'));
+  assert.match(html, /sim3d\\.js\\?v=alpha3-physics/);
+  assert.match(threeD, /function solveCollisions\\(/);
+  assert.match(threeD, /const steps=clamp\\(Math\\.ceil\\(fastest\\*dt\\/safeTravel\\),1,16\\)/);
+  assert.match(threeD, /normalImpulse/);
+  assert.match(threeD, /frictionImpulse/);
+  assert.match(threeD, /angularVelocity/);
+  assert.match(threeD, /airResistance/);
+  assert.match(threeD, /drag\\.body\\.velocity=V\\.mul/);
+  assert.doesNotThrow(() => new (require("node:vm").Script)(threeD));
+});
