@@ -13,6 +13,8 @@
   let width = 0, height = 0, running = true, lastTime = 0, fpsFrames = 0, fpsTime = 0, fps = 0;
   let gravity = Number(gravityInput.value), gravityAngle = Number(gravityAngleInput.value) * Math.PI / 180, maxSpeed = Number(maxSpeedInput.value), bounce = Number(bounceInput.value), timeScale = Number(speedInput.value), mass = 1, friction = 0.18;
   let currentShape = "circle";
+  let selectedBall = null;
+  let fieldStrength = 520, fieldRadius = 125;
   let draggedBall = null, dragOffsetX = 0, dragOffsetY = 0, pointerId = null, dragVX = 0, dragVY = 0, previousPointerTime = 0;
   const colors = ["#9b83ff", "#6edbd0", "#ffb86b", "#ff7eaa", "#83b7ff"];
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -143,7 +145,7 @@
       ctx.fillStyle = field.type === "attract" ? "#70e2b0" : "#ff7eaa"; ctx.font = "11px Inter, sans-serif"; ctx.textAlign = "center"; ctx.fillText(field.type === "attract" ? "ÇEKİM" : "İTİM", field.x, field.y - field.radius - 7); ctx.restore();
     }
     for (const b of balls) {
-      ctx.save(); ctx.shadowColor = b.color; ctx.shadowBlur = b === draggedBall ? 26 : 16;
+      ctx.save(); if (b === selectedBall) { ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 8, 0, Math.PI * 2); ctx.stroke(); } ctx.shadowColor = b.color; ctx.shadowBlur = b === draggedBall ? 26 : 16;
       const g = ctx.createRadialGradient(b.x - b.r * .35, b.y - b.r * .4, 1, b.x, b.y, b.r * 1.2);
       g.addColorStop(0, "#ffffff"); g.addColorStop(.2, b.color); g.addColorStop(1, b.color + "88");
       ctx.fillStyle = g; ctx.beginPath();
@@ -223,6 +225,11 @@
   const massInput = $("mass"), frictionInput = $("friction");
   syncRange(massInput, $("massValue"), v => v.toFixed(1));
   syncRange(frictionInput, $("frictionValue"), v => v.toFixed(2));
+  const fieldStrengthInput = $("fieldStrength"), fieldRadiusInput = $("fieldRadius");
+  syncRange(fieldStrengthInput, $("fieldStrengthValue"), v => String(Math.round(v)));
+  syncRange(fieldRadiusInput, $("fieldRadiusValue"), v => Math.round(v) + " px");
+  fieldStrengthInput.addEventListener("input", () => fieldStrength = Number(fieldStrengthInput.value));
+  fieldRadiusInput.addEventListener("input", () => fieldRadius = Number(fieldRadiusInput.value));
   massInput.addEventListener("input", () => { mass = Number(massInput.value); for (const b of balls) b.mass = mass; });
   frictionInput.addEventListener("input", () => { friction = Number(frictionInput.value); for (const b of balls) b.friction = friction; });
   gravityInput.addEventListener("input", () => gravity = Number(gravityInput.value));
@@ -232,19 +239,22 @@
   speedInput.addEventListener("input", () => timeScale = Number(speedInput.value));
 
   $("addBall").addEventListener("click", () => addBall());
-  function addField(type) { fields.push({ x: width * (.35 + Math.random() * .3), y: height * (.35 + Math.random() * .3), radius: 125, strength: 520, type }); draw(); }
+  function addField(type) { fields.push({ x: width * (.35 + Math.random() * .3), y: height * (.35 + Math.random() * .3), radius: fieldRadius, strength: fieldStrength, type }); draw(); }
   $("addAttract").addEventListener("click", () => addField("attract"));
   $("addRepel").addEventListener("click", () => addField("repel"));
   $("clearFields").addEventListener("click", () => { fields.length = 0; draw(); });
-  function snapshot() { return { version: 1, settings: { gravity, gravityAngle: Number(gravityAngleInput.value), bounce, timeScale, maxSpeed, mass, friction, currentShape }, balls: balls.map(b => ({ ...b, x:b.x/width, y:b.y/height })), fields: fields.map(f => ({ ...f, x:f.x/width, y:f.y/height })) }; }
-  $("savePreset").addEventListener("click", () => { try { localStorage.setItem("nova-sim-alpha5-preset", JSON.stringify(snapshot())); $("presetState").textContent = "Deney kaydedildi"; } catch { $("presetState").textContent = "Kayıt başarısız"; } });
+  function snapshot() { return { version: 2, settings: { gravity, gravityAngle: Number(gravityAngleInput.value), bounce, timeScale, maxSpeed, mass, friction, currentShape, fieldStrength, fieldRadius }, balls: balls.map(b => ({ ...b, x:b.x/width, y:b.y/height })), fields: fields.map(f => ({ ...f, x:f.x/width, y:f.y/height })) }; }
+  $("savePreset").addEventListener("click", () => { try { localStorage.setItem("nova-sim-alpha7-preset", JSON.stringify(snapshot())); $("presetState").textContent = "Deney kaydedildi"; } catch { $("presetState").textContent = "Kayıt başarısız"; } });
   $("loadPreset").addEventListener("click", () => {
     try {
-      const data = JSON.parse(localStorage.getItem("nova-sim-alpha5-preset") || "null");
-      if (!data || data.version !== 1 || !Array.isArray(data.balls) || !data.settings) throw new Error("invalid");
+      const data = JSON.parse(localStorage.getItem("nova-sim-alpha7-preset") || localStorage.getItem("nova-sim-alpha5-preset") || "null");
+      if (!data || ![1, 2].includes(data.version) || !Array.isArray(data.balls) || !data.settings) throw new Error("invalid");
       const v = data.settings;
       for (const [key,value] of [["gravity",v.gravity],["gravityAngle",v.gravityAngle],["bounce",v.bounce],["speed",v.timeScale],["maxSpeed",v.maxSpeed],["mass",v.mass],["friction",v.friction]]) { const input=$(key); if (Number.isFinite(value)) { input.value=String(value); input.dispatchEvent(new Event("input")); } }
-      currentShape = ["circle","box","triangle"].includes(v.currentShape) ? v.currentShape : "circle"; balls.length=0;
+      currentShape = ["circle","box","triangle"].includes(v.currentShape) ? v.currentShape : "circle";
+      if (Number.isFinite(v.fieldStrength)) { fieldStrength = clamp(v.fieldStrength,50,3000); fieldStrengthInput.value=String(fieldStrength); fieldStrengthInput.dispatchEvent(new Event("input")); }
+      if (Number.isFinite(v.fieldRadius)) { fieldRadius = clamp(v.fieldRadius,30,500); fieldRadiusInput.value=String(fieldRadius); fieldRadiusInput.dispatchEvent(new Event("input")); }
+      balls.length=0; selectedBall=null;
       for (const b of data.balls.slice(0,MAX_BALLS)) if ([b.x,b.y,b.vx,b.vy,b.r,b.mass,b.friction].every(Number.isFinite) && ["circle","box","triangle"].includes(b.shape)) balls.push({ ...b, x:clamp(b.x,0,1)*width, y:clamp(b.y,0,1)*height, mass:clamp(b.mass,.05,20), friction:clamp(b.friction,0,1), r:clamp(b.r,4,60), angle:Number.isFinite(b.angle)?b.angle:0, angularVelocity:Number.isFinite(b.angularVelocity)?b.angularVelocity:0 });
       fields.length=0; if (Array.isArray(data.fields)) for (const f of data.fields.slice(0,30)) if ([f.x,f.y,f.radius,f.strength].every(Number.isFinite) && ["attract","repel"].includes(f.type)) fields.push({ ...f, x:clamp(f.x,0,1)*width, y:clamp(f.y,0,1)*height, radius:clamp(f.radius,20,500), strength:clamp(f.strength,0,3000) });
       $("ballCount").textContent=String(balls.length); $("presetState").textContent="Deney yüklendi"; draw();
@@ -264,6 +274,46 @@
   });
   $("reset").addEventListener("click", () => { balls.length = 0; draggedBall = null; pointerId = null; $("ballCount").textContent = "0"; draw(); });
 
+  
+  function mergeSelected() {
+    if (!selectedBall || !balls.includes(selectedBall)) { $("universeState").textContent = "Önce sahneden bir nesne seç."; return; }
+    let nearest = null, nearestDistance = Infinity;
+    for (const body of balls) {
+      if (body === selectedBall) continue;
+      const distance = Math.hypot(body.x - selectedBall.x, body.y - selectedBall.y);
+      if (distance < nearestDistance) { nearestDistance = distance; nearest = body; }
+    }
+    if (!nearest) { $("universeState").textContent = "Birleştirmek için en az iki nesne gerekli."; return; }
+    const a = selectedBall, b = nearest, totalMass = a.mass + b.mass;
+    const spin = (a.angularVelocity * a.mass + b.angularVelocity * b.mass) / totalMass;
+    a.x = (a.x * a.mass + b.x * b.mass) / totalMass;
+    a.y = (a.y * a.mass + b.y * b.mass) / totalMass;
+    a.vx = (a.vx * a.mass + b.vx * b.mass) / totalMass;
+    a.vy = (a.vy * a.mass + b.vy * b.mass) / totalMass;
+    a.r = Math.min(60, Math.sqrt(a.r * a.r + b.r * b.r));
+    a.mass = Math.min(20, totalMass);
+    a.angularVelocity = (a.angularVelocity * a.mass + b.angularVelocity * b.mass) / totalMass;
+    balls.splice(balls.indexOf(b), 1);
+    $("ballCount").textContent = String(balls.length);
+    $("universeState").textContent = "İki nesne birleşti; kütle ve momentum korunumuna göre birleştirildi.";
+    draw();
+  }
+  function splitSelected() {
+    if (!selectedBall || !balls.includes(selectedBall)) { $("universeState").textContent = "Önce sahneden bir nesne seç."; return; }
+    if (balls.length >= MAX_BALLS) { $("universeState").textContent = "Nesne sınırına ulaşıldı."; return; }
+    const body = selectedBall, childMass = Math.max(.1, body.mass / 2), childRadius = Math.max(5, body.r / Math.sqrt(2));
+    body.mass = childMass; body.r = childRadius;
+    const offset = childRadius * .8, impulse = 65;
+    body.x = clamp(body.x - offset, childRadius, width - childRadius);
+    const child = { ...body, x: clamp(body.x + offset * 2, childRadius, width - childRadius), y: body.y, vx: body.vx + impulse, vy: body.vy, angle: body.angle, angularVelocity: body.angularVelocity };
+    body.vx -= impulse; balls.push(child); selectedBall = child;
+    $("ballCount").textContent = String(balls.length);
+    $("universeState").textContent = "Nesne iki parçaya bölündü; toplam kütle ve momentum dengelendi.";
+    draw();
+  }
+  $("mergeSelected").addEventListener("click", mergeSelected);
+  $("splitSelected").addEventListener("click", splitSelected);
+
   canvas.addEventListener("pointerdown", (event) => {
     if (draggedBall) return;
     const point = pointerPosition(event);
@@ -273,7 +323,7 @@
       if (Math.hypot(point.x - b.x, point.y - b.y) <= b.r + 5) { hit = b; break; }
     }
     if (!hit) { addBall(point.x, point.y, (Math.random() - .5) * 160, -40 - Math.random() * 100); return; }
-    draggedBall = hit; pointerId = event.pointerId;
+    draggedBall = hit; selectedBall = hit; $("universeState").textContent = "Nesne seçildi."; pointerId = event.pointerId;
     dragOffsetX = hit.x - point.x; dragOffsetY = hit.y - point.y;
     dragVX = 0; dragVY = 0; previousPointerTime = performance.now();
     canvas.setPointerCapture(pointerId);
