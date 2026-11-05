@@ -8,7 +8,7 @@ const script = fs.readFileSync(path.join(__dirname, "public", "sim.js"), "utf8")
 
 test("NOVA Sim Alpha 7 page loads its versioned physics script and canvas", () => {
   assert.match(html, /<canvas[^>]+id="world"/);
-  assert.match(html, /src="\/sim\.js\?v=alpha7-universe"/);
+  assert.match(html, /src="\/sim\.js\?v=alpha7-scrollfix1"/);
   assert.match(html, /Fizik Laboratuvarı · Alpha 7/);
   assert.match(html, /href="\/"[^>]*>← NOVA AI'ye dön/);
 });
