@@ -8,7 +8,7 @@ const script = fs.readFileSync(path.join(__dirname, "public", "sim.js"), "utf8")
 
 test("NOVA Sim Alpha 7 page loads its versioned physics script and canvas", () => {
   assert.match(html, /<canvas[^>]+id="world"/);
-  assert.match(html, /src="\/sim\.js\?v=alpha7-field-drag1"/);
+  assert.match(html, /src="\/sim\.js\?v=alpha7-field-drag2"/);
   assert.match(html, /Fizik Laboratuvarı · Alpha 7/);
   assert.match(html, /href="\/"[^>]*>← NOVA AI'ye dön/);
 });
@@ -101,7 +101,7 @@ test("Alpha 7 keeps the full controls reachable with page and panel scrolling", 
   assert.match(html, /Birleştir \/ Böl/);
   assert.match(html, /id="mergeSelected"/);
   assert.match(html, /id="splitSelected"/);
-  assert.match(html, /sim.js\?v=alpha7-field-drag1/);
+  assert.match(html, /sim.js\?v=alpha7-field-drag2/);
 });
 
 test("Alpha 7 merge preserves mass-weighted linear and angular momentum calculations", () => {
@@ -113,10 +113,13 @@ test("Alpha 7 merge preserves mass-weighted linear and angular momentum calculat
 });
 
 
-test("force fields can be selected, moved independently, edited and deleted", () => {
-  for (const id of ["moveFields", "deleteField", "fieldState"]) assert.ok(html.includes('id="' + id + '"'));
-  assert.match(script, /function selectField\(/);
-  assert.match(script, /moveFieldsMode/);
+test("force fields drag from their center handle while ball interaction stays always enabled", () => {
+  assert.ok(!html.includes('id="moveFields"'));
+  assert.ok(!script.includes("moveFieldsMode"));
+  assert.match(html, /Toplarla etkileşim her zaman açık/);
+  assert.match(script, /distance <= 12/);
+  assert.match(script, /if \(fieldHit\)[\s\S]*?draggedField = fieldHit/);
+  assert.match(script, /let hit = null;[\s\S]*?draggedBall = hit/);
   assert.match(script, /draggedField\.x = clamp/);
   assert.match(script, /draggedField\.y = clamp/);
   assert.match(script, /if \(selectedField\) selectedField\.strength = fieldStrength/);
