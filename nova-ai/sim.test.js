@@ -9,7 +9,7 @@ const script = fs.readFileSync(path.join(__dirname, "public", "sim.js"), "utf8")
 test("NOVA Sim Alpha 7 page loads its versioned physics script and canvas", () => {
   assert.match(html, /<canvas[^>]+id="world"/);
   assert.match(html, /src="\/sim\.js\?v=alpha7-field-drag2"/);
-  assert.match(html, /Fizik Laboratuvarı · Alpha 7/);
+  assert.match(html, /Fizik Laboratuvarı · Earthquake Alpha 6–10/);
   assert.match(html, /href="\/"[^>]*>← NOVA AI'ye dön/);
 });
 
@@ -184,4 +184,22 @@ test("NOVA Sim 3D Alpha 5 adds directional gravity, local force fields and merge
   const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
   for (const id of ["gravityDirX","gravityDirY","gravityDirZ","fieldStrength3d","fieldRadius3d","addAttract3d","addRepel3d","clearFields3d","merge3d","split3d","universe3dState"]) assert.ok(html.includes('id="' + id + '"'));
   for (const snippet of ["gravityDirection=[0,-1,0]", "function mergeSelected3d(", "function splitSelected3d(", 'forceFields.push({mode:"attract"', 'forceFields.push({mode:"repel"', "field.strength*falloff*falloff", "Math.cbrt(volume)"]) assert.ok(threeD.includes(snippet));
+});
+
+test("NOVA Sim includes the integrated Istanbul earthquake lab without removing 2D or 3D modes", () => {
+  const quake = fs.readFileSync(path.join(__dirname, "public", "earthquake.js"), "utf8");
+  for (const id of ["mode2d","mode3d","modeQuake","world","world3d","quakeWorld","quakePanel"]) assert.ok(html.includes('id="' + id + '"'));
+  assert.match(html, /earthquake\.js\?v=alpha6-10/);
+  assert.match(html, /quakeMagnitude/);
+  assert.match(html, /quakeSoil/);
+  assert.match(html, /quakeDistrict/);
+  assert.match(html, /quakeBuilding/);
+  assert.match(quake, /function signal\(/);
+  assert.match(quake, /function update\(/);
+  assert.match(quake, /function outside\(/);
+  assert.match(quake, /function inside\(/);
+  assert.match(quake, /districtSoil/);
+  assert.match(quake, /f\.failed=true/);
+  assert.match(quake, /requestAnimationFrame\(frame\)/);
+  assert.doesNotThrow(() => new (require("node:vm").Script)(quake));
 });
