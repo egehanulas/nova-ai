@@ -11,19 +11,19 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/layout-fixes.css?v=alpha70-redesign">
   <style>
-    *{box-sizing:border-box}body{margin:0;background:#090b12;color:#f4f3ff;font-family:Inter,system-ui,sans-serif}
+    *{box-sizing:border-box}html{min-height:100%;overflow-y:auto}body{min-height:100vh;overflow-y:auto!important;margin:0;background:#090b12;color:#f4f3ff;font-family:Inter,system-ui,sans-serif}
     .sim-wrap{max-width:1250px;margin:auto;padding:24px}.sim-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
     .sim-brand{display:flex;align-items:center;gap:12px}.sim-brand img{width:42px;height:42px}.sim-brand h1{font-size:21px;margin:0}.sim-brand p{margin:4px 0 0;color:#9297ac;font-size:12px}
     .sim-link,.sim-btn{border:1px solid #34384b;border-radius:10px;padding:10px 14px;color:#e9e8f5;background:#171a28;text-decoration:none;font:inherit;font-size:13px;cursor:pointer}
     .sim-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px}.sim-stage{min-width:0;border:1px solid #292d42;border-radius:18px;overflow:hidden;background:#0c1020;box-shadow:0 20px 60px #0005}
     .stage-top{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid #24283a;color:#b9bdd0;font-size:12px}.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#70e2b0;margin-right:7px}
     #world{display:block;width:100%;height:min(66vh,650px);min-height:360px;touch-action:none;cursor:grab}
-    .sim-panel{padding:18px;border:1px solid #292d42;border-radius:18px;background:#111522;display:flex;flex-direction:column;gap:18px}
+    .sim-panel{padding:18px;border:1px solid #292d42;border-radius:18px;background:#111522;display:flex;flex-direction:column;gap:18px;align-self:start;max-height:calc(100vh - 125px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#62558f #111522}
     .sim-panel h2{font-size:15px;margin:0}.sim-panel p{font-size:12px;line-height:1.6;color:#9297ac;margin:6px 0 0}
     .control label{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#d8d9e5;margin-bottom:9px}.control output{color:#b5a8ff;font-variant-numeric:tabular-nums}
     input[type=range]{width:100%;accent-color:#9581ff}.sim-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.sim-btn.primary{background:#7865e8;border-color:#7865e8;color:white}.sim-btn.selected{outline:2px solid #a99aff;background:#292342}.sim-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{padding:11px;border-radius:11px;background:#0b0f1a}.stat span{display:block;color:#8d93a9;font-size:11px}.stat strong{display:block;margin-top:5px;font-size:17px;font-variant-numeric:tabular-nums}
     .sim-note{padding:12px;border-radius:12px;background:#19172a;color:#aaa2d5;font-size:11px;line-height:1.6}
-    @media(max-width:850px){.sim-layout{grid-template-columns:1fr}.sim-panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.sim-panel>div:first-child,.sim-note{grid-column:1/-1}}
+    @media(max-width:850px){.sim-layout{grid-template-columns:1fr}.sim-panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:none;overflow:visible}.sim-panel>div:first-child,.sim-note{grid-column:1/-1}}
     @media(max-width:520px){.sim-wrap{padding:14px}.sim-head{align-items:flex-start}.sim-brand h1{font-size:18px}.sim-panel{grid-template-columns:1fr}#world{min-height:330px;height:52vh}}
   </style>
 </head>
@@ -39,7 +39,7 @@
         <canvas id="world" aria-label="Topları sürükleyerek taşı veya boş alana tıklayarak yeni top ekle"></canvas>
       </section>
       <aside class="sim-panel">
-        <div><h2>Deney kontrolleri</h2><p>Topları fareyle tutup taşı. Bıraktığında hareket yönüne göre fırlatılır. Boş alana tıklayarak yeni top ekleyebilirsin.</p></div>
+        <div><h2>Deney kontrolleri</h2><p>Topları fareyle tutup taşı. Bıraktığında hareket yönüne göre fırlatılır. Boş alana tıklayarak yeni top ekleyebilirsin.</p></div>\n        <div class="universe-quick"><h2 style="margin-bottom:9px">Birleştir / Böl</h2><div class="sim-actions"><button class="sim-btn primary" id="mergeSelected" type="button">⇄ Seçileni birleştir</button><button class="sim-btn" id="splitSelected" type="button">✣ Seçileni böl</button></div><p id="universeState" aria-live="polite">Önce sahnedeki bir nesneye tıkla; seçili nesne beyaz çerçeveyle görünür.</p></div>
         <div class="control"><label for="gravity">Yerçekimi <output id="gravityValue">9.8</output></label><input id="gravity" type="range" min="0" max="25" step=".1" value="9.8"></div>
         <div class="control"><label for="gravityAngle">Yerçekimi yönü <output id="gravityAngleValue">90°</output></label><input id="gravityAngle" type="range" min="0" max="360" step="1" value="90"></div>
         <div class="control"><label for="maxSpeed">Hız sınırı <output id="maxSpeedValue">900 px/sn</output></label><input id="maxSpeed" type="range" min="0" max="2500" step="25" value="900"><p>0 seçilirse hız sınırı kaldırılır.</p></div>
@@ -56,6 +56,6 @@
       </aside>
     </div>
   </main>
-  <script src="/sim.js?v=alpha7-universe"></script>
+  <script src="/sim.js?v=alpha7-scrollfix1"></script>
 </body>
 </html>
