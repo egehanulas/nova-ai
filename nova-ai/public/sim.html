@@ -25,6 +25,12 @@
     .sim-note{padding:12px;border-radius:12px;background:#19172a;color:#aaa2d5;font-size:11px;line-height:1.6}
     @media(max-width:850px){.sim-layout{grid-template-columns:1fr}.sim-panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:none;overflow:visible}.sim-panel>div:first-child,.sim-note{grid-column:1/-1}}
     @media(max-width:520px){.sim-wrap{padding:14px}.sim-head{align-items:flex-start}.sim-brand h1{font-size:18px}.sim-panel{grid-template-columns:1fr}#world{min-height:330px;height:52vh}}
+
+    .sim-mode-tabs{display:flex;align-items:center;gap:6px}.sim-mode-tab{border:1px solid #34384b;border-radius:9px;padding:8px 11px;color:#b9bdd0;background:#111522;font:inherit;font-size:11px;cursor:pointer}.sim-mode-tab.active{color:#fff;background:#292342;border-color:#8170ef;box-shadow:0 0 18px #7865e833}.mode-beta{margin-left:4px;color:#83e9d3;font-size:9px;font-weight:800;letter-spacing:.08em}.sim-panel-3d[hidden],#world3d[hidden],.sim-3d-hint[hidden]{display:none!important}
+    #world3d{display:block;width:100%;height:min(66vh,650px);min-height:360px;touch-action:none;cursor:grab;background:radial-gradient(ellipse at 50% 40%,#18233b 0%,#0a1020 75%)}#world3d:active{cursor:grabbing}.sim-layout.is-3d .sim-panel-2d{display:none}.sim-layout.is-3d .sim-panel-3d{display:flex}.sim-stage.is-3d #world{display:none}.sim-stage.is-3d #world3d{display:block}.sim-3d-hint{padding:9px 14px;border-top:1px solid #24283a;color:#a6acc4;font-size:11px;text-align:center}.axis-actions .selected{background:#292342;border-color:#9581ff}
+    @media(max-width:850px){.sim-mode-tabs{order:3;width:100%;justify-content:center}.stage-top{flex-wrap:wrap}.sim-layout.is-3d .sim-panel-3d{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:none;overflow:visible}.sim-layout.is-3d .sim-panel-3d>div:first-child,.sim-layout.is-3d .sim-panel-3d>.sim-note{grid-column:1/-1}}
+    @media(max-width:520px){#world3d{min-height:330px;height:52vh}.sim-layout.is-3d .sim-panel-3d{grid-template-columns:1fr}}
+
   </style>
 </head>
 <body>
@@ -35,10 +41,12 @@
     </header>
     <div class="sim-layout">
       <section class="sim-stage" aria-label="Fizik simülasyonu">
-        <div class="stage-top"><span><i class="live-dot"></i>2D fizik alanı</span><span id="simState">Çalışıyor</span></div>
+        <div class="stage-top"><span><i class="live-dot"></i><span id="stageModeLabel">2D fizik alanı</span></span><div class="sim-mode-tabs"><button class="sim-mode-tab active" id="mode2d" type="button" aria-pressed="true">2D Laboratuvar</button><button class="sim-mode-tab" id="mode3d" type="button" aria-pressed="false">3D Laboratuvar <span class="mode-beta">NEW</span></button></div><span id="simState">Çalışıyor</span></div>
         <canvas id="world" aria-label="Topları sürükleyerek taşı veya boş alana tıklayarak yeni top ekle"></canvas>
+        <canvas id="world3d" aria-label="3D sahnede kamerayı döndür, nesneleri seç ve taşı" hidden></canvas>
+        <div class="sim-3d-hint" id="sim3dHint" hidden>Boş alanda sürükle: kamerayı döndür · Nesneyi sürükle: taşı · Çift tık: nesneye odaklan · Tekerlek: yakınlaştır</div>
       </section>
-      <aside class="sim-panel">
+      <aside class="sim-panel sim-panel-2d">
         <div><h2>Deney kontrolleri</h2><p>Topları fareyle tutup taşı. Bıraktığında hareket yönüne göre fırlatılır. Boş alana tıklayarak yeni top ekleyebilirsin.</p></div>
         <div class="universe-quick"><h2 style="margin-bottom:9px">Birleştir / Böl</h2><div class="sim-actions"><button class="sim-btn primary" id="mergeSelected" type="button">⇄ Seçileni birleştir</button><button class="sim-btn" id="splitSelected" type="button">✣ Seçileni böl</button></div><p id="universeState" aria-live="polite">Önce sahnedeki bir nesneye tıkla; seçili nesne beyaz çerçeveyle görünür.</p></div>
         <div class="control"><label for="gravity">Yerçekimi <output id="gravityValue">9.8</output></label><input id="gravity" type="range" min="0" max="25" step=".1" value="9.8"></div>
@@ -55,8 +63,24 @@
         <div class="sim-stats"><div class="stat"><span>Nesne sayısı</span><strong id="ballCount">0</strong></div><div class="stat"><span>FPS</span><strong id="fps">—</strong></div></div>
         <div class="sim-note">Alpha 7 · Nesneleri birleştir, böl; birden fazla ayarlanabilir kuvvet alanı kur ve kendi evren deneylerini kaydet.</div>
       </aside>
+      <aside class="sim-panel sim-panel-3d" id="sim3dPanel" hidden>
+        <div><h2>3D deney kontrolleri</h2><p>İlk 3D laboratuvar prototipi. Nesne ekle, seç, taşı ve kamerayı istediğin açıya getir.</p></div>
+        <div><h2 style="margin-bottom:9px">Nesne ekle</h2><div class="sim-actions"><button class="sim-btn primary" id="add3dSphere" type="button">＋ Küre</button><button class="sim-btn" id="add3dCube" type="button">＋ Küp</button><button class="sim-btn" id="add3dCylinder" type="button">＋ Silindir</button><button class="sim-btn" id="remove3dObject" type="button">Seçileni sil</button></div><p id="object3dState" aria-live="polite">Sahnede bir küre var. Seçmek için tıkla.</p></div>
+        <div><h2 style="margin-bottom:9px">Kamera</h2><div class="sim-actions"><button class="sim-btn primary selected" id="cameraFree" type="button">Serbest kamera</button><button class="sim-btn" id="cameraFocus" type="button">Nesneye odaklan</button><button class="sim-btn" id="cameraReset" type="button">Kamerayı sıfırla</button></div><p>Boş alanda sürükleyerek kamerayı döndür, fare tekerleğiyle yaklaş veya uzaklaş.</p></div>
+        <div><h2 style="margin-bottom:9px">Taşıma ekseni</h2><div class="sim-actions axis-actions"><button class="sim-btn selected" data-axis="free" type="button">Serbest</button><button class="sim-btn" data-axis="x" type="button">X</button><button class="sim-btn" data-axis="y" type="button">Y</button><button class="sim-btn" data-axis="z" type="button">Z</button></div><p>Seçili eksen boyunca sürükle veya konum değerlerini düzenle.</p></div>
+        <div class="control"><label for="pos3dX">Konum X <output id="pos3dXValue">0.00</output></label><input id="pos3dX" type="range" min="-10" max="10" step=".1" value="0"></div>
+        <div class="control"><label for="pos3dY">Konum Y <output id="pos3dYValue">2.00</output></label><input id="pos3dY" type="range" min="0" max="15" step=".1" value="2"></div>
+        <div class="control"><label for="pos3dZ">Konum Z <output id="pos3dZValue">0.00</output></label><input id="pos3dZ" type="range" min="-10" max="10" step=".1" value="0"></div>
+        <div class="control"><label for="rot3dY">Döndürme Y <output id="rot3dYValue">0°</output></label><input id="rot3dY" type="range" min="0" max="360" step="1" value="0"></div>
+        <div class="control"><label for="scale3d">Boyut <output id="scale3dValue">1.00×</output></label><input id="scale3d" type="range" min=".25" max="3" step=".05" value="1"></div>
+        <div><h2 style="margin-bottom:9px">Hibrit fizik</h2><div class="control"><label for="gravity3d">Yerçekimi <output id="gravity3dValue">9.8 m/sn²</output></label><input id="gravity3d" type="range" min="0" max="25" step=".1" value="9.8"></div><div class="control"><label for="bounce3d">Esneklik <output id="bounce3dValue">0.72</output></label><input id="bounce3d" type="range" min="0" max="1" step=".01" value=".72"></div><div class="control"><label for="mass3d">Kütle <output id="mass3dValue">1.0</output></label><input id="mass3d" type="range" min=".2" max="10" step=".1" value="1"></div><p>İlk prototipte yerçekimi, zemin çarpışması ve yaklaşık küresel nesne çarpışması kullanılır.</p></div>
+        <div class="sim-actions"><button class="sim-btn primary" id="play3d" type="button">Ⅱ Duraklat</button><button class="sim-btn" id="reset3d" type="button">↻ Deneyi sıfırla</button></div>
+        <div class="sim-stats"><div class="stat"><span>3D nesne</span><strong id="object3dCount">1</strong></div><div class="stat"><span>FPS</span><strong id="fps3d">—</strong></div></div>
+        <div class="sim-note">NOVA Sim 3D · İlk prototip. 3D sahne ve etkileşimler yerel WebGL ile çalışır; 2D deney sistemi korunur.</div>
+      </aside>
     </div>
   </main>
   <script src="/sim.js?v=alpha7-field-drag2"></script>
+  <script src="/sim3d.js?v=alpha1-prototype" defer></script>
 </body>
 </html>

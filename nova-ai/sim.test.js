@@ -126,3 +126,21 @@ test("force fields drag from their center handle while ball interaction stays al
   assert.match(script, /fields\.splice\(index, 1\)/);
   assert.match(script, /canvas\.setPointerCapture\(pointerId\)/);
 });
+
+
+test("NOVA Sim 3D prototype is integrated without removing the existing 2D lab", () => {
+  const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
+  assert.match(html, /id="mode2d"/);
+  assert.match(html, /id="mode3d"/);
+  assert.match(html, /id="world3d"/);
+  assert.match(html, /class="sim-panel sim-panel-3d"/);
+  assert.match(html, /src="\/sim3d\.js\?v=alpha1-prototype"/);
+  assert.match(threeD, /getContext\("webgl"/);
+  assert.match(threeD, /function vp\(/);
+  assert.match(threeD, /function physics\(/);
+  assert.match(threeD, /function moveAxis\(/);
+  assert.match(threeD, /cameraFocus/);
+  assert.match(threeD, /data-axis/);
+  assert.match(threeD, /requestAnimationFrame\(frame\)/);
+  assert.doesNotThrow(() => new (require("node:vm").Script)(threeD));
+});
