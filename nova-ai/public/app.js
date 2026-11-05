@@ -119,6 +119,7 @@
     SUPABASE_URL,
     SUPABASE_PUBLISHABLE_KEY
   );
+  window.novaSupabase = supabase;
 
   const NOVA_ICON = "/nova-icon.png";
 
