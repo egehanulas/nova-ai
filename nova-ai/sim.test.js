@@ -172,3 +172,26 @@ test("NOVA Sim 3D Alpha 3 adds adaptive substeps, friction impulses, angular mot
   assert.ok(threeD.includes("drag.body.velocity=V.mul"));
   assert.doesNotThrow(() => new (require("node:vm").Script)(threeD));
 });
+
+
+test("NOVA Sim 3D Alpha 4 adds orientation-aware shape support contacts", () => {
+  const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
+  assert.match(threeD, /function bodyAxes\\(/);
+  assert.match(threeD, /function supportRadius\\(/);
+  assert.match(threeD, /supportRadius\\(a,n\\)/);
+  assert.match(threeD, /supportRadius\\(b,V\\.mul\\(n,-1\\)\\)/);
+  assert.match(threeD, /const floor=supportRadius\\(b,\\[0,1,0\\]\\)/);
+  assert.match(html, /Alpha 5 · Şekil duyarlı temas/);
+});
+
+test("NOVA Sim 3D Alpha 5 adds directional gravity, local force fields and merge/split tools", () => {
+  const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
+  for (const id of ["gravityDirX","gravityDirY","gravityDirZ","fieldStrength3d","fieldRadius3d","addAttract3d","addRepel3d","clearFields3d","merge3d","split3d","universe3dState"]) assert.ok(html.includes('id="' + id + '"'));
+  assert.match(threeD, /gravityDirection=\\[0,-1,0\\]/);
+  assert.match(threeD, /function mergeSelected3d\\(/);
+  assert.match(threeD, /function splitSelected3d\\(/);
+  assert.match(threeD, /forceFields\\.push\\(\\{mode:"attract"/);
+  assert.match(threeD, /forceFields\\.push\\(\\{mode:"repel"/);
+  assert.match(threeD, /field\\.strength\\*falloff\\*falloff/);
+  assert.match(threeD, /Math\\.cbrt\\(volume\\)/);
+});
