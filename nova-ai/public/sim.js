@@ -285,14 +285,16 @@
     }
     if (!nearest) { $("universeState").textContent = "Birleştirmek için en az iki nesne gerekli."; return; }
     const a = selectedBall, b = nearest, totalMass = a.mass + b.mass;
-    const spin = (a.angularVelocity * a.mass + b.angularVelocity * b.mass) / totalMass;
-    a.x = (a.x * a.mass + b.x * b.mass) / totalMass;
-    a.y = (a.y * a.mass + b.y * b.mass) / totalMass;
-    a.vx = (a.vx * a.mass + b.vx * b.mass) / totalMass;
-    a.vy = (a.vy * a.mass + b.vy * b.mass) / totalMass;
+    const mergedX = (a.x * a.mass + b.x * b.mass) / totalMass;
+    const mergedY = (a.y * a.mass + b.y * b.mass) / totalMass;
+    const mergedVX = (a.vx * a.mass + b.vx * b.mass) / totalMass;
+    const mergedVY = (a.vy * a.mass + b.vy * b.mass) / totalMass;
+    const mergedSpin = (a.angularVelocity * a.mass + b.angularVelocity * b.mass) / totalMass;
+    a.x = mergedX; a.y = mergedY;
+    a.vx = mergedVX; a.vy = mergedVY;
     a.r = Math.min(60, Math.sqrt(a.r * a.r + b.r * b.r));
-    a.mass = Math.min(20, totalMass);
-    a.angularVelocity = (a.angularVelocity * a.mass + b.angularVelocity * b.mass) / totalMass;
+    a.mass = totalMass;
+    a.angularVelocity = mergedSpin;
     balls.splice(balls.indexOf(b), 1);
     $("ballCount").textContent = String(balls.length);
     $("universeState").textContent = "İki nesne birleşti; kütle ve momentum korunumuna göre birleştirildi.";
