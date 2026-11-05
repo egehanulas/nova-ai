@@ -49,8 +49,8 @@ test("Alpha 4 exposes circle, box and triangle shape selectors", () => {
   for (const id of ["mass", "massValue", "friction", "frictionValue"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(script, /massInput\.addEventListener\("input"/);
   assert.match(script, /frictionInput\.addEventListener\("input"/);
-  assert.match(script, /mass: mass/);
-  assert.match(script, /friction: friction/);
+  assert.match(script, /mass, friction,/);
+  assert.match(script, /mass, friction,/);
 });
 
 test("Alpha 4 uses polygon SAT manifolds and mass-weighted collision response", () => {
