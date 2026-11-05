@@ -109,6 +109,8 @@
         b.vx += jt * tx * invB; b.vy += jt * ty * invB;
         a.angularVelocity -= jt * a.r * invA * .025;
         b.angularVelocity -= jt * b.r * invB * .025;
+        a.angularVelocity -= jt * a.r * invA * .025;
+        b.angularVelocity -= jt * b.r * invB * .025;
       }
     }
   }
