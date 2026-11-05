@@ -121,7 +121,7 @@
   );
   window.novaSupabase = supabase;
 
-  const NOVA_ICON = "/nova-icon.png";
+  const NOVA_ICON = "/nova-logo.svg";
 
   let conversations = [];
   let currentId = null;
