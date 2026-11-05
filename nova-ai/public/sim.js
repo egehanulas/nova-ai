@@ -107,6 +107,8 @@
         jt = clamp(jt, -impulse * mu, impulse * mu);
         a.vx -= jt * tx * invA; a.vy -= jt * ty * invA;
         b.vx += jt * tx * invB; b.vy += jt * ty * invB;
+        a.angularVelocity -= jt * a.r * invA * .025;
+        b.angularVelocity -= jt * b.r * invB * .025;
       }
     }
   }
