@@ -10,7 +10,9 @@
   const MAX_BALLS = 100;
   let width = 0, height = 0, running = true, lastTime = 0, fpsFrames = 0, fpsTime = 0, fps = 0;
   let gravity = Number(gravityInput.value), bounce = Number(bounceInput.value), timeScale = Number(speedInput.value);
+  let draggedBall = null, dragOffsetX = 0, dragOffsetY = 0, pointerId = null, dragVX = 0, dragVY = 0, previousPointerTime = 0;
   const colors = ["#9b83ff", "#6edbd0", "#ffb86b", "#ff7eaa", "#83b7ff"];
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
@@ -18,15 +20,17 @@
     width = Math.max(1, rect.width); height = Math.max(1, rect.height);
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    for (const b of balls) { b.x = Math.min(width - b.r, Math.max(b.r, b.x)); b.y = Math.min(height - b.r, b.y); }
+    for (const b of balls) { b.x = clamp(b.x, b.r, Math.max(b.r, width - b.r)); b.y = clamp(b.y, b.r, Math.max(b.r, height - b.r)); }
     draw();
   }
 
   function addBall(x = width * (.25 + Math.random() * .5), y = Math.max(35, height * .15), vx = (Math.random() - .5) * 260, vy = (Math.random() - .5) * 100) {
     if (balls.length >= MAX_BALLS) balls.shift();
     const r = 9 + Math.random() * 13;
-    balls.push({ x, y, vx, vy, r, color: colors[Math.floor(Math.random() * colors.length)] });
+    const ball = { x: clamp(x, r, Math.max(r, width - r)), y: clamp(y, r, Math.max(r, height - r)), vx, vy, r, color: colors[Math.floor(Math.random() * colors.length)] };
+    balls.push(ball);
     $("ballCount").textContent = String(balls.length);
+    return ball;
   }
 
   function resolveWalls(b) {
@@ -43,8 +47,9 @@
 
   function collide() {
     for (let i = 0; i < balls.length; i++) for (let j = i + 1; j < balls.length; j++) {
-      const a = balls[i], b = balls[j], dx = b.x - a.x, dy = b.y - a.y;
-      const dist = Math.hypot(dx, dy), min = a.r + b.r;
+      const a = balls[i], b = balls[j];
+      if (a === draggedBall || b === draggedBall) continue;
+      const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy), min = a.r + b.r;
       if (!dist || dist >= min) continue;
       const nx = dx / dist, ny = dy / dist, overlap = (min - dist) / 2;
       a.x -= nx * overlap; a.y -= ny * overlap; b.x += nx * overlap; b.y += ny * overlap;
@@ -66,10 +71,12 @@
     for (let x = 0; x < width; x += 32) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
     for (let y = 0; y < height; y += 32) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
     for (const b of balls) {
-      ctx.save(); ctx.shadowColor = b.color; ctx.shadowBlur = 16;
+      ctx.save(); ctx.shadowColor = b.color; ctx.shadowBlur = b === draggedBall ? 26 : 16;
       const g = ctx.createRadialGradient(b.x - b.r * .35, b.y - b.r * .4, 1, b.x, b.y, b.r * 1.2);
       g.addColorStop(0, "#ffffff"); g.addColorStop(.2, b.color); g.addColorStop(1, b.color + "88");
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+      if (b === draggedBall) { ctx.strokeStyle = "rgba(255,255,255,.95)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 5, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.restore();
     }
     if (!balls.length) {
       ctx.fillStyle = "rgba(220,225,255,.6)"; ctx.textAlign = "center";
@@ -77,6 +84,11 @@
       ctx.font = "12px Inter, sans-serif"; ctx.fillStyle = "rgba(170,180,215,.55)";
       ctx.fillText("Bu alana tıklayabilirsin", width / 2, height / 2 + 25);
     }
+  }
+
+  function pointerPosition(event) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
 
   function frame(now) {
@@ -87,6 +99,7 @@
       const steps = 2, step = dt / steps;
       for (let s = 0; s < steps; s++) {
         for (const b of balls) {
+          if (b === draggedBall) continue;
           b.vy += gravity * 48 * step;
           b.x += b.vx * step; b.y += b.vy * step;
           resolveWalls(b);
@@ -117,13 +130,50 @@
     running = !running; event.currentTarget.textContent = running ? "Ⅱ Duraklat" : "▶ Devam et";
     $("simState").textContent = running ? "Çalışıyor" : "Duraklatıldı";
   });
-  $("reset").addEventListener("click", () => { balls.length = 0; $("ballCount").textContent = "0"; draw(); });
+  $("reset").addEventListener("click", () => { balls.length = 0; draggedBall = null; pointerId = null; $("ballCount").textContent = "0"; draw(); });
+
   canvas.addEventListener("pointerdown", (event) => {
-    const rect = canvas.getBoundingClientRect();
-    addBall(event.clientX - rect.left, event.clientY - rect.top, (Math.random() - .5) * 160, -40 - Math.random() * 100);
+    if (draggedBall) return;
+    const point = pointerPosition(event);
+    let hit = null;
+    for (let i = balls.length - 1; i >= 0; i--) {
+      const b = balls[i];
+      if (Math.hypot(point.x - b.x, point.y - b.y) <= b.r + 5) { hit = b; break; }
+    }
+    if (!hit) { addBall(point.x, point.y, (Math.random() - .5) * 160, -40 - Math.random() * 100); return; }
+    draggedBall = hit; pointerId = event.pointerId;
+    dragOffsetX = hit.x - point.x; dragOffsetY = hit.y - point.y;
+    dragVX = 0; dragVY = 0; previousPointerTime = performance.now();
+    canvas.setPointerCapture(pointerId);
+    canvas.style.cursor = "grabbing";
+    event.preventDefault();
   });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (!draggedBall || event.pointerId !== pointerId) return;
+    const point = pointerPosition(event), now = performance.now();
+    const elapsed = Math.max(1, now - previousPointerTime) / 1000;
+    const nextX = clamp(point.x + dragOffsetX, draggedBall.r, Math.max(draggedBall.r, width - draggedBall.r));
+    const nextY = clamp(point.y + dragOffsetY, draggedBall.r, Math.max(draggedBall.r, height - draggedBall.r));
+    dragVX = clamp((nextX - draggedBall.x) / elapsed, -900, 900);
+    dragVY = clamp((nextY - draggedBall.y) / elapsed, -900, 900);
+    draggedBall.x = nextX; draggedBall.y = nextY;
+    previousPointerTime = now;
+  });
+
+  function finishDrag(event) {
+    if (!draggedBall || (event && event.pointerId !== pointerId)) return;
+    draggedBall.vx = dragVX; draggedBall.vy = dragVY;
+    draggedBall = null; pointerId = null;
+    canvas.style.cursor = "grab";
+  }
+  canvas.addEventListener("pointerup", finishDrag);
+  canvas.addEventListener("pointercancel", finishDrag);
+  canvas.addEventListener("lostpointercapture", finishDrag);
+
   if ("ResizeObserver" in window) new ResizeObserver(resize).observe(canvas);
   else window.addEventListener("resize", resize);
+  canvas.style.cursor = "grab";
   resize();
   for (let i = 0; i < 5; i++) addBall(width * (.25 + i * .12), 35 + i * 8, (Math.random() - .5) * 180, -30);
   requestAnimationFrame(frame);
