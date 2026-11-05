@@ -113,10 +113,13 @@ test("Alpha 7 merge preserves mass-weighted linear and angular momentum calculat
 });
 
 
-test("force fields can be selected, moved independently, edited and deleted", () => {
-  for (const id of ["moveFields", "deleteField", "fieldState"]) assert.ok(html.includes('id="' + id + '"'));
-  assert.match(script, /function selectField\(/);
-  assert.match(script, /moveFieldsMode/);
+test("force fields drag from their center handle while ball interaction stays always enabled", () => {
+  assert.ok(!html.includes('id="moveFields"'));
+  assert.ok(!script.includes("moveFieldsMode"));
+  assert.match(html, /Toplarla etkileşim her zaman açık/);
+  assert.match(script, /distance <= 12/);
+  assert.match(script, /if \(fieldHit\)[\s\S]*?draggedField = fieldHit/);
+  assert.match(script, /let hit = null;[\s\S]*?draggedBall = hit/);
   assert.match(script, /draggedField\.x = clamp/);
   assert.match(script, /draggedField\.y = clamp/);
   assert.match(script, /if \(selectedField\) selectedField\.strength = fieldStrength/);
