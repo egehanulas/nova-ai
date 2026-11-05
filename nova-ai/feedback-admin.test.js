@@ -3,10 +3,10 @@ const assert = require("node:assert/strict");
 const { isFeedbackAdmin, normalizeFeedbackStatus } = require("./feedback-admin");
 
 test("only the confirmed developer account is accepted", () => {
-  assert.equal(isFeedbackAdmin({ email: "egehanimat21@gmail.com", email_confirmed_at: "2026-01-01T00:00:00Z" }), true);
+  assert.equal(isFeedbackAdmin({ email: "egehan1907cl@gmail.com", email_confirmed_at: "2026-01-01T00:00:00Z" }), true);
   assert.equal(isFeedbackAdmin({ email: "other@example.com", email_confirmed_at: "2026-01-01T00:00:00Z" }), false);
-  assert.equal(isFeedbackAdmin({ email: "egehanimat21@gmail.com", email_confirmed_at: null }), false);
-  assert.equal(isFeedbackAdmin({ email: " EGEHANIMAT21@GMAIL.COM ", confirmed_at: "2026-01-01T00:00:00Z" }), true);
+  assert.equal(isFeedbackAdmin({ email: "egehan1907cl@gmail.com", email_confirmed_at: null }), false);
+  assert.equal(isFeedbackAdmin({ email: " EGEHAN1907CL@GMAIL.COM ", confirmed_at: "2026-01-01T00:00:00Z" }), true);
   assert.equal(isFeedbackAdmin(null), false);
 });
 
