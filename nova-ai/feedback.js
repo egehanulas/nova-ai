@@ -3,11 +3,11 @@ const FEEDBACK_TYPES = new Set(["bug", "feature", "performance", "general"]);
 function redactDiagnosticText(value) {
   return String(value || "")
     .slice(0, 6000)
-    .replace(/Bearer\\s+[A-Za-z0-9._~+\\/-]+=*/gi, "Bearer [REDACTED]")
-    .replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password|authorization)\\s*[:=]\\s*)[^\\s,;]+/gi, "$1[REDACTED]")
-    .replace(/\\bsk-[A-Za-z0-9_-]{12,}\\b/g, "[REDACTED_KEY]")
-    .replace(/\\b[\\w.+-]+@[\\w.-]+\\.[A-Z]{2,}\\b/gi, "[EMAIL_REDACTED]")
-    .replace(/([A-Za-z]:\\\\Users\\\\)[^\\\\\\s]+/gi, "$1[USER]")
+    .replace(/Bearer\s+[A-Za-z0-9._~+\/-]+=*/gi, "Bearer [REDACTED]")
+    .replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password|authorization)\s*[:=]\s*)[^\s,;]+/gi, "$1[REDACTED]")
+    .replace(/\bsk-[A-Za-z0-9_-]{12,}\b/g, "[REDACTED_KEY]")
+    .replace(/\b[\w.+-]+@[\w.-]+\.[A-Z]{2,}\b/gi, "[EMAIL_REDACTED]")
+    .replace(/([A-Za-z]:\\Users\\)[^\\\s]+/gi, "$1[USER]")
     .slice(0, 3000);
 }
 
@@ -68,7 +68,7 @@ function buildFeedbackEmailText(report) {
     lines.push("User-Agent: " + (report.diagnostics?.userAgent || "Bilinmiyor"));
     if (report.diagnostics?.logs) lines.push("", "Teknik log:", report.diagnostics.logs);
   }
-  return lines.join("\\n");
+  return lines.join("\n");
 }
 
 module.exports = {
