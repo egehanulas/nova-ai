@@ -68,7 +68,7 @@ test("Alpha 7 exposes custom gravity direction, speed cap, force fields and pres
   assert.ok(script.includes("for (const field of fields)"));
   assert.ok(script.includes("maxSpeed > 0 && velocity > maxSpeed"));
   assert.ok(script.includes("nova-sim-alpha5-preset"));
-  assert.ok(script.includes("data.version !== 1"));
+  assert.match(script, /\[1, 2\]\.includes\(data\.version\)/);
 });
 
 test("Alpha 7 adapts physics substeps to object speed and prevents duplicate spin impulse", () => {
