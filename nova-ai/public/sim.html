@@ -36,7 +36,7 @@
 <body>
   <main class="sim-wrap">
     <header class="sim-head">
-      <div class="sim-brand"><img src="/nova-logo.svg" alt=""><div><h1>NOVA Sim</h1><p>Fizik Laboratuvarı · Alpha 7</p></div></div>
+      <div class="sim-brand"><img src="/nova-logo.svg" alt=""><div><h1>NOVA Sim</h1><p>Fizik Laboratuvarı · Alpha 7 + 3D Alpha 3</p></div></div>
       <a class="sim-link" href="/">← NOVA AI'ye dön</a>
     </header>
     <div class="sim-layout">
@@ -73,14 +73,14 @@
         <div class="control"><label for="pos3dZ">Konum Z <output id="pos3dZValue">0.00</output></label><input id="pos3dZ" type="range" min="-10" max="10" step=".1" value="0"></div>
         <div class="control"><label for="rot3dY">Döndürme Y <output id="rot3dYValue">0°</output></label><input id="rot3dY" type="range" min="0" max="360" step="1" value="0"></div>
         <div class="control"><label for="scale3d">Boyut <output id="scale3dValue">1.00×</output></label><input id="scale3d" type="range" min=".25" max="3" step=".05" value="1"></div>
-        <div><h2 style="margin-bottom:9px">Hibrit fizik</h2><div class="control"><label for="gravity3d">Yerçekimi <output id="gravity3dValue">9.8 m/sn²</output></label><input id="gravity3d" type="range" min="0" max="25" step=".1" value="9.8"></div><div class="control"><label for="bounce3d">Esneklik <output id="bounce3dValue">0.72</output></label><input id="bounce3d" type="range" min="0" max="1" step=".01" value=".72"></div><div class="control"><label for="mass3d">Kütle <output id="mass3dValue">1.0</output></label><input id="mass3d" type="range" min=".2" max="10" step=".1" value="1"></div><p>İlk prototipte yerçekimi, zemin çarpışması ve yaklaşık küresel nesne çarpışması kullanılır.</p></div>
+        <div><h2 style="margin-bottom:9px">Hibrit fizik</h2><div class="control"><label for="gravity3d">Yerçekimi <output id="gravity3dValue">9.8 m/sn²</output></label><input id="gravity3d" type="range" min="0" max="25" step=".1" value="9.8"></div><div class="control"><label for="bounce3d">Esneklik <output id="bounce3dValue">0.72</output></label><input id="bounce3d" type="range" min="0" max="1" step=".01" value=".72"></div><div class="control"><label for="mass3d">Kütle <output id="mass3dValue">1.0</output></label><input id="mass3d" type="range" min=".2" max="10" step=".1" value="1"></div><div class="control"><label for="friction3d">Yüzey sürtünmesi <output id="friction3dValue">0.38</output></label><input id="friction3d" type="range" min="0" max="1" step=".01" value=".38"></div><div class="control"><label for="air3d">Hava direnci <output id="air3dValue">0.015</output></label><input id="air3d" type="range" min="0" max=".2" step=".001" value=".015"></div><p>Alt adımlı fizik çözümü, kütle tabanlı çarpışma darbeleri, yüzey sürtünmesi, açısal hareket ve sürükleyip bırakarak fırlatma.</p></div>
         <div class="sim-actions"><button class="sim-btn primary" id="play3d" type="button">Ⅱ Duraklat</button><button class="sim-btn" id="reset3d" type="button">↻ Deneyi sıfırla</button></div>
         <div class="sim-stats"><div class="stat"><span>3D nesne</span><strong id="object3dCount">1</strong></div><div class="stat"><span>FPS</span><strong id="fps3d">—</strong></div></div>
-        <div class="sim-note">NOVA Sim 3D · İlk prototip. 3D sahne ve etkileşimler yerel WebGL ile çalışır; 2D deney sistemi korunur.</div>
+        <div class="sim-note">NOVA Sim 3D Alpha 3 · Alt adımlı fizik, sürtünme, hava direnci ve fırlatılabilir nesneler. 2D laboratuvar korunur.</div>
       </aside>
     </div>
   </main>
   <script src="/sim.js?v=alpha7-field-drag2"></script>
-  <script src="/sim3d.js?v=alpha2-wasd-camera" defer></script>
+  <script src="/sim3d.js?v=alpha3-physics" defer></script>
 </body>
 </html>
