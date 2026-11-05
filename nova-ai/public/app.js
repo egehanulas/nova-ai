@@ -1878,6 +1878,25 @@
       closeMenu();
       if (settingsView && !settingsView.hidden) closeSettings();
     }
+
+    // Fast keyboard workflow: Ctrl/Cmd+K focuses the composer;
+    // Ctrl/Cmd+Enter submits only a non-empty, idle prompt.
+    const primaryModifier = event.ctrlKey || event.metaKey;
+    if (primaryModifier && event.key.toLowerCase() === "k" &&
+        !event.altKey && !event.shiftKey) {
+      event.preventDefault();
+      if (settingsView && !settingsView.hidden) closeSettings();
+      closeMenu();
+      prompt.focus();
+      return;
+    }
+    if (primaryModifier && event.key === "Enter" &&
+        !event.shiftKey && !event.altKey && !event.isComposing) {
+      if (!busy && !fileReading && prompt.value.trim()) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    }
   });
 
   // NOVA AI Image Studio: custom prompt dialog, aspect presets and private gallery.
