@@ -134,7 +134,7 @@ test("NOVA Sim 3D prototype is integrated without removing the existing 2D lab",
   assert.match(html, /id="mode3d"/);
   assert.match(html, /id="world3d"/);
   assert.match(html, /class="sim-panel sim-panel-3d"/);
-  assert.match(html, /src="\/sim3d\.js\?v=alpha2-wasd-camera"/);
+  assert.match(html, /src="\/sim3d\.js\?v=alpha3-physics"/);
   assert.match(threeD, /getContext\("webgl"/);
   assert.match(threeD, /function vp\(/);
   assert.match(threeD, /function physics\(/);
@@ -150,10 +150,25 @@ test("NOVA Sim 3D Alpha 2 supports keyboard free-camera movement", () => {
   const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
   assert.match(html, /id="world3d" tabindex="0"/);
   assert.match(html, /WASD: dolaş/);
-  assert.match(html, /sim3d\.js\?v=alpha2-wasd-camera/);
+  assert.match(html, /sim3d\.js\?v=alpha3-physics/);
   assert.match(threeD, /function moveCamera\(dt\)/);
   assert.match(threeD, /cameraKeys\.has\("w"\)/);
   assert.match(threeD, /cameraKeys\.has\("shift"\)/);
   assert.match(threeD, /cameraKeys\.has\(" "\)/);
   assert.match(threeD, /window\.addEventListener\("blur",\(\)=>cameraKeys\.clear\(\)\)/);
+});
+
+
+test("NOVA Sim 3D Alpha 3 adds adaptive substeps, friction impulses, angular motion and drag throwing", () => {
+  const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
+  for (const id of ["friction3d", "friction3dValue", "air3d", "air3dValue"]) assert.ok(html.includes('id="' + id + '"'));
+  assert.ok(html.includes("sim3d.js?v=alpha3-physics"));
+  assert.ok(threeD.includes("function solveCollisions()"));
+  assert.ok(threeD.includes("const steps=clamp(Math.ceil(fastest*dt/safeTravel),1,16)"));
+  assert.ok(threeD.includes("normalImpulse"));
+  assert.ok(threeD.includes("frictionImpulse"));
+  assert.ok(threeD.includes("angularVelocity"));
+  assert.ok(threeD.includes("airResistance"));
+  assert.ok(threeD.includes("drag.body.velocity=V.mul"));
+  assert.doesNotThrow(() => new (require("node:vm").Script)(threeD));
 });

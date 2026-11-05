@@ -25,10 +25,10 @@ const meshes={sphere:sphere(),cube:cube(),cylinder:cylinder()},bodies=[],palette
 for(let i=-20;i<=20;i++)grid.push(-20,.002,i,20,.002,i,i,.002,-20,i,.002,20);
 const gridBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,gridBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(grid),gl.STATIC_DRAW);
 const axes=[[[0,.008,0,5,.008,0],[.96,.28,.34]],[[0,.008,0,0,5,0],[.25,.92,.67]],[[0,.008,0,0,.008,5],[.28,.62,1]]].map(([v,color])=>{const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(v),gl.STATIC_DRAW);return{b,color};});
-let selected=null,running=true,gravity=9.8,bounce=.72,mass=1,axisMode="free",yaw=.72,pitch=.42,distance=12,target=[0,1,0],cameraMode="free",drag=null,last=0,frames=0,fpsStamp=0;
+let selected=null,running=true,gravity=9.8,bounce=.72,mass=1,friction3d=.38,airResistance=.015,axisMode="free",yaw=.72,pitch=.42,distance=12,target=[0,1,0],cameraMode="free",drag=null,last=0,frames=0,fpsStamp=0;
 const cameraKeys=new Set();
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
-function add(type="sphere",position=[(Math.random()-.5)*2,3,(Math.random()-.5)*2]){const b={type,position:position.slice(),velocity:[0,0,0],rotation:[0,0,0],scale:1,mass,friction:.18,radius:type==="sphere"?.5:type==="cylinder"?.58:.62,color:palette[bodies.length%palette.length]};bodies.push(b);select(b);$("object3dCount").textContent=bodies.length;return b;}
+function add(type="sphere",position=[(Math.random()-.5)*2,3,(Math.random()-.5)*2]){const b={type,position:position.slice(),velocity:[0,0,0],rotation:[0,0,0],angularVelocity:[0,0,0],scale:1,mass,friction:friction3d,radius:type==="sphere"?.5:type==="cylinder"?.58:.62,color:palette[bodies.length%palette.length]};bodies.push(b);select(b);$("object3dCount").textContent=bodies.length;return b;}
 function eye(){const c=Math.cos(pitch);return[target[0]+distance*c*Math.sin(yaw),target[1]+distance*Math.sin(pitch),target[2]+distance*c*Math.cos(yaw)];}
 function vp(){return M(P(Math.PI/4,canvas.width/Math.max(1,canvas.height),.1,250),look(eye(),target));}
 function model(b){return M(T(...b.position),M(RY(b.rotation[1]),M(RX(b.rotation[0]),M(RZ(b.rotation[2]),S(b.scale,b.scale,b.scale)))));}
@@ -43,8 +43,54 @@ function updatePos(b){["X","Y","Z"].forEach((k,i)=>{$("pos3d"+k).value=clamp(b.p
 function moveAxis(b,dx,dy){if(axisMode==="free"){const right=[Math.cos(yaw),0,-Math.sin(yaw)],up=[-Math.sin(yaw)*Math.sin(pitch),Math.cos(pitch),-Math.cos(yaw)*Math.sin(pitch)],f=distance/Math.max(240,canvas.clientHeight);b.position=V.add(b.position,V.add(V.mul(right,dx*f),V.mul(up,-dy*f)));return;}const i={x:0,y:1,z:2}[axisMode],end=b.position.slice();end[i]+=1;const a=project(b.position),p=project(end);if(!a||!p)return;const x=p.x-a.x,y=p.y-a.y,l=x*x+y*y;if(l>.01)b.position[i]+=(dx*x+dy*y)/l;}
 function focus(){if(!selected)return;target=selected.position.slice();cameraMode="focus";$("cameraFocus").classList.add("selected");$("cameraFree").classList.remove("selected");}
 function resetCamera(){yaw=.72;pitch=.42;distance=12;target=[0,1,0];cameraMode="free";$("cameraFree").classList.add("selected");$("cameraFocus").classList.remove("selected");}
-function physics(dt){if(!running)return;for(const b of bodies){if(b===drag?.body)continue;b.velocity[1]-=gravity*dt;for(let i=0;i<3;i++)b.position[i]+=b.velocity[i]*dt;const floor=b.radius*b.scale;if(b.position[1]<floor){b.position[1]=floor;if(b.velocity[1]<0){b.velocity[1]=-b.velocity[1]*bounce;if(Math.abs(b.velocity[1])<.16)b.velocity[1]=0;b.velocity[0]*=.985;b.velocity[2]*=.985;}}for(const i of[0,2])if(Math.abs(b.position[i])>18){b.position[i]=clamp(b.position[i],-18,18);b.velocity[i]*=-bounce;}}
-for(let i=0;i<bodies.length;i++)for(let j=i+1;j<bodies.length;j++){const a=bodies[i],b=bodies[j],d=V.sub(b.position,a.position),len=Math.hypot(...d),min=a.radius*a.scale+b.radius*b.scale;if(len<.0001||len>=min)continue;const n=V.mul(d,1/len),over=min-len,ia=1/Math.max(.1,a.mass),ib=1/Math.max(.1,b.mass),sum=ia+ib;a.position=V.sub(a.position,V.mul(n,over*ia/sum));b.position=V.add(b.position,V.mul(n,over*ib/sum));const rel=V.dot(V.sub(b.velocity,a.velocity),n);if(rel<0){const impulse=-(1+bounce)*rel/sum;a.velocity=V.sub(a.velocity,V.mul(n,impulse*ia));b.velocity=V.add(b.velocity,V.mul(n,impulse*ib));}}}
+function solveCollisions(){
+for(let iteration=0;iteration<3;iteration++)for(let i=0;i<bodies.length;i++)for(let j=i+1;j<bodies.length;j++){
+const a=bodies[i],b=bodies[j],d=V.sub(b.position,a.position),len=Math.hypot(...d),ra=a.radius*a.scale,rb=b.radius*b.scale,min=ra+rb;
+if(len<.0001||len>=min)continue;
+const n=V.mul(d,1/len),over=min-len,ia=1/Math.max(.1,a.mass),ib=1/Math.max(.1,b.mass),sum=ia+ib;
+const correction=Math.max(0,over-.001)*.72/sum;
+a.position=V.sub(a.position,V.mul(n,correction*ia));b.position=V.add(b.position,V.mul(n,correction*ib));
+const relative=V.sub(b.velocity,a.velocity),normalSpeed=V.dot(relative,n);
+if(normalSpeed>=0)continue;
+const normalImpulse=-(1+bounce)*normalSpeed/sum,impulse=V.mul(n,normalImpulse);
+a.velocity=V.sub(a.velocity,V.mul(impulse,ia));b.velocity=V.add(b.velocity,V.mul(impulse,ib));
+const tangent=V.sub(relative,V.mul(n,normalSpeed)),tangentLength=Math.hypot(...tangent);
+if(tangentLength>.0001){
+const t=V.mul(tangent,1/tangentLength),mu=Math.sqrt(Math.max(0,a.friction*b.friction));
+const jt=clamp(-tangentLength/sum,-normalImpulse*mu,normalImpulse*mu),frictionImpulse=V.mul(t,jt);
+a.velocity=V.sub(a.velocity,V.mul(frictionImpulse,ia));b.velocity=V.add(b.velocity,V.mul(frictionImpulse,ib));
+const spinA=V.cross(V.mul(n,ra),frictionImpulse),spinB=V.cross(V.mul(n,-rb),frictionImpulse);
+for(let k=0;k<3;k++){a.angularVelocity[k]-=spinA[k]*ia*2.5;b.angularVelocity[k]-=spinB[k]*ib*2.5;}
+}
+}
+}
+function physics(dt){
+if(!running||dt<=0)return;
+const moving=bodies.filter(b=>b!==drag?.body);
+const fastest=moving.reduce((v,b)=>Math.max(v,Math.hypot(...b.velocity)),0);
+const smallest=moving.reduce((v,b)=>Math.min(v,b.radius*b.scale),Infinity);
+const safeTravel=Number.isFinite(smallest)?Math.max(.08,smallest*.35):.25;
+const steps=clamp(Math.ceil(fastest*dt/safeTravel),1,16),step=dt/steps;
+for(let s=0;s<steps;s++){
+for(const b of moving){
+b.velocity[1]-=gravity*step;
+const damping=Math.exp(-airResistance*step);
+for(let k=0;k<3;k++){b.velocity[k]*=damping;b.position[k]+=b.velocity[k]*step;b.rotation[k]+=b.angularVelocity[k]*step;b.angularVelocity[k]*=Math.exp(-.12*step);}
+const floor=b.radius*b.scale;
+if(b.position[1]<floor){
+b.position[1]=floor;
+if(b.velocity[1]<0)b.velocity[1]=-b.velocity[1]*bounce;
+const floorDamping=Math.exp(-b.friction*5*step);
+b.velocity[0]*=floorDamping;b.velocity[2]*=floorDamping;
+b.angularVelocity[0]+=b.velocity[2]*step*1.8;
+b.angularVelocity[2]-=b.velocity[0]*step*1.8;
+if(Math.abs(b.velocity[1])<.12)b.velocity[1]=0;
+}
+for(const k of[0,2])if(Math.abs(b.position[k])>18){b.position[k]=clamp(b.position[k],-18,18);if(Math.sign(b.velocity[k])===Math.sign(b.position[k]))b.velocity[k]*=-bounce;b.velocity[(k+1)%3]*=Math.max(0,1-b.friction*.15);}
+}
+solveCollisions();
+}
+}
 function moveCamera(dt){if(!dt||document.activeElement!==canvas||!layout.classList.contains("is-3d"))return;const forward=[-Math.sin(yaw),0,-Math.cos(yaw)],right=[Math.cos(yaw),0,-Math.sin(yaw)];let move=[0,0,0];if(cameraKeys.has("w"))move=V.add(move,forward);if(cameraKeys.has("s"))move=V.sub(move,forward);if(cameraKeys.has("d"))move=V.add(move,right);if(cameraKeys.has("a"))move=V.sub(move,right);if(cameraKeys.has(" "))move[1]+=1;if(cameraKeys.has("shift"))move[1]-=1;const length=Math.hypot(...move);if(length>.001){const speed=7;target=V.add(target,V.mul(move,speed*dt/length));}}
 function frame(now){const dt=last?Math.min((now-last)/1000,.033):0;last=now;moveCamera(dt);physics(dt);draw();frames++;if(now-fpsStamp>1000){$("fps3d").textContent=Math.round(frames*1000/Math.max(1,now-fpsStamp));frames=0;fpsStamp=now;}requestAnimationFrame(frame);}
 function setMode(on){layout.classList.toggle("is-3d",on);stage.classList.toggle("is-3d",on);$("world").hidden=on;canvas.hidden=!on;$("sim3dPanel").hidden=!on;$("sim3dHint").hidden=!on;$("mode2d").classList.toggle("active",!on);$("mode3d").classList.toggle("active",on);$("mode2d").setAttribute("aria-pressed",String(!on));$("mode3d").setAttribute("aria-pressed",String(on));$("stageModeLabel").textContent=on?"3D fizik alanı":"2D fizik alanı";if(on){resize();draw();canvas.focus();}else{cameraKeys.clear();}}
@@ -59,10 +105,12 @@ $("scale3d").addEventListener("input",e=>{if(selected)selected.scale=Number(e.ta
 $("gravity3d").addEventListener("input",e=>{gravity=Number(e.target.value);$("gravity3dValue").textContent=gravity.toFixed(1)+" m/sn²";});
 $("bounce3d").addEventListener("input",e=>{bounce=Number(e.target.value);$("bounce3dValue").textContent=bounce.toFixed(2);});
 $("mass3d").addEventListener("input",e=>{mass=Number(e.target.value);$("mass3dValue").textContent=mass.toFixed(1);if(selected)selected.mass=mass;});
+$("friction3d").addEventListener("input",e=>{friction3d=Number(e.target.value);$("friction3dValue").textContent=friction3d.toFixed(2);for(const b of bodies)b.friction=friction3d;});
+$("air3d").addEventListener("input",e=>{airResistance=Number(e.target.value);$("air3dValue").textContent=airResistance.toFixed(3);});
 $("play3d").addEventListener("click",()=>{running=!running;$("play3d").textContent=running?"Ⅱ Duraklat":"▶ Devam et";});
 $("reset3d").addEventListener("click",()=>{bodies.length=0;running=true;$("play3d").textContent="Ⅱ Duraklat";add("sphere",[0,2,0]);resetCamera();$("object3dCount").textContent="1";});
-canvas.addEventListener("pointerdown",e=>{canvas.focus();const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,hit=pick(x,y);canvas.setPointerCapture(e.pointerId);if(hit){select(hit);drag={body:hit,x,y};hit.velocity=[0,0,0];}else drag={camera:true,x,y};});
-canvas.addEventListener("pointermove",e=>{if(!drag)return;const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,dx=x-drag.x,dy=y-drag.y;if(drag.body){moveAxis(drag.body,dx,dy);updatePos(drag.body);if(cameraMode==="focus")target=drag.body.position.slice();}else{yaw-=dx*.006;pitch=clamp(pitch+dy*.006,-1.35,1.35);}drag.x=x;drag.y=y;});
+canvas.addEventListener("pointerdown",e=>{canvas.focus();const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,hit=pick(x,y);canvas.setPointerCapture(e.pointerId);if(hit){select(hit);drag={body:hit,x,y,time:e.timeStamp};hit.velocity=[0,0,0];}else drag={camera:true,x,y};});
+canvas.addEventListener("pointermove",e=>{if(!drag)return;const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,dx=x-drag.x,dy=y-drag.y;if(drag.body){const before=drag.body.position.slice();moveAxis(drag.body,dx,dy);const elapsed=Math.max(.008,(e.timeStamp-drag.time)/1000),delta=V.sub(drag.body.position,before),speed=Math.hypot(...delta)/elapsed;if(speed>0){drag.body.velocity=V.mul(delta,Math.min(18,speed)/speed);}updatePos(drag.body);if(cameraMode==="focus")target=drag.body.position.slice();drag.time=e.timeStamp;}else{yaw-=dx*.006;pitch=clamp(pitch+dy*.006,-1.35,1.35);}drag.x=x;drag.y=y;});
 const finish=()=>{drag=null;};canvas.addEventListener("pointerup",finish);canvas.addEventListener("pointercancel",finish);canvas.addEventListener("lostpointercapture",finish);
 canvas.addEventListener("dblclick",e=>{const r=canvas.getBoundingClientRect(),b=pick(e.clientX-r.left,e.clientY-r.top);if(b){select(b);focus();}});
 canvas.addEventListener("wheel",e=>{e.preventDefault();distance=clamp(distance*Math.exp(e.deltaY*.001),3,70);},{passive:false});
