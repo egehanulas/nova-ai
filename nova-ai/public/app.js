@@ -365,17 +365,19 @@
   }
 
   function setSettingsTab(tab) {
-    const validTabs = ["appearance", "audio", "version"];
+    const validTabs = ["appearance", "audio", "version", "feedback"];
     const activeTab = validTabs.includes(tab) ? tab : "appearance";
     const panels = {
       appearance: $("#settingsAppearancePanel"),
       audio: $("#settingsAudioPanel"),
-      version: $("#settingsVersionPanel")
+      version: $("#settingsVersionPanel"),
+      feedback: $("#settingsFeedbackPanel")
     };
     const buttons = {
       appearance: $("#appearanceTab"),
       audio: $("#audioTab"),
-      version: $("#versionTab")
+      version: $("#versionTab"),
+      feedback: $("#feedbackTab")
     };
     if (Object.values(panels).some((panel) => !panel) || Object.values(buttons).some((button) => !button)) return;
     validTabs.forEach((name) => {
@@ -447,6 +449,82 @@
   });
   try { setSettingsTab(localStorage.getItem("nova-ai-settings-tab") || "appearance"); }
   catch { setSettingsTab("appearance"); }
+
+  const feedbackForm = $("#feedbackForm");
+  const feedbackType = $("#feedbackType");
+  const feedbackDescription = $("#feedbackDescription");
+  const feedbackIncludeDiagnostics = $("#feedbackIncludeDiagnostics");
+  const feedbackDiagnosticsWrap = $("#feedbackDiagnosticsWrap");
+  const feedbackDiagnostics = $("#feedbackDiagnostics");
+  const feedbackSubmit = $("#feedbackSubmit");
+  const feedbackStatus = $("#feedbackStatus");
+
+  feedbackIncludeDiagnostics?.addEventListener("change", () => {
+    if (feedbackDiagnosticsWrap) feedbackDiagnosticsWrap.hidden = !feedbackIncludeDiagnostics.checked;
+  });
+
+  feedbackForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!feedbackType || !feedbackDescription || !feedbackSubmit || !feedbackStatus) return;
+
+    const description = feedbackDescription.value.trim();
+    if (description.length < 10) {
+      feedbackStatus.textContent = "Lütfen en az 10 karakterlik bir açıklama yaz.";
+      return;
+    }
+
+    const includeDiagnostics = Boolean(feedbackIncludeDiagnostics?.checked);
+    feedbackSubmit.disabled = true;
+    feedbackSubmit.textContent = "Gönderiliyor…";
+    feedbackStatus.textContent = "Geri bildirimin güvenli şekilde kaydediliyor.";
+
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error("Oturumun sona ermiş. Yeniden giriş yap.");
+
+      const appInfo = window.novaDesktop?.getAppInfo
+        ? await window.novaDesktop.getAppInfo().catch(() => ({}))
+        : {};
+      const diagnostics = includeDiagnostics ? {
+        appVersion: String(appInfo?.version || "web"),
+        platform: String(navigator.platform || "unknown"),
+        userAgent: String(navigator.userAgent || "").slice(0, 300),
+        logs: String(feedbackDiagnostics?.value || "").slice(0, 3000)
+      } : {};
+
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + accessToken
+        },
+        body: JSON.stringify({
+          feedbackType: feedbackType.value,
+          description,
+          includeDiagnostics,
+          diagnostics
+        })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Geri bildirim gönderilemedi.");
+      }
+
+      feedbackStatus.textContent = "Kaydedildi: " + result.ticketCode +
+        (result.emailSent ? " · Geliştiriciye e-posta bildirildi." : " · E-posta bildirimi henüz yapılandırılmadı.");
+      feedbackDescription.value = "";
+      if (feedbackDiagnostics) feedbackDiagnostics.value = "";
+      if (feedbackIncludeDiagnostics) feedbackIncludeDiagnostics.checked = false;
+      if (feedbackDiagnosticsWrap) feedbackDiagnosticsWrap.hidden = true;
+    } catch (error) {
+      feedbackStatus.textContent = error.message || "Geri bildirim gönderilemedi. Tekrar dene.";
+    } finally {
+      feedbackSubmit.disabled = false;
+      feedbackSubmit.textContent = "Geri bildirimi gönder";
+    }
+  });
 
   settingsButton?.addEventListener("click", openSettings);
   settingsBackButton?.addEventListener("click", closeSettings);
