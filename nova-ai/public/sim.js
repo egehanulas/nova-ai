@@ -12,7 +12,9 @@
   const MAX_BALLS = 100;
   let width = 0, height = 0, running = true, lastTime = 0, fpsFrames = 0, fpsTime = 0, fps = 0;
   let gravity = Number(gravityInput.value), gravityAngle = Number(gravityAngleInput.value) * Math.PI / 180, maxSpeed = Number(maxSpeedInput.value), bounce = Number(bounceInput.value), timeScale = Number(speedInput.value), mass = 1, friction = 0.18;
-  let currentShape = "circle";\n  let selectedBall = null;\n  let fieldStrength = 520, fieldRadius = 125;
+  let currentShape = "circle";
+  let selectedBall = null;
+  let fieldStrength = 520, fieldRadius = 125;
   let draggedBall = null, dragOffsetX = 0, dragOffsetY = 0, pointerId = null, dragVX = 0, dragVY = 0, previousPointerTime = 0;
   const colors = ["#9b83ff", "#6edbd0", "#ffb86b", "#ff7eaa", "#83b7ff"];
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -222,7 +224,12 @@
   syncRange(speedInput, $("speedValue"), v => v.toFixed(1) + "×");
   const massInput = $("mass"), frictionInput = $("friction");
   syncRange(massInput, $("massValue"), v => v.toFixed(1));
-  syncRange(frictionInput, $("frictionValue"), v => v.toFixed(2));\n  const fieldStrengthInput = $("fieldStrength"), fieldRadiusInput = $("fieldRadius");\n  syncRange(fieldStrengthInput, $("fieldStrengthValue"), v => String(Math.round(v)));\n  syncRange(fieldRadiusInput, $("fieldRadiusValue"), v => Math.round(v) + " px");\n  fieldStrengthInput.addEventListener("input", () => fieldStrength = Number(fieldStrengthInput.value));\n  fieldRadiusInput.addEventListener("input", () => fieldRadius = Number(fieldRadiusInput.value));
+  syncRange(frictionInput, $("frictionValue"), v => v.toFixed(2));
+  const fieldStrengthInput = $("fieldStrength"), fieldRadiusInput = $("fieldRadius");
+  syncRange(fieldStrengthInput, $("fieldStrengthValue"), v => String(Math.round(v)));
+  syncRange(fieldRadiusInput, $("fieldRadiusValue"), v => Math.round(v) + " px");
+  fieldStrengthInput.addEventListener("input", () => fieldStrength = Number(fieldStrengthInput.value));
+  fieldRadiusInput.addEventListener("input", () => fieldRadius = Number(fieldRadiusInput.value));
   massInput.addEventListener("input", () => { mass = Number(massInput.value); for (const b of balls) b.mass = mass; });
   frictionInput.addEventListener("input", () => { friction = Number(frictionInput.value); for (const b of balls) b.friction = friction; });
   gravityInput.addEventListener("input", () => gravity = Number(gravityInput.value));
@@ -244,7 +251,10 @@
       if (!data || ![1, 2].includes(data.version) || !Array.isArray(data.balls) || !data.settings) throw new Error("invalid");
       const v = data.settings;
       for (const [key,value] of [["gravity",v.gravity],["gravityAngle",v.gravityAngle],["bounce",v.bounce],["speed",v.timeScale],["maxSpeed",v.maxSpeed],["mass",v.mass],["friction",v.friction]]) { const input=$(key); if (Number.isFinite(value)) { input.value=String(value); input.dispatchEvent(new Event("input")); } }
-      currentShape = ["circle","box","triangle"].includes(v.currentShape) ? v.currentShape : "circle";\n      if (Number.isFinite(v.fieldStrength)) { fieldStrength = clamp(v.fieldStrength,50,3000); fieldStrengthInput.value=String(fieldStrength); fieldStrengthInput.dispatchEvent(new Event("input")); }\n      if (Number.isFinite(v.fieldRadius)) { fieldRadius = clamp(v.fieldRadius,30,500); fieldRadiusInput.value=String(fieldRadius); fieldRadiusInput.dispatchEvent(new Event("input")); }\n      balls.length=0; selectedBall=null;
+      currentShape = ["circle","box","triangle"].includes(v.currentShape) ? v.currentShape : "circle";
+      if (Number.isFinite(v.fieldStrength)) { fieldStrength = clamp(v.fieldStrength,50,3000); fieldStrengthInput.value=String(fieldStrength); fieldStrengthInput.dispatchEvent(new Event("input")); }
+      if (Number.isFinite(v.fieldRadius)) { fieldRadius = clamp(v.fieldRadius,30,500); fieldRadiusInput.value=String(fieldRadius); fieldRadiusInput.dispatchEvent(new Event("input")); }
+      balls.length=0; selectedBall=null;
       for (const b of data.balls.slice(0,MAX_BALLS)) if ([b.x,b.y,b.vx,b.vy,b.r,b.mass,b.friction].every(Number.isFinite) && ["circle","box","triangle"].includes(b.shape)) balls.push({ ...b, x:clamp(b.x,0,1)*width, y:clamp(b.y,0,1)*height, mass:clamp(b.mass,.05,20), friction:clamp(b.friction,0,1), r:clamp(b.r,4,60), angle:Number.isFinite(b.angle)?b.angle:0, angularVelocity:Number.isFinite(b.angularVelocity)?b.angularVelocity:0 });
       fields.length=0; if (Array.isArray(data.fields)) for (const f of data.fields.slice(0,30)) if ([f.x,f.y,f.radius,f.strength].every(Number.isFinite) && ["attract","repel"].includes(f.type)) fields.push({ ...f, x:clamp(f.x,0,1)*width, y:clamp(f.y,0,1)*height, radius:clamp(f.radius,20,500), strength:clamp(f.strength,0,3000) });
       $("ballCount").textContent=String(balls.length); $("presetState").textContent="Deney yüklendi"; draw();
@@ -274,7 +284,7 @@
       if (distance < nearestDistance) { nearestDistance = distance; nearest = body; }
     }
     if (!nearest) { $("universeState").textContent = "Birleştirmek için en az iki nesne gerekli."; return; }
-    const a = selectedBall, b = nearest, totalMass = a.mass + b.mass;
+    const a = selectedBall, b = nearest, totalMass = a.mass + b.mass;\n    const spin = (a.angularVelocity * a.mass + b.angularVelocity * b.mass) / totalMass;
     a.x = (a.x * a.mass + b.x * b.mass) / totalMass;
     a.y = (a.y * a.mass + b.y * b.mass) / totalMass;
     a.vx = (a.vx * a.mass + b.vx * b.mass) / totalMass;
@@ -302,7 +312,8 @@
   }
   $("mergeSelected").addEventListener("click", mergeSelected);
   $("splitSelected").addEventListener("click", splitSelected);
-\n  canvas.addEventListener("pointerdown", (event) => {
+
+  canvas.addEventListener("pointerdown", (event) => {
     if (draggedBall) return;
     const point = pointerPosition(event);
     let hit = null;
