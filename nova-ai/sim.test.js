@@ -29,7 +29,7 @@ test("simulation keeps ball count bounded and runs gravity, collisions and anima
 
 test("balls can be grabbed, dragged, released and launched with pointer velocity", () => {
   assert.match(html, /touch-action:none/);
-  assert.match(script, /canvas\.setPointerCapture\(pointerId\)/);
+  assert.match(script, /grip\.setPointerCapture\(pointerId\)/);
   assert.match(script, /canvas\.addEventListener\("pointermove"/);
   assert.match(script, /canvas\.addEventListener\("pointerup", finishDrag\)/);
   assert.match(script, /draggedBall\.vx = dragVX/);
@@ -114,9 +114,9 @@ test("Alpha 8 merge preserves mass-weighted linear and angular momentum calculat
 
 
 test("force fields can be selected, moved independently, edited and deleted", () => {
-  for (const id of ["moveFields", "deleteField", "fieldState"]) assert.ok(html.includes('id="' + id + '"'));
+  for (const id of ["fieldCards", "deleteField", "fieldState"]) assert.ok(html.includes('id="' + id + '"'));
   assert.match(script, /function selectField\(/);
-  assert.match(script, /moveFieldsMode/);
+  assert.match(script, /function renderFieldCards\(/);
   assert.match(script, /draggedField\.x = clamp/);
   assert.match(script, /draggedField\.y = clamp/);
   assert.match(script, /if \(selectedField\) selectedField\.strength = fieldStrength/);
