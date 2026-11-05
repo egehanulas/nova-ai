@@ -549,6 +549,7 @@
           <button class="settings-tab active" id="appearanceTab" type="button" role="tab" aria-selected="true" aria-controls="settingsAppearancePanel" data-settings-tab="appearance">Görünüm</button>
           <button class="settings-tab" id="audioTab" type="button" role="tab" aria-selected="false" aria-controls="settingsAudioPanel" data-settings-tab="audio">Ses ve Mikrofon</button>
           <button class="settings-tab" id="versionTab" type="button" role="tab" aria-selected="false" aria-controls="settingsVersionPanel" data-settings-tab="version">Sürüm</button>
+          <button class="settings-tab" id="feedbackTab" type="button" role="tab" aria-selected="false" aria-controls="settingsFeedbackPanel" data-settings-tab="feedback">Geri Bildirim</button>
         </div>
         <div id="settingsAppearancePanel" class="settings-tab-panel" role="tabpanel" aria-labelledby="appearanceTab">
         <section class="settings-section" aria-labelledby="themeTitle">
@@ -639,6 +640,41 @@
               <span class="voice-settings-note" id="appUpdateStatus" role="status" aria-live="polite">Güncelleme durumu bekleniyor.</span>
             </div>
             <p class="settings-hint">Yeni sürümlerde yapılan değişiklikler, güncelleme indirildiğinde NOVA'nın kendi tasarımlı yenilikler penceresinde gösterilir.</p>
+          </section>
+        </div>
+        <div id="settingsFeedbackPanel" class="settings-tab-panel" role="tabpanel" aria-labelledby="feedbackTab" hidden>
+          <section class="settings-section" aria-labelledby="feedbackTitle">
+            <div class="settings-section-heading">
+              <h2 id="feedbackTitle">Geri Bildirim Merkezi</h2>
+              <span>NOVA AI'yi birlikte geliştirelim</span>
+            </div>
+            <p class="feedback-intro">Bir hatayı bildir, yeni özellik öner veya performans sorununu bize ilet. Her bildirim için takip numarası oluşturulur.</p>
+            <form class="feedback-form" id="feedbackForm">
+              <label class="feedback-field" for="feedbackType">
+                Bildirim türü
+                <select id="feedbackType" name="feedbackType" required>
+                  <option value="bug">Hata bildirimi</option>
+                  <option value="feature">Özellik isteği</option>
+                  <option value="performance">Performans sorunu</option>
+                  <option value="general">Genel geri bildirim</option>
+                </select>
+              </label>
+              <label class="feedback-field" for="feedbackDescription">
+                Açıklama
+                <textarea id="feedbackDescription" name="description" minlength="10" maxlength="4000" required placeholder="Ne oldu? Ne bekliyordun? Varsa hatayı nasıl tekrarlayabiliriz?"></textarea>
+              </label>
+              <label class="feedback-consent" for="feedbackIncludeDiagnostics">
+                <input id="feedbackIncludeDiagnostics" type="checkbox">
+                <span>Teknik bilgileri ekle (uygulama sürümü, sistem bilgisi ve aşağıya yazdığım hata logu).</span>
+              </label>
+              <label class="feedback-field" id="feedbackDiagnosticsWrap" for="feedbackDiagnostics" hidden>
+                İsteğe bağlı teknik log
+                <textarea id="feedbackDiagnostics" maxlength="3000" placeholder="Yalnızca paylaşmak istediğin hata mesajlarını buraya yapıştır. Şifre veya API anahtarı ekleme."></textarea>
+              </label>
+              <div class="feedback-privacy">Gizlilik: Sohbet geçmişin, ekran görüntülerin ve kişisel dosyaların gönderilmez. Teknik bilgiler yalnızca kutuyu işaretlersen eklenir. Göndermeden önce açıklamanı ve loglarını kontrol et.</div>
+              <button class="feedback-submit" id="feedbackSubmit" type="submit">Geri bildirimi gönder</button>
+              <p class="feedback-status" id="feedbackStatus" role="status" aria-live="polite"></p>
+            </form>
           </section>
         </div>
       </section>
