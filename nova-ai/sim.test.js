@@ -6,10 +6,10 @@ const path = require("node:path");
 const html = fs.readFileSync(path.join(__dirname, "public", "sim.html"), "utf8");
 const script = fs.readFileSync(path.join(__dirname, "public", "sim.js"), "utf8");
 
-test("NOVA Sim Alpha 2 page loads its versioned physics script and canvas", () => {
+test("NOVA Sim Alpha 3 page loads its versioned physics script and canvas", () => {
   assert.match(html, /<canvas[^>]+id="world"/);
-  assert.match(html, /src="\/sim\.js\?v=alpha2-drag"/);
-  assert.match(html, /Fizik Laboratuvarı · Alpha 2/);
+  assert.match(html, /src="\/sim\.js\?v=alpha3-shapes"/);
+  assert.match(html, /Fizik Laboratuvarı · Alpha 3/);
   assert.match(html, /href="\/"[^>]*>← NOVA AI'ye dön/);
 });
 
@@ -35,4 +35,12 @@ test("balls can be grabbed, dragged, released and launched with pointer velocity
   assert.match(script, /draggedBall\.vx = dragVX/);
   assert.match(script, /draggedBall\.vy = dragVY/);
   assert.match(script, /if \(b === draggedBall\) continue/);
+});
+
+test("Alpha 3 exposes circle, box and triangle shape selectors", () => {
+  for (const id of ["spawnCircle", "spawnBox", "spawnTriangle", "shapeState"]) assert.match(html, new RegExp('id="' + id + '"'));
+  assert.match(script, /currentShape = "circle"/);
+  assert.match(script, /shape: currentShape/);
+  assert.match(script, /b\.shape === "box"/);
+  assert.match(script, /b\.shape === "triangle"/);
 });
