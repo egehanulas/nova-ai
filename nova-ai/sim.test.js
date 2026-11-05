@@ -81,7 +81,8 @@ test("Alpha 7 adapts physics substeps to object speed and prevents duplicate spi
   assert.equal((script.match(/b\.angularVelocity \+= jt \* b\.r \* invB \* \.025/g) || []).length, 1);
 });
 
-\ntest("Alpha 7 adds selected-object merge and split universe tools", () => {
+
+test("Alpha 7 adds selected-object merge and split universe tools", () => {
   for (const id of ["mergeSelected", "splitSelected", "universeState", "fieldStrength", "fieldRadius"]) assert.ok(html.includes('id="' + id + '"'));
   assert.match(script, /function mergeSelected\(/);
   assert.match(script, /function splitSelected\(/);
