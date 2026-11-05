@@ -1645,3 +1645,72 @@ button:disabled {
 @media (prefers-reduced-motion: reduce) {
   .nova-activity-spinner { animation-duration: 2.5s; }
 }
+
+
+/* NOVA Feedback Center */
+.feedback-intro {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.feedback-form {
+  display: grid;
+  gap: 14px;
+  max-width: 760px;
+}
+.feedback-field {
+  display: grid;
+  gap: 7px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.feedback-field select,
+.feedback-field textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--text);
+  background: var(--surface);
+  font: inherit;
+  font-weight: 400;
+}
+.feedback-field textarea {
+  min-height: 132px;
+  resize: vertical;
+  line-height: 1.55;
+}
+.feedback-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.feedback-consent input { margin-top: 3px; accent-color: var(--accent); }
+.feedback-privacy {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--muted);
+  background: rgba(125, 105, 190, .07);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.feedback-submit {
+  width: fit-content;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 11px;
+  color: #fff;
+  background: var(--gradient);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.feedback-submit:disabled { opacity: .55; cursor: wait; }
+.feedback-status { min-height: 20px; color: var(--accent-light); font-size: 13px; }
