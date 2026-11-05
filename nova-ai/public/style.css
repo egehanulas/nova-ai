@@ -1714,3 +1714,15 @@ button:disabled {
 }
 .feedback-submit:disabled { opacity: .55; cursor: wait; }
 .feedback-status { min-height: 20px; color: var(--accent-light); font-size: 13px; }
+
+/* Developer-only feedback console */
+.developer-feedback-toolbar,.developer-feedback-header,.developer-feedback-footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.developer-feedback-list{display:grid;gap:12px;margin-top:16px}
+.developer-feedback-card{padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--surface);display:grid;gap:12px;min-width:0}
+.developer-feedback-header{flex-wrap:wrap;color:var(--muted);font-size:12px}
+.developer-feedback-header strong{color:var(--text);font-size:13px}
+.developer-feedback-description{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;font-size:13px}
+.developer-feedback-status{max-width:200px;border:1px solid var(--border);border-radius:9px;padding:8px 10px;background:var(--surface);color:var(--text);font:inherit}
+.developer-feedback-diagnostics{max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;background:rgba(120,120,150,.08);border-radius:9px;font-size:11px}
+.developer-feedback-card summary{cursor:pointer;color:var(--muted);font-size:12px}
+.developer-feedback-footer{justify-content:flex-end}
