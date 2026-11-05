@@ -550,6 +550,7 @@
           <button class="settings-tab" id="audioTab" type="button" role="tab" aria-selected="false" aria-controls="settingsAudioPanel" data-settings-tab="audio">Ses ve Mikrofon</button>
           <button class="settings-tab" id="versionTab" type="button" role="tab" aria-selected="false" aria-controls="settingsVersionPanel" data-settings-tab="version">Sürüm</button>
           <button class="settings-tab" id="feedbackTab" type="button" role="tab" aria-selected="false" aria-controls="settingsFeedbackPanel" data-settings-tab="feedback">Geri Bildirim</button>
+          <button class="settings-tab" id="developerTab" type="button" role="tab" aria-selected="false" aria-controls="settingsDeveloperPanel" data-settings-tab="developer" hidden>Geliştirici</button>
         </div>
         <div id="settingsAppearancePanel" class="settings-tab-panel" role="tabpanel" aria-labelledby="appearanceTab">
         <section class="settings-section" aria-labelledby="themeTitle">
@@ -678,7 +679,8 @@
           </section>
         </div>
       </section>
-      <section class="messages" id="messages" aria-label="Mesajlar" aria-live="polite" aria-relevant="additions text"></section>
+<div id="settingsDeveloperPanel" class="settings-tab-panel" role="tabpanel" aria-labelledby="developerTab" hidden><section class="settings-section" aria-labelledby="developerFeedbackTitle"><div class="settings-section-heading"><h2 id="developerFeedbackTitle">Geliştirici Paneli</h2><span>Gelen geri bildirimler</span></div><p class="feedback-intro">Bu alan yalnızca doğrulanmış geliştirici hesabına açıktır. Gelen bildirimleri inceleyebilir ve durumlarını değiştirebilirsin.</p><div class="developer-feedback-toolbar"><button class="voice-test-button" id="developerFeedbackRefresh" type="button">↻ Yenile</button><span class="voice-settings-note" id="developerFeedbackStatus" role="status" aria-live="polite">Bildirimler henüz yüklenmedi.</span></div><div class="developer-feedback-list" id="developerFeedbackList" aria-live="polite"></div></section></div>
+            <section class="messages" id="messages" aria-label="Mesajlar" aria-live="polite" aria-relevant="additions text"></section>
 
       <footer class="composer-area">
         <div class="composer-shell">
