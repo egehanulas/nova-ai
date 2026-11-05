@@ -74,13 +74,21 @@
         <div class="control"><label for="rot3dY">Döndürme Y <output id="rot3dYValue">0°</output></label><input id="rot3dY" type="range" min="0" max="360" step="1" value="0"></div>
         <div class="control"><label for="scale3d">Boyut <output id="scale3dValue">1.00×</output></label><input id="scale3d" type="range" min=".25" max="3" step=".05" value="1"></div>
         <div><h2 style="margin-bottom:9px">Hibrit fizik</h2><div class="control"><label for="gravity3d">Yerçekimi <output id="gravity3dValue">9.8 m/sn²</output></label><input id="gravity3d" type="range" min="0" max="25" step=".1" value="9.8"></div><div class="control"><label for="bounce3d">Esneklik <output id="bounce3dValue">0.72</output></label><input id="bounce3d" type="range" min="0" max="1" step=".01" value=".72"></div><div class="control"><label for="mass3d">Kütle <output id="mass3dValue">1.0</output></label><input id="mass3d" type="range" min=".2" max="10" step=".1" value="1"></div><div class="control"><label for="friction3d">Yüzey sürtünmesi <output id="friction3dValue">0.38</output></label><input id="friction3d" type="range" min="0" max="1" step=".01" value=".38"></div><div class="control"><label for="air3d">Hava direnci <output id="air3dValue">0.015</output></label><input id="air3d" type="range" min="0" max=".2" step=".001" value=".015"></div><p>Alt adımlı fizik çözümü, kütle tabanlı çarpışma darbeleri, yüzey sürtünmesi, açısal hareket ve sürükleyip bırakarak fırlatma.</p></div>
+        <div><h2 style="margin-bottom:9px">Evren kuralları · Alpha 5</h2><p>Yerçekiminin yönünü değiştir ve sahneye yerel çekim/itim alanları ekle.</p>
+          <div class="control"><label for="gravityDirX">Yerçekimi X <output id="gravityDirXValue">0.00</output></label><input id="gravityDirX" type="range" min="-1" max="1" step=".05" value="0"></div>
+          <div class="control"><label for="gravityDirY">Yerçekimi Y <output id="gravityDirYValue">-1.00</output></label><input id="gravityDirY" type="range" min="-1" max="1" step=".05" value="-1"></div>
+          <div class="control"><label for="gravityDirZ">Yerçekimi Z <output id="gravityDirZValue">0.00</output></label><input id="gravityDirZ" type="range" min="-1" max="1" step=".05" value="0"></div>
+          <div class="control"><label for="fieldStrength3d">Alan gücü <output id="fieldStrength3dValue">18</output></label><input id="fieldStrength3d" type="range" min="1" max="60" step="1" value="18"></div>
+          <div class="control"><label for="fieldRadius3d">Alan yarıçapı <output id="fieldRadius3dValue">6.0 m</output></label><input id="fieldRadius3d" type="range" min="1" max="15" step=".5" value="6"></div>
+          <div class="sim-actions"><button class="sim-btn" id="addAttract3d" type="button">＋ Çekim alanı ekle</button><button class="sim-btn" id="addRepel3d" type="button">＋ İtim alanı ekle</button><button class="sim-btn" id="clearFields3d" type="button">Alanları temizle</button></div>
+          <div class="sim-actions"><button class="sim-btn primary" id="merge3d" type="button">⇄ En yakın nesneyle birleştir</button><button class="sim-btn" id="split3d" type="button">✣ Seçileni ikiye böl</button></div><p id="universe3dState" aria-live="polite">Önce bir nesne seç; alanlar seçili nesnenin konumuna yerleşir.</p></div>
         <div class="sim-actions"><button class="sim-btn primary" id="play3d" type="button">Ⅱ Duraklat</button><button class="sim-btn" id="reset3d" type="button">↻ Deneyi sıfırla</button></div>
         <div class="sim-stats"><div class="stat"><span>3D nesne</span><strong id="object3dCount">1</strong></div><div class="stat"><span>FPS</span><strong id="fps3d">—</strong></div></div>
-        <div class="sim-note">NOVA Sim 3D Alpha 3 · Alt adımlı fizik, sürtünme, hava direnci ve fırlatılabilir nesneler. 2D laboratuvar korunur.</div>
+        <div class="sim-note">NOVA Sim 3D Alpha 5 · Şekil duyarlı temas, yönlü yerçekimi, kuvvet alanları ve birleştir/böl evren araçları. 2D laboratuvar korunur.</div>
       </aside>
     </div>
   </main>
   <script src="/sim.js?v=alpha7-field-drag2"></script>
-  <script src="/sim3d.js?v=alpha3-physics" defer></script>
+  <script src="/sim3d.js?v=alpha5-universe" defer></script>
 </body>
 </html>

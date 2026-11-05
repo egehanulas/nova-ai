@@ -25,10 +25,15 @@ const meshes={sphere:sphere(),cube:cube(),cylinder:cylinder()},bodies=[],palette
 for(let i=-20;i<=20;i++)grid.push(-20,.002,i,20,.002,i,i,.002,-20,i,.002,20);
 const gridBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,gridBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(grid),gl.STATIC_DRAW);
 const axes=[[[0,.008,0,5,.008,0],[.96,.28,.34]],[[0,.008,0,0,5,0],[.25,.92,.67]],[[0,.008,0,0,.008,5],[.28,.62,1]]].map(([v,color])=>{const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(v),gl.STATIC_DRAW);return{b,color};});
-let selected=null,running=true,gravity=9.8,bounce=.72,mass=1,friction3d=.38,airResistance=.015,axisMode="free",yaw=.72,pitch=.42,distance=12,target=[0,1,0],cameraMode="free",drag=null,last=0,frames=0,fpsStamp=0;
+let selected=null,running=true,gravity=9.8,bounce=.72,mass=1,friction3d=.38,airResistance=.015,gravityDirection=[0,-1,0],forceFields=[],fieldStrength3d=18,fieldRadius3d=6,axisMode="free",yaw=.72,pitch=.42,distance=12,target=[0,1,0],cameraMode="free",drag=null,last=0,frames=0,fpsStamp=0;
 const cameraKeys=new Set();
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 function add(type="sphere",position=[(Math.random()-.5)*2,3,(Math.random()-.5)*2]){const b={type,position:position.slice(),velocity:[0,0,0],rotation:[0,0,0],angularVelocity:[0,0,0],scale:1,mass,friction:friction3d,radius:type==="sphere"?.5:type==="cylinder"?.58:.62,color:palette[bodies.length%palette.length]};bodies.push(b);select(b);$("object3dCount").textContent=bodies.length;return b;}
+function bodyAxes(b){const cy=Math.cos(b.rotation[1]),sy=Math.sin(b.rotation[1]),cx=Math.cos(b.rotation[0]),sx=Math.sin(b.rotation[0]),cz=Math.cos(b.rotation[2]),sz=Math.sin(b.rotation[2]);const rot=v=>{let q=[cz*v[0]-sz*v[1],sz*v[0]+cz*v[1],v[2]];q=[q[0],cx*q[1]-sx*q[2],sx*q[1]+cx*q[2]];return[cy*q[0]+sy*q[2],q[1],-sy*q[0]+cy*q[2]];};return[rot([1,0,0]),rot([0,1,0]),rot([0,0,1])];}
+function supportRadius(b,n){const r=.5*b.scale;if(b.type==="sphere")return r;const axes=bodyAxes(b),x=V.dot(n,axes[0]),y=V.dot(n,axes[1]),z=V.dot(n,axes[2]);if(b.type==="cylinder")return r*(Math.abs(y)+Math.hypot(x,z));return r*(Math.abs(x)+Math.abs(y)+Math.abs(z));}
+function nearestBody(from){let best=null,distance=Infinity;for(const b of bodies){if(b===from)continue;const d=Math.hypot(...V.sub(b.position,from.position));if(d<distance){best=b;distance=d;}}return best;}
+function mergeSelected3d(){if(!selected||bodies.length<2){$("universe3dState").textContent="Birleştirmek için en az iki nesne ekle ve birini seç.";return;}const other=nearestBody(selected);if(!other)return;const a=selected,b=other,total=a.mass+b.mass,volume=a.scale**3+b.scale**3,oldMassA=a.mass,oldMassB=b.mass;a.position=a.position.map((v,i)=>(v*oldMassA+b.position[i]*oldMassB)/total);a.velocity=a.velocity.map((v,i)=>(v*oldMassA+b.velocity[i]*oldMassB)/total);a.angularVelocity=a.angularVelocity.map((v,i)=>(v*oldMassA+b.angularVelocity[i]*oldMassB)/total);a.mass=total;a.scale=clamp(Math.cbrt(volume),.25,3);a.friction=(a.friction*oldMassA+b.friction*oldMassB)/total;bodies.splice(bodies.indexOf(b),1);select(a);$("object3dCount").textContent=bodies.length;$("universe3dState").textContent="En yakın nesneyle birleştirildi; kütle ve doğrusal momentum korundu.";}
+function splitSelected3d(){if(!selected){$("universe3dState").textContent="Önce bir nesne seç.";return;}if(bodies.length>=40){$("universe3dState").textContent="Sahne güvenliği için en fazla 40 nesne oluşturulabilir.";return;}const a=selected,childMass=a.mass/2,childScale=a.scale/Math.cbrt(2),offset=[Math.max(.2,childScale*.65),0,0],base=a.position.slice(),oldVelocity=a.velocity.slice(),oldSpin=a.angularVelocity.slice();a.mass=childMass;a.scale=childScale;a.position=V.sub(base,offset);const child=add(a.type,V.add(base,offset));child.mass=childMass;child.scale=childScale;child.velocity=V.add(oldVelocity,[1.2,.5,0]);a.velocity=V.add(oldVelocity,[-1.2,-.5,0]);a.angularVelocity=oldSpin.slice();child.angularVelocity=oldSpin.slice();$("mass3d").value=childMass;$("mass3dValue").textContent=childMass.toFixed(1);$("universe3dState").textContent="Nesne iki parçaya bölündü; toplam kütle ve yaklaşık hacim korundu.";}
 function eye(){const c=Math.cos(pitch);return[target[0]+distance*c*Math.sin(yaw),target[1]+distance*Math.sin(pitch),target[2]+distance*c*Math.cos(yaw)];}
 function vp(){return M(P(Math.PI/4,canvas.width/Math.max(1,canvas.height),.1,250),look(eye(),target));}
 function model(b){return M(T(...b.position),M(RY(b.rotation[1]),M(RX(b.rotation[0]),M(RZ(b.rotation[2]),S(b.scale,b.scale,b.scale)))));}
@@ -45,9 +50,10 @@ function focus(){if(!selected)return;target=selected.position.slice();cameraMode
 function resetCamera(){yaw=.72;pitch=.42;distance=12;target=[0,1,0];cameraMode="free";$("cameraFree").classList.add("selected");$("cameraFocus").classList.remove("selected");}
 function solveCollisions(){
 for(let iteration=0;iteration<3;iteration++)for(let i=0;i<bodies.length;i++)for(let j=i+1;j<bodies.length;j++){
-const a=bodies[i],b=bodies[j],d=V.sub(b.position,a.position),len=Math.hypot(...d),ra=a.radius*a.scale,rb=b.radius*b.scale,min=ra+rb;
-if(len<.0001||len>=min)continue;
-const n=V.mul(d,1/len),over=min-len,ia=1/Math.max(.1,a.mass),ib=1/Math.max(.1,b.mass),sum=ia+ib;
+const a=bodies[i],b=bodies[j],d=V.sub(b.position,a.position),len=Math.hypot(...d);
+if(len<.0001)continue;
+const n=V.mul(d,1/len),ra=supportRadius(a,n),rb=supportRadius(b,V.mul(n,-1)),min=ra+rb;if(len>=min)continue;
+const over=min-len,ia=1/Math.max(.1,a.mass),ib=1/Math.max(.1,b.mass),sum=ia+ib;
 const correction=Math.max(0,over-.001)*.72/sum;
 a.position=V.sub(a.position,V.mul(n,correction*ia));b.position=V.add(b.position,V.mul(n,correction*ib));
 const relative=V.sub(b.velocity,a.velocity),normalSpeed=V.dot(relative,n);
@@ -73,10 +79,11 @@ const safeTravel=Number.isFinite(smallest)?Math.max(.08,smallest*.35):.25;
 const steps=clamp(Math.ceil(fastest*dt/safeTravel),1,16),step=dt/steps;
 for(let s=0;s<steps;s++){
 for(const b of moving){
-b.velocity[1]-=gravity*step;
+b.velocity=V.add(b.velocity,V.mul(gravityDirection,gravity*step));
+for(const field of forceFields){const delta=V.sub(field.position,b.position),distanceToField=Math.hypot(...delta);if(distanceToField>0.001&&distanceToField<field.radius){const falloff=1-distanceToField/field.radius,acceleration=field.strength*falloff*falloff/Math.max(.5,b.mass);b.velocity=V.add(b.velocity,V.mul(delta,(field.mode==="attract"?1:-1)*acceleration*step/distanceToField));}}
 const damping=Math.exp(-airResistance*step);
 for(let k=0;k<3;k++){b.velocity[k]*=damping;b.position[k]+=b.velocity[k]*step;b.rotation[k]+=b.angularVelocity[k]*step;b.angularVelocity[k]*=Math.exp(-.12*step);}
-const floor=b.radius*b.scale;
+const floor=supportRadius(b,[0,1,0]);
 if(b.position[1]<floor){
 b.position[1]=floor;
 if(b.velocity[1]<0)b.velocity[1]=-b.velocity[1]*bounce;
@@ -107,6 +114,13 @@ $("bounce3d").addEventListener("input",e=>{bounce=Number(e.target.value);$("boun
 $("mass3d").addEventListener("input",e=>{mass=Number(e.target.value);$("mass3dValue").textContent=mass.toFixed(1);if(selected)selected.mass=mass;});
 $("friction3d").addEventListener("input",e=>{friction3d=Number(e.target.value);$("friction3dValue").textContent=friction3d.toFixed(2);for(const b of bodies)b.friction=friction3d;});
 $("air3d").addEventListener("input",e=>{airResistance=Number(e.target.value);$("air3dValue").textContent=airResistance.toFixed(3);});
+["X","Y","Z"].forEach((axis,i)=>$("gravityDir"+axis).addEventListener("input",e=>{gravityDirection[i]=Number(e.target.value);gravityDirection=V.norm(gravityDirection);["X","Y","Z"].forEach((k,j)=>{$("gravityDir"+k+"Value").textContent=gravityDirection[j].toFixed(2);});}));
+$("fieldStrength3d").addEventListener("input",e=>{fieldStrength3d=Number(e.target.value);$("fieldStrength3dValue").textContent=fieldStrength3d.toFixed(0);});
+$("fieldRadius3d").addEventListener("input",e=>{fieldRadius3d=Number(e.target.value);$("fieldRadius3dValue").textContent=fieldRadius3d.toFixed(1)+" m";});
+$("addAttract3d").addEventListener("click",()=>{if(!selected){$("universe3dState").textContent="Önce alanın merkezini belirlemek için bir nesne seç.";return;}forceFields.push({mode:"attract",position:selected.position.slice(),strength:fieldStrength3d,radius:fieldRadius3d});$("universe3dState").textContent="Seçili nesnenin konumuna çekim alanı eklendi.";});
+$("addRepel3d").addEventListener("click",()=>{if(!selected){$("universe3dState").textContent="Önce alanın merkezini belirlemek için bir nesne seç.";return;}forceFields.push({mode:"repel",position:selected.position.slice(),strength:fieldStrength3d,radius:fieldRadius3d});$("universe3dState").textContent="Seçili nesnenin konumuna itim alanı eklendi.";});
+$("clearFields3d").addEventListener("click",()=>{forceFields.length=0;$("universe3dState").textContent="Tüm 3D kuvvet alanları temizlendi.";});
+$("merge3d").addEventListener("click",mergeSelected3d);$("split3d").addEventListener("click",splitSelected3d);
 $("play3d").addEventListener("click",()=>{running=!running;$("play3d").textContent=running?"Ⅱ Duraklat":"▶ Devam et";});
 $("reset3d").addEventListener("click",()=>{bodies.length=0;running=true;$("play3d").textContent="Ⅱ Duraklat";add("sphere",[0,2,0]);resetCamera();$("object3dCount").textContent="1";});
 canvas.addEventListener("pointerdown",e=>{canvas.focus();const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,hit=pick(x,y);canvas.setPointerCapture(e.pointerId);if(hit){select(hit);drag={body:hit,x,y,time:e.timeStamp};hit.velocity=[0,0,0];}else drag={camera:true,x,y};});

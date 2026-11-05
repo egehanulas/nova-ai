@@ -134,7 +134,7 @@ test("NOVA Sim 3D prototype is integrated without removing the existing 2D lab",
   assert.match(html, /id="mode3d"/);
   assert.match(html, /id="world3d"/);
   assert.match(html, /class="sim-panel sim-panel-3d"/);
-  assert.match(html, /src="\/sim3d\.js\?v=alpha3-physics"/);
+  assert.match(html, /src="\/sim3d\.js\?v=alpha5-universe"/);
   assert.match(threeD, /getContext\("webgl"/);
   assert.match(threeD, /function vp\(/);
   assert.match(threeD, /function physics\(/);
@@ -150,7 +150,7 @@ test("NOVA Sim 3D Alpha 2 supports keyboard free-camera movement", () => {
   const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
   assert.match(html, /id="world3d" tabindex="0"/);
   assert.match(html, /WASD: dolaş/);
-  assert.match(html, /sim3d\.js\?v=alpha3-physics/);
+  assert.match(html, /sim3d\.js\?v=alpha5-universe/);
   assert.match(threeD, /function moveCamera\(dt\)/);
   assert.match(threeD, /cameraKeys\.has\("w"\)/);
   assert.match(threeD, /cameraKeys\.has\("shift"\)/);
@@ -162,7 +162,7 @@ test("NOVA Sim 3D Alpha 2 supports keyboard free-camera movement", () => {
 test("NOVA Sim 3D Alpha 3 adds adaptive substeps, friction impulses, angular motion and drag throwing", () => {
   const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
   for (const id of ["friction3d", "friction3dValue", "air3d", "air3dValue"]) assert.ok(html.includes('id="' + id + '"'));
-  assert.ok(html.includes("sim3d.js?v=alpha3-physics"));
+  assert.ok(html.includes("sim3d.js?v=alpha5-universe"));
   assert.ok(threeD.includes("function solveCollisions()"));
   assert.ok(threeD.includes("const steps=clamp(Math.ceil(fastest*dt/safeTravel),1,16)"));
   assert.ok(threeD.includes("normalImpulse"));
@@ -171,4 +171,17 @@ test("NOVA Sim 3D Alpha 3 adds adaptive substeps, friction impulses, angular mot
   assert.ok(threeD.includes("airResistance"));
   assert.ok(threeD.includes("drag.body.velocity=V.mul"));
   assert.doesNotThrow(() => new (require("node:vm").Script)(threeD));
+});
+
+
+test("NOVA Sim 3D Alpha 4 adds orientation-aware shape support contacts", () => {
+  const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
+  for (const snippet of ["function bodyAxes(", "function supportRadius(", "supportRadius(a,n)", "supportRadius(b,V.mul(n,-1))", "const floor=supportRadius(b,[0,1,0])"]) assert.ok(threeD.includes(snippet));
+  assert.ok(html.includes("Alpha 5 · Şekil duyarlı temas"));
+});
+
+test("NOVA Sim 3D Alpha 5 adds directional gravity, local force fields and merge/split tools", () => {
+  const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
+  for (const id of ["gravityDirX","gravityDirY","gravityDirZ","fieldStrength3d","fieldRadius3d","addAttract3d","addRepel3d","clearFields3d","merge3d","split3d","universe3dState"]) assert.ok(html.includes('id="' + id + '"'));
+  for (const snippet of ["gravityDirection=[0,-1,0]", "function mergeSelected3d(", "function splitSelected3d(", 'forceFields.push({mode:"attract"', 'forceFields.push({mode:"repel"', "field.strength*falloff*falloff", "Math.cbrt(volume)"]) assert.ok(threeD.includes(snippet));
 });
