@@ -13,6 +13,8 @@
   let width = 0, height = 0, running = true, lastTime = 0, fpsFrames = 0, fpsTime = 0, fps = 0;
   let gravity = Number(gravityInput.value), gravityAngle = Number(gravityAngleInput.value) * Math.PI / 180, maxSpeed = Number(maxSpeedInput.value), bounce = Number(bounceInput.value), timeScale = Number(speedInput.value), mass = 1, friction = 0.18;
   let currentShape = "circle";
+  let initialSpeed=180, initialDirection=-45, sampleClock=0;
+  const telemetry={speed:[],energy:[],force:[]}, chartLimit=90;
   let selectedBall = null, selectedField = null, draggedField = null, fieldDragOffsetX = 0, fieldDragOffsetY = 0, moveFieldsMode = false;
   let fieldStrength = 520, fieldRadius = 125;
   let draggedBall = null, dragOffsetX = 0, dragOffsetY = 0, pointerId = null, dragVX = 0, dragVY = 0, previousPointerTime = 0;
@@ -29,7 +31,7 @@
     draw();
   }
 
-  function addBall(x = width * (.25 + Math.random() * .5), y = Math.max(35, height * .15), vx = (Math.random() - .5) * 260, vy = (Math.random() - .5) * 100) {
+  function addBall(x = width * (.25 + Math.random() * .5), y = Math.max(35, height * .15), vx = Math.cos(initialDirection*Math.PI/180)*initialSpeed, vy = Math.sin(initialDirection*Math.PI/180)*initialSpeed) {
     if (balls.length >= MAX_BALLS) balls.shift();
     const r = 9 + Math.random() * 13;
     const ball = { x: clamp(x, r, Math.max(r, width - r)), y: clamp(y, r, Math.max(r, height - r)), vx, vy, r, shape: currentShape, angle: Math.random() * Math.PI * 2, angularVelocity: 0, mass, friction, color: colors[Math.floor(Math.random() * colors.length)] };
@@ -207,12 +209,25 @@
         collide();
       }
     }
+    sampleClock+=dt;
+    if(sampleClock>=.12){sampleClock=0;recordTelemetry();}
+    drawTelemetry();
     draw();
     fpsFrames++;
     if (now - fpsTime >= 500) { fps = Math.round(fpsFrames * 1000 / Math.max(1, now - fpsTime)); fpsFrames = 0; fpsTime = now; $("fps").textContent = String(fps); }
     requestAnimationFrame(frame);
   }
 
+  function recordTelemetry(){
+    const energy=balls.reduce((s,b)=>s+.5*b.mass*(b.vx*b.vx+b.vy*b.vy),0);
+    const speed=balls.length?balls.reduce((s,b)=>s+Math.hypot(b.vx,b.vy),0)/balls.length:0;
+    const force=balls.reduce((s,b)=>s+b.mass*Math.hypot(gravity*Math.cos(gravityAngle)*48,gravity*Math.sin(gravityAngle)*48),0);
+    for(const [k,v] of [["speed",speed],["energy",energy],["force",force]]){telemetry[k].push(v);if(telemetry[k].length>chartLimit)telemetry[k].shift();}
+    $("energyReadout").textContent=energy.toFixed(0)+" J*";$("speedReadout").textContent=speed.toFixed(1)+" px/sn";$("forceReadout").textContent=force.toFixed(0)+" N*";
+  }
+  function drawTelemetry(){
+    for(const key of ["speed","energy","force"]){const el=$("chart-"+key),c=el?.getContext("2d");if(!c)continue;const w=el.width=el.clientWidth*2,h=el.height=el.clientHeight*2;c.clearRect(0,0,w,h);const a=telemetry[key],max=Math.max(1,...a);if(a.length<2)continue;c.strokeStyle=key==="speed"?"#6edbd0":key==="energy"?"#ffb86b":"#9b83ff";c.lineWidth=3;c.beginPath();a.forEach((v,i)=>{const x=i/(chartLimit-1)*w,y=h-6-v/max*(h-12);i?c.lineTo(x,y):c.moveTo(x,y);});c.stroke();}
+  }
   function syncRange(input, output, format = (v) => v) {
     const update = () => { const v = Number(input.value); output.textContent = format(v); return v; };
     input.addEventListener("input", update); return update;
@@ -222,6 +237,11 @@
   syncRange(maxSpeedInput, $("maxSpeedValue"), v => v === 0 ? "Sınırsız" : Math.round(v) + " px/sn");
   syncRange(bounceInput, $("bounceValue"), v => v.toFixed(2));
   syncRange(speedInput, $("speedValue"), v => v.toFixed(1) + "×");
+  const initialSpeedInput=$("initialSpeed"),initialDirectionInput=$("initialDirection");
+  syncRange(initialSpeedInput,$("initialSpeedValue"),v=>Math.round(v)+" px/sn");
+  syncRange(initialDirectionInput,$("initialDirectionValue"),v=>Math.round(v)+"°");
+  initialSpeedInput.addEventListener("input",()=>initialSpeed=Number(initialSpeedInput.value));
+  initialDirectionInput.addEventListener("input",()=>initialDirection=Number(initialDirectionInput.value));
   const massInput = $("mass"), frictionInput = $("friction");
   syncRange(massInput, $("massValue"), v => v.toFixed(1));
   syncRange(frictionInput, $("frictionValue"), v => v.toFixed(2));
@@ -239,28 +259,32 @@
   speedInput.addEventListener("input", () => timeScale = Number(speedInput.value));
 
   $("addBall").addEventListener("click", () => addBall());
-  function selectField(field) { selectedField = field; $("deleteField").disabled = !field; if (field) { fieldStrength = field.strength; fieldRadius = field.radius; fieldStrengthInput.value = String(fieldStrength); fieldRadiusInput.value = String(fieldRadius); $("fieldStrengthValue").textContent = String(Math.round(fieldStrength)); $("fieldRadiusValue").textContent = Math.round(fieldRadius) + " px"; $("fieldState").textContent = (field.type === "attract" ? "Çekim" : "İtim") + " alanı seçildi. Merkez tutamacından taşıyabilir, gücünü ve yarıçapını ayarlayabilirsin."; } else $("fieldState").textContent = "Alan taşı modunu aç, sonra sahnedeki alanın merkez tutamacını sürükle."; draw(); }
+  function renderFieldCards(){const host=$("fieldCards");if(!host)return;host.replaceChildren();fields.forEach((field,index)=>{const card=document.createElement("div");card.className="field-card"+(field===selectedField?" active":"");const name=document.createElement("span");name.textContent=(field.type==="attract"?"Çekim":"İtim")+" alanı "+(index+1);const grip=document.createElement("button");grip.type="button";grip.className="field-grip";grip.textContent="⠿";grip.title="Basılı tutup sürükle";grip.addEventListener("pointerdown",e=>{e.preventDefault();selectField(field);draggedField=field;pointerId=e.pointerId;const r=canvas.getBoundingClientRect();fieldDragOffsetX=field.x-(e.clientX-r.left);fieldDragOffsetY=field.y-(e.clientY-r.top);grip.setPointerCapture(pointerId);});const endFieldDrag=()=>{if(draggedField===field){draggedField=null;pointerId=null;renderFieldCards();$("fieldState").textContent="Kuvvet alanının konumu güncellendi.";}};grip.addEventListener("pointerup",endFieldDrag);grip.addEventListener("pointercancel",endFieldDrag);grip.addEventListener("lostpointercapture",endFieldDrag);grip.addEventListener("pointermove",e=>{if(draggedField!==field||e.pointerId!==pointerId)return;const r=canvas.getBoundingClientRect();field.x=clamp(e.clientX-r.left+fieldDragOffsetX,0,width);field.y=clamp(e.clientY-r.top+fieldDragOffsetY,0,height);draw();});const select=document.createElement("button");select.type="button";select.className="field-select";select.textContent="Seç";select.addEventListener("click",()=>selectField(field));card.append(name,grip,select);host.append(card);});}
+  function selectField(field) { selectedField = field; renderFieldCards(); $("deleteField").disabled = !field; if (field) { fieldStrength = field.strength; fieldRadius = field.radius; fieldStrengthInput.value = String(fieldStrength); fieldRadiusInput.value = String(fieldRadius); $("fieldStrengthValue").textContent = String(Math.round(fieldStrength)); $("fieldRadiusValue").textContent = Math.round(fieldRadius) + " px"; $("fieldState").textContent = (field.type === "attract" ? "Çekim" : "İtim") + " alanı seçildi. Merkez tutamacından taşıyabilir, gücünü ve yarıçapını ayarlayabilirsin."; } else $("fieldState").textContent = "Alan taşı modunu aç, sonra sahnedeki alanın merkez tutamacını sürükle."; draw(); }
   function addField(type) { const field = { x: width * (.35 + Math.random() * .3), y: height * (.35 + Math.random() * .3), radius: fieldRadius, strength: fieldStrength, type }; fields.push(field); selectField(field); }
   $("addAttract").addEventListener("click", () => addField("attract"));
   $("addRepel").addEventListener("click", () => addField("repel"));
   $("clearFields").addEventListener("click", () => { fields.length = 0; selectField(null); });
-  $("moveFields").addEventListener("click", () => { moveFieldsMode = !moveFieldsMode; $("moveFields").classList.toggle("selected", moveFieldsMode); $("moveFields").setAttribute("aria-pressed", String(moveFieldsMode)); $("moveFields").textContent = moveFieldsMode ? "↖ Alan taşı: Açık" : "↖ Alan taşı: Kapalı"; $("fieldState").textContent = moveFieldsMode ? "Taşımak istediğin alanın merkez tutamacını sürükle." : "Nesneleri normal şekilde sürükleyebilirsin."; canvas.style.cursor = moveFieldsMode ? "crosshair" : "grab"; });
+
   $("deleteField").addEventListener("click", () => { if (!selectedField) return; const index = fields.indexOf(selectedField); if (index >= 0) fields.splice(index, 1); selectField(null); $("fieldState").textContent = "Seçili kuvvet alanı silindi."; });
   function snapshot() { return { version: 2, settings: { gravity, gravityAngle: Number(gravityAngleInput.value), bounce, timeScale, maxSpeed, mass, friction, currentShape, fieldStrength, fieldRadius }, balls: balls.map(b => ({ ...b, x:b.x/width, y:b.y/height })), fields: fields.map(f => ({ ...f, x:f.x/width, y:f.y/height })) }; }
-  $("savePreset").addEventListener("click", () => { try { localStorage.setItem("nova-sim-alpha7-preset", JSON.stringify(snapshot())); $("presetState").textContent = "Deney kaydedildi"; } catch { $("presetState").textContent = "Kayıt başarısız"; } });
+  $("savePreset").addEventListener("click",()=>{try{const data=snapshot();data.settings.initialSpeed=initialSpeed;data.settings.initialDirection=initialDirection;localStorage.setItem("nova-sim-alpha8-preset",JSON.stringify(data));localStorage.setItem("nova-sim-alpha7-preset",JSON.stringify(data));$("presetState").textContent="Deney kaydedildi";}catch{$("presetState").textContent="Kayıt başarısız";}});
+  $("saveComparison").addEventListener("click",()=>{try{localStorage.setItem("nova-sim-alpha8-comparison",JSON.stringify(snapshot()));$("comparisonState").textContent="A deneyi kaydedildi.";}catch{$("comparisonState").textContent="Kayıt başarısız";}});
+  $("compareExperiment").addEventListener("click",()=>{try{const a=JSON.parse(localStorage.getItem("nova-sim-alpha8-comparison")||"null"),b=snapshot();if(!a)throw Error();const summary=d=>({n:d.balls.length,f:d.fields.length,v:d.balls.length?Math.round(d.balls.reduce((s,x)=>s+Math.hypot(x.vx,x.vy),0)/d.balls.length):0,e:Math.round(d.balls.reduce((s,x)=>s+.5*x.mass*(x.vx*x.vx+x.vy*x.vy),0))}),x=summary(a),y=summary(b);$("comparisonState").textContent=`A: ${x.n} nesne · ${x.f} alan · ${x.v} px/sn · ${x.e} J* | B: ${y.n} nesne · ${y.f} alan · ${y.v} px/sn · ${y.e} J*`;}catch{$("comparisonState").textContent="Önce A deneyini kaydet.";}});
   $("loadPreset").addEventListener("click", () => {
     try {
-      const data = JSON.parse(localStorage.getItem("nova-sim-alpha7-preset") || localStorage.getItem("nova-sim-alpha5-preset") || "null");
+      const data = JSON.parse(localStorage.getItem("nova-sim-alpha8-preset") || localStorage.getItem("nova-sim-alpha7-preset") || localStorage.getItem("nova-sim-alpha5-preset") || "null");
       if (!data || ![1, 2].includes(data.version) || !Array.isArray(data.balls) || !data.settings) throw new Error("invalid");
       const v = data.settings;
       for (const [key,value] of [["gravity",v.gravity],["gravityAngle",v.gravityAngle],["bounce",v.bounce],["speed",v.timeScale],["maxSpeed",v.maxSpeed],["mass",v.mass],["friction",v.friction]]) { const input=$(key); if (Number.isFinite(value)) { input.value=String(value); input.dispatchEvent(new Event("input")); } }
       currentShape = ["circle","box","triangle"].includes(v.currentShape) ? v.currentShape : "circle";
+      if(Number.isFinite(v.initialSpeed)){initialSpeed=clamp(v.initialSpeed,0,1200);initialSpeedInput.value=String(initialSpeed);initialSpeedInput.dispatchEvent(new Event("input"));} if(Number.isFinite(v.initialDirection)){initialDirection=clamp(v.initialDirection,-180,180);initialDirectionInput.value=String(initialDirection);initialDirectionInput.dispatchEvent(new Event("input"));}
       if (Number.isFinite(v.fieldStrength)) { fieldStrength = clamp(v.fieldStrength,50,3000); fieldStrengthInput.value=String(fieldStrength); fieldStrengthInput.dispatchEvent(new Event("input")); }
       if (Number.isFinite(v.fieldRadius)) { fieldRadius = clamp(v.fieldRadius,30,500); fieldRadiusInput.value=String(fieldRadius); fieldRadiusInput.dispatchEvent(new Event("input")); }
       balls.length=0; selectedBall=null;
       for (const b of data.balls.slice(0,MAX_BALLS)) if ([b.x,b.y,b.vx,b.vy,b.r,b.mass,b.friction].every(Number.isFinite) && ["circle","box","triangle"].includes(b.shape)) balls.push({ ...b, x:clamp(b.x,0,1)*width, y:clamp(b.y,0,1)*height, mass:clamp(b.mass,.05,20), friction:clamp(b.friction,0,1), r:clamp(b.r,4,60), angle:Number.isFinite(b.angle)?b.angle:0, angularVelocity:Number.isFinite(b.angularVelocity)?b.angularVelocity:0 });
       fields.length=0; selectedField=null; $("deleteField").disabled=true; if (Array.isArray(data.fields)) for (const f of data.fields.slice(0,30)) if ([f.x,f.y,f.radius,f.strength].every(Number.isFinite) && ["attract","repel"].includes(f.type)) fields.push({ ...f, x:clamp(f.x,0,1)*width, y:clamp(f.y,0,1)*height, radius:clamp(f.radius,20,500), strength:clamp(f.strength,0,3000) });
-      $("ballCount").textContent=String(balls.length); $("presetState").textContent="Deney yüklendi"; draw();
+      $("ballCount").textContent=String(balls.length); $("presetState").textContent="Deney yüklendi"; renderFieldCards(); draw();
     } catch { $("presetState").textContent="Kayıt bulunamadı veya geçersiz"; }
   });
   for (const [id, shape] of [["spawnCircle", "circle"], ["spawnBox", "box"], ["spawnTriangle", "triangle"]]) {
@@ -322,7 +346,7 @@
   canvas.addEventListener("pointerdown", (event) => {
     if (draggedBall) return;
     const point = pointerPosition(event);
-    if (moveFieldsMode) { let fieldHit = null, fieldDistance = Infinity; for (let i = fields.length - 1; i >= 0; i--) { const field = fields[i], distance = Math.hypot(point.x - field.x, point.y - field.y); if (distance <= 20 && distance < fieldDistance) { fieldHit = field; fieldDistance = distance; } } if (!fieldHit) { $("fieldState").textContent = "Taşımak için bir alanın merkez tutamacına tıkla."; return; } selectField(fieldHit); draggedField = fieldHit; pointerId = event.pointerId; fieldDragOffsetX = fieldHit.x - point.x; fieldDragOffsetY = fieldHit.y - point.y; canvas.setPointerCapture(pointerId); canvas.style.cursor = "grabbing"; event.preventDefault(); return; }
+    for(let i=fields.length-1;i>=0;i--){const f=fields[i];if(Math.hypot(point.x-f.x,point.y-f.y)<=18){selectField(f);draggedField=f;pointerId=event.pointerId;fieldDragOffsetX=f.x-point.x;fieldDragOffsetY=f.y-point.y;canvas.setPointerCapture(pointerId);event.preventDefault();return;}}
     let hit = null;
     for (let i = balls.length - 1; i >= 0; i--) {
       const b = balls[i];
@@ -354,7 +378,7 @@
 
   function finishDrag(event) {
     if (event && event.pointerId !== pointerId) return;
-    if (draggedField) { draggedField = null; pointerId = null; canvas.style.cursor = moveFieldsMode ? "crosshair" : "grab"; $("fieldState").textContent = "Kuvvet alanının konumu güncellendi."; return; }
+    if (draggedField) { draggedField = null; pointerId = null; renderFieldCards(); $("fieldState").textContent = "Kuvvet alanının konumu güncellendi."; return; }
     if (!draggedBall) return;
     draggedBall.vx = dragVX; draggedBall.vy = dragVY;
     draggedBall = null; pointerId = null;
