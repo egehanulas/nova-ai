@@ -7,10 +7,12 @@ on:
       - "feature/nova-desktop-electron"
     paths:
       - "nova-ai/desktop/**"
+      - "nova-ai/public/**"
       - ".github/workflows/nova-desktop-build.yml"
   pull_request:
     paths:
       - "nova-ai/desktop/**"
+      - "nova-ai/public/**"
       - ".github/workflows/nova-desktop-build.yml"
   workflow_dispatch:
 

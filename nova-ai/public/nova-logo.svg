@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+<title>NOVA AI</title><desc>Elektrik mavisi ve mor ışık halkalarıyla çevrelenmiş özgün N sembolü</desc>
+<defs>
+ <linearGradient id="bg" x1="22" y1="12" x2="232" y2="244" gradientUnits="userSpaceOnUse"><stop stop-color="#17113b"/><stop offset=".52" stop-color="#090d22"/><stop offset="1" stop-color="#07172c"/></linearGradient>
+ <linearGradient id="n" x1="58" y1="45" x2="196" y2="210" gradientUnits="userSpaceOnUse"><stop stop-color="#f2c7ff"/><stop offset=".32" stop-color="#a78bfa"/><stop offset=".68" stop-color="#60a5fa"/><stop offset="1" stop-color="#67e8f9"/></linearGradient>
+ <linearGradient id="orbit" x1="23" y1="169" x2="236" y2="87" gradientUnits="userSpaceOnUse"><stop stop-color="#8b5cf6"/><stop offset=".5" stop-color="#c4b5fd"/><stop offset="1" stop-color="#38bdf8"/></linearGradient>
+ <radialGradient id="glow"><stop stop-color="#8b5cf6" stop-opacity=".34"/><stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient>
+ <filter id="blur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="9"/></filter>
+ <filter id="shine" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="66" fill="url(#bg)" stroke="#b9a4ff" stroke-opacity=".28" stroke-width="2"/>
+<circle cx="128" cy="128" r="100" fill="url(#glow)"/>
+<path d="M37 157C58 80 178 47 220 104c31 42-30 97-98 108-38 6-77-7-85-32" fill="none" stroke="url(#orbit)" stroke-width="9" stroke-linecap="round" opacity=".72" filter="url(#blur)"/>
+<path d="M37 157C58 80 178 47 220 104c31 42-30 97-98 108-38 6-77-7-85-32" fill="none" stroke="url(#orbit)" stroke-width="4.5" stroke-linecap="round" filter="url(#shine)"/>
+<path d="M67 190V68c0-11 14-16 21-7l81 100V68" fill="none" stroke="#6d5be8" stroke-width="29" stroke-linecap="round" stroke-linejoin="round" opacity=".34" filter="url(#blur)"/>
+<path d="M67 190V68c0-11 14-16 21-7l81 100V68" fill="none" stroke="url(#n)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" filter="url(#shine)"/>
+<path d="M67 68l81 100" stroke="#fff" stroke-opacity=".42" stroke-width="3" stroke-linecap="round"/>
+<path d="M203 40l5 12 12 5-12 5-5 12-5-12-12-5 12-5z" fill="#e9d5ff" filter="url(#shine)"/>
+<circle cx="45" cy="92" r="4" fill="#a78bfa"/><circle cx="213" cy="190" r="3" fill="#67e8f9"/>
+</svg>

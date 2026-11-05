@@ -121,7 +121,7 @@
   );
   window.novaSupabase = supabase;
 
-  const NOVA_ICON = "/nova-icon.png";
+  const NOVA_ICON = "/nova-logo.svg";
 
   let conversations = [];
   let currentId = null;
@@ -1877,6 +1877,25 @@
     if (event.key === "Escape") {
       closeMenu();
       if (settingsView && !settingsView.hidden) closeSettings();
+    }
+
+    // Fast keyboard workflow: Ctrl/Cmd+K focuses the composer;
+    // Ctrl/Cmd+Enter submits only a non-empty, idle prompt.
+    const primaryModifier = event.ctrlKey || event.metaKey;
+    if (primaryModifier && event.key.toLowerCase() === "k" &&
+        !event.altKey && !event.shiftKey) {
+      event.preventDefault();
+      if (settingsView && !settingsView.hidden) closeSettings();
+      closeMenu();
+      prompt.focus();
+      return;
+    }
+    if (primaryModifier && event.key === "Enter" &&
+        !event.shiftKey && !event.altKey && !event.isComposing) {
+      if (!busy && !fileReading && prompt.value.trim()) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
     }
   });
 
