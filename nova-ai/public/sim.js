@@ -247,7 +247,7 @@
   $("savePreset").addEventListener("click", () => { try { localStorage.setItem("nova-sim-alpha7-preset", JSON.stringify(snapshot())); $("presetState").textContent = "Deney kaydedildi"; } catch { $("presetState").textContent = "Kayıt başarısız"; } });
   $("loadPreset").addEventListener("click", () => {
     try {
-      const data = JSON.parse(localStorage.getItem("nova-sim-alpha7-preset") || "null");
+      const data = JSON.parse(localStorage.getItem("nova-sim-alpha7-preset") || localStorage.getItem("nova-sim-alpha5-preset") || "null");
       if (!data || ![1, 2].includes(data.version) || !Array.isArray(data.balls) || !data.settings) throw new Error("invalid");
       const v = data.settings;
       for (const [key,value] of [["gravity",v.gravity],["gravityAngle",v.gravityAngle],["bounce",v.bounce],["speed",v.timeScale],["maxSpeed",v.maxSpeed],["mass",v.mass],["friction",v.friction]]) { const input=$(key); if (Number.isFinite(value)) { input.value=String(value); input.dispatchEvent(new Event("input")); } }
