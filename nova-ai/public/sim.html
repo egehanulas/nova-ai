@@ -30,21 +30,25 @@
     #world3d{display:block;width:100%;height:min(66vh,650px);min-height:360px;touch-action:none;cursor:grab;background:radial-gradient(ellipse at 50% 40%,#18233b 0%,#0a1020 75%)}#world3d:active{cursor:grabbing}.sim-layout.is-3d .sim-panel-2d{display:none}.sim-layout.is-3d .sim-panel-3d{display:flex}.sim-stage.is-3d #world{display:none}.sim-stage.is-3d #world3d{display:block}.sim-3d-hint{padding:9px 14px;border-top:1px solid #24283a;color:#a6acc4;font-size:11px;text-align:center}.axis-actions .selected{background:#292342;border-color:#9581ff}
     @media(max-width:850px){.sim-mode-tabs{order:3;width:100%;justify-content:center}.stage-top{flex-wrap:wrap}.sim-layout.is-3d .sim-panel-3d{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:none;overflow:visible}.sim-layout.is-3d .sim-panel-3d>div:first-child,.sim-layout.is-3d .sim-panel-3d>.sim-note{grid-column:1/-1}}
     @media(max-width:520px){#world3d{min-height:330px;height:52vh}.sim-layout.is-3d .sim-panel-3d{grid-template-columns:1fr}}
+    #quakeWorld{display:block;width:100%;height:min(66vh,650px);min-height:360px;background:linear-gradient(#101a31,#202b3b 72%,#30333b);touch-action:none;cursor:crosshair}#quakeWorld[hidden]{display:none!important}.sim-panel-quake[hidden]{display:none!important}.sim-layout.is-quake .sim-panel-2d,.sim-layout.is-quake .sim-panel-3d{display:none}.sim-layout.is-quake .sim-panel-quake{display:flex}.sim-stage.is-quake #world,.sim-stage.is-quake #world3d{display:none}.sim-stage.is-quake #quakeWorld{display:block}@media(max-width:850px){.sim-layout.is-quake .sim-panel-quake{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:none;overflow:visible}.sim-layout.is-quake .sim-panel-quake>div:first-child,.sim-layout.is-quake .sim-panel-quake>.sim-note{grid-column:1/-1}}@media(max-width:520px){#quakeWorld{min-height:330px;height:52vh}.sim-layout.is-quake .sim-panel-quake{grid-template-columns:1fr}}
+
 
   </style>
 </head>
 <body>
   <main class="sim-wrap">
     <header class="sim-head">
-      <div class="sim-brand"><img src="/nova-logo.svg" alt=""><div><h1>NOVA Sim</h1><p>Fizik Laboratuvarı · Alpha 7 + 3D Alpha 3</p></div></div>
+      <div class="sim-brand"><img src="/nova-logo.svg" alt=""><div><h1>NOVA Sim</h1><p>Fizik Laboratuvarı · Earthquake Alpha 6–10</p></div></div>
       <a class="sim-link" href="/">← NOVA AI'ye dön</a>
     </header>
     <div class="sim-layout">
       <section class="sim-stage" aria-label="Fizik simülasyonu">
-        <div class="stage-top"><span><i class="live-dot"></i><span id="stageModeLabel">2D fizik alanı</span></span><div class="sim-mode-tabs"><button class="sim-mode-tab active" id="mode2d" type="button" aria-pressed="true">2D Laboratuvar</button><button class="sim-mode-tab" id="mode3d" type="button" aria-pressed="false">3D Laboratuvar <span class="mode-beta">NEW</span></button></div><span id="simState">Çalışıyor</span></div>
+        <div class="stage-top"><span><i class="live-dot"></i><span id="stageModeLabel">2D fizik alanı</span></span><div class="sim-mode-tabs"><button class="sim-mode-tab active" id="mode2d" type="button" aria-pressed="true">2D Laboratuvar</button><button class="sim-mode-tab" id="mode3d" type="button" aria-pressed="false">3D Laboratuvar <span class="mode-beta">NEW</span></button><button class="sim-mode-tab" id="modeQuake" type="button" aria-pressed="false">Deprem Simülasyonu <span class="mode-beta">NEW</span></button></div><span id="simState">Çalışıyor</span></div>
         <canvas id="world" aria-label="Topları sürükleyerek taşı veya boş alana tıklayarak yeni top ekle"></canvas>
         <canvas id="world3d" tabindex="0" aria-label="3D sahne. WASD ile yatay hareket, Space ile yüksel, Shift ile alçal; fareyle kamerayı döndür." hidden></canvas>
+        <canvas id="quakeWorld" tabindex="0" aria-label="İstanbul deprem laboratuvarı. Deprem sarsıntısını ve yapı hasarını gözlemle; birinci şahıs modunda WASD ile dolaş." hidden></canvas>
         <div class="sim-3d-hint" id="sim3dHint" hidden>WASD: dolaş · Space: yüksel · Shift: alçal · Boş alanda fareyi sürükle: kamerayı döndür · Nesneyi sürükle: taşı · Tekerlek: yakınlaştır</div>
+        <div class="sim-3d-hint" id="quakeHint" hidden>Deprem görünümü · Dışarıdan izle veya binanın içine gir</div>
       </section>
       <aside class="sim-panel sim-panel-2d">
         <div><h2>Deney kontrolleri</h2><p>Topları fareyle tutup taşı. Bıraktığında hareket yönüne göre fırlatılır. Boş alana tıklayarak yeni top ekleyebilirsin.</p></div>
@@ -62,6 +66,19 @@
         <div><h2 style="margin-bottom:9px">Deney kayıtları</h2><div class="sim-actions"><button class="sim-btn primary" id="savePreset">Kaydet</button><button class="sim-btn" id="loadPreset">Yükle</button></div><p id="presetState">Bu tarayıcıda yerel olarak saklanır.</p></div>
         <div class="sim-stats"><div class="stat"><span>Nesne sayısı</span><strong id="ballCount">0</strong></div><div class="stat"><span>FPS</span><strong id="fps">—</strong></div></div>
         <div class="sim-note">Alpha 7 · Nesneleri birleştir, böl; birden fazla ayarlanabilir kuvvet alanı kur ve kendi evren deneylerini kaydet.</div>
+      </aside>
+      <aside class="sim-panel sim-panel-quake" id="quakePanel" hidden>
+        <div><h2>İstanbul deprem laboratuvarı</h2><p>8.0 büyüklüğünde senaryo oluştur; zemin hareketini, yapısal tepkiyi ve deneysel hasar modelini izle.</p></div>
+        <div class="sim-stats"><div class="stat"><span>Senaryo</span><strong id="quakeStatus">Hazır</strong></div><div class="stat"><span>Yapı hasarı</span><strong id="quakeDamage">0%</strong></div><div class="stat"><span>Simülasyon süresi</span><strong id="quakeClock">0.0 sn</strong></div><div class="stat"><span>Zemin ivmesi</span><strong id="quakePga">0.00 g</strong></div></div>
+        <div class="control"><label for="quakeMagnitude">Deprem büyüklüğü <output id="quakeMagnitudeValue">8.0 Mw</output></label><input id="quakeMagnitude" type="range" min="4" max="9" step=".1" value="8"></div>
+        <div class="control"><label for="quakeDuration">Sarsıntı süresi <output id="quakeDurationValue">45 sn</output></label><input id="quakeDuration" type="range" min="10" max="120" step="5" value="45"></div>
+        <div class="control"><label for="quakeDistance">Senaryo kaynak uzaklığı <output id="quakeDistanceValue">20 km</output></label><input id="quakeDistance" type="range" min="1" max="100" step="1" value="20"></div>
+        <div class="control"><label for="quakeSoil">Zemin türü</label><select id="quakeSoil" class="sim-btn" style="width:100%"><option value="rock">Sağlam kaya</option><option value="stiff">Sert zemin</option><option value="soft" selected>Yumuşak zemin</option><option value="fill">Dolgu / alüvyon</option></select></div>
+        <div class="control"><label for="quakeDistrict">İstanbul senaryo bölgesi</label><select id="quakeDistrict" class="sim-btn" style="width:100%"><option value="avcilar">Avcılar (temsili)</option><option value="fatih">Fatih (temsili)</option><option value="kadikoy">Kadıköy (temsili)</option><option value="kartal">Kartal (temsili)</option><option value="besiktas">Beşiktaş (temsili)</option></select></div>
+        <div class="control"><label for="quakeBuilding">Bina tipi</label><select id="quakeBuilding" class="sim-btn" style="width:100%"><option value="low">3 katlı betonarme</option><option value="mid" selected>6 katlı betonarme</option><option value="tall">10 katlı betonarme</option><option value="frame">Çelik çerçeveli yapı</option></select></div>
+        <div class="sim-actions"><button class="sim-btn primary" id="quakeStart" type="button">▶ Depremi başlat</button><button class="sim-btn" id="quakePause" type="button">Ⅱ Duraklat</button><button class="sim-btn" id="quakeReset" type="button">↻ Senaryoyu sıfırla</button></div>
+        <div><h2 style="margin-bottom:9px">Görünüm</h2><div class="sim-actions"><button class="sim-btn primary selected" id="quakeExterior" type="button">Yapıyı dışarıdan izle</button><button class="sim-btn" id="quakeInterior" type="button">Binanın içine gir</button></div><p>İç mekânda WASD ile hareket et, fareyle bakış yönünü değiştir. Bu görünüm deneysel ve stilize birinci şahıs gösterimidir.</p></div>
+        <div class="sim-note">İstanbul temalı eğitim/deney senaryosu. Zemin katsayıları, ivme ve hasar sonuçları görselleştirme amaçlı yaklaşık değerlerdir; gerçek deprem tahmini, bina analizi veya güvenlik değerlendirmesi değildir.</div>
       </aside>
       <aside class="sim-panel sim-panel-3d" id="sim3dPanel" hidden>
         <div><h2>3D deney kontrolleri</h2><p>İlk 3D laboratuvar prototipi. Nesne ekle, seç, taşı ve kamerayı istediğin açıya getir.</p></div>
@@ -90,5 +107,6 @@
   </main>
   <script src="/sim.js?v=alpha7-field-drag2"></script>
   <script src="/sim3d.js?v=alpha5-universe" defer></script>
+  <script src="/earthquake.js?v=alpha6-10" defer></script>
 </body>
 </html>
