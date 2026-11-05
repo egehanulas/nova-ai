@@ -10,6 +10,7 @@
   const MAX_BALLS = 100;
   let width = 0, height = 0, running = true, lastTime = 0, fpsFrames = 0, fpsTime = 0, fps = 0;
   let gravity = Number(gravityInput.value), bounce = Number(bounceInput.value), timeScale = Number(speedInput.value);
+  let currentShape = "circle";
   let draggedBall = null, dragOffsetX = 0, dragOffsetY = 0, pointerId = null, dragVX = 0, dragVY = 0, previousPointerTime = 0;
   const colors = ["#9b83ff", "#6edbd0", "#ffb86b", "#ff7eaa", "#83b7ff"];
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -27,7 +28,7 @@
   function addBall(x = width * (.25 + Math.random() * .5), y = Math.max(35, height * .15), vx = (Math.random() - .5) * 260, vy = (Math.random() - .5) * 100) {
     if (balls.length >= MAX_BALLS) balls.shift();
     const r = 9 + Math.random() * 13;
-    const ball = { x: clamp(x, r, Math.max(r, width - r)), y: clamp(y, r, Math.max(r, height - r)), vx, vy, r, color: colors[Math.floor(Math.random() * colors.length)] };
+    const ball = { x: clamp(x, r, Math.max(r, width - r)), y: clamp(y, r, Math.max(r, height - r)), vx, vy, r, shape: currentShape, color: colors[Math.floor(Math.random() * colors.length)] };
     balls.push(ball);
     $("ballCount").textContent = String(balls.length);
     return ball;
@@ -74,7 +75,11 @@
       ctx.save(); ctx.shadowColor = b.color; ctx.shadowBlur = b === draggedBall ? 26 : 16;
       const g = ctx.createRadialGradient(b.x - b.r * .35, b.y - b.r * .4, 1, b.x, b.y, b.r * 1.2);
       g.addColorStop(0, "#ffffff"); g.addColorStop(.2, b.color); g.addColorStop(1, b.color + "88");
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = g; ctx.beginPath();
+      if (b.shape === "box") ctx.rect(b.x - b.r * .82, b.y - b.r * .82, b.r * 1.64, b.r * 1.64);
+      else if (b.shape === "triangle") { ctx.moveTo(b.x, b.y - b.r); ctx.lineTo(b.x + b.r * .92, b.y + b.r * .78); ctx.lineTo(b.x - b.r * .92, b.y + b.r * .78); ctx.closePath(); }
+      else ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fill();
       if (b === draggedBall) { ctx.strokeStyle = "rgba(255,255,255,.95)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 5, 0, Math.PI * 2); ctx.stroke(); }
       ctx.restore();
     }
@@ -125,6 +130,13 @@
   speedInput.addEventListener("input", () => timeScale = Number(speedInput.value));
 
   $("addBall").addEventListener("click", () => addBall());
+  for (const [id, shape] of [["spawnCircle", "circle"], ["spawnBox", "box"], ["spawnTriangle", "triangle"]]) {
+    $(id).addEventListener("click", () => {
+      currentShape = shape;
+      for (const buttonId of ["spawnCircle", "spawnBox", "spawnTriangle"]) $(buttonId).classList.toggle("selected", buttonId === id);
+      $("shapeState").textContent = shape === "circle" ? "Daire" : shape === "box" ? "Kare" : "Üçgen";
+    });
+  }
   $("burst").addEventListener("click", () => { for (let i = 0; i < 10; i++) addBall(width * (.2 + Math.random() * .6), 25 + Math.random() * 90, (Math.random() - .5) * 420, -Math.random() * 180); });
   $("pause").addEventListener("click", (event) => {
     running = !running; event.currentTarget.textContent = running ? "Ⅱ Duraklat" : "▶ Devam et";
