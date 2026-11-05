@@ -364,20 +364,24 @@
     applyTheme("original");
   }
 
+  let isFeedbackDeveloper = false;
   function setSettingsTab(tab) {
-    const validTabs = ["appearance", "audio", "version", "feedback"];
+    const validTabs = ["appearance", "audio", "version", "feedback", "developer"];
     const activeTab = validTabs.includes(tab) ? tab : "appearance";
+    if (activeTab === "developer" && !isFeedbackDeveloper) return;
     const panels = {
       appearance: $("#settingsAppearancePanel"),
       audio: $("#settingsAudioPanel"),
       version: $("#settingsVersionPanel"),
-      feedback: $("#settingsFeedbackPanel")
+      feedback: $("#settingsFeedbackPanel"),
+      developer: $("#settingsDeveloperPanel")
     };
     const buttons = {
       appearance: $("#appearanceTab"),
       audio: $("#audioTab"),
       version: $("#versionTab"),
-      feedback: $("#feedbackTab")
+      feedback: $("#feedbackTab"),
+      developer: $("#developerTab")
     };
     if (Object.values(panels).some((panel) => !panel) || Object.values(buttons).some((button) => !button)) return;
     validTabs.forEach((name) => {
