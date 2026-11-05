@@ -37,14 +37,27 @@
   }
 
   function resolveWalls(b) {
-    if (b.x - b.r < 0) { b.x = b.r; b.vx = Math.abs(b.vx) * bounce; }
-    if (b.x + b.r > width) { b.x = width - b.r; b.vx = -Math.abs(b.vx) * bounce; }
-    if (b.y - b.r < 0) { b.y = b.r; b.vy = Math.abs(b.vy) * bounce; }
+    const wallFriction = clamp(b.friction * .12, 0, .12);
+    if (b.x - b.r < 0) {
+      b.x = b.r;
+      if (b.vx < 0) { const impact = Math.abs(b.vx); b.vx = impact * bounce; b.vy *= 1 - wallFriction; b.angularVelocity += impact * wallFriction / Math.max(1, b.r); }
+    }
+    if (b.x + b.r > width) {
+      b.x = width - b.r;
+      if (b.vx > 0) { const impact = Math.abs(b.vx); b.vx = -impact * bounce; b.vy *= 1 - wallFriction; b.angularVelocity -= impact * wallFriction / Math.max(1, b.r); }
+    }
+    if (b.y - b.r < 0) {
+      b.y = b.r;
+      if (b.vy < 0) { const impact = Math.abs(b.vy); b.vy = impact * bounce; b.vx *= 1 - wallFriction; b.angularVelocity -= impact * wallFriction / Math.max(1, b.r); }
+    }
     if (b.y + b.r > height) {
       b.y = height - b.r;
-      if (Math.abs(b.vy) < 22) b.vy = 0;
-      else b.vy = -Math.abs(b.vy) * bounce;
-      b.vx *= .985;
+      if (b.vy > 0) {
+        const impact = Math.abs(b.vy);
+        b.vy = impact < 22 ? 0 : -impact * bounce;
+        b.vx *= 1 - wallFriction;
+        b.angularVelocity += impact * wallFriction / Math.max(1, b.r);
+      }
     }
   }
 
@@ -109,10 +122,9 @@
         jt = clamp(jt, -impulse * mu, impulse * mu);
         a.vx -= jt * tx * invA; a.vy -= jt * ty * invA;
         b.vx += jt * tx * invB; b.vy += jt * ty * invB;
+        // Tangential impulse transfers a small amount of spin to both bodies.
         a.angularVelocity -= jt * a.r * invA * .025;
-        b.angularVelocity -= jt * b.r * invB * .025;
-        a.angularVelocity -= jt * a.r * invA * .025;
-        b.angularVelocity -= jt * b.r * invB * .025;
+        b.angularVelocity += jt * b.r * invB * .025;
       }
     }
   }
@@ -162,7 +174,12 @@
     const dt = Math.min((now - lastTime) / 1000, .04) * timeScale;
     lastTime = now;
     if (running) {
-      const steps = 2, step = dt / steps;
+      // Adaptive substeps reduce tunnelling when objects move quickly or time is accelerated.
+      const fastest = balls.reduce((value, b) => b === draggedBall ? value : Math.max(value, Math.hypot(b.vx, b.vy)), 0);
+      const smallest = balls.reduce((value, b) => b === draggedBall ? value : Math.min(value, b.r), Infinity);
+      const safeTravel = Number.isFinite(smallest) ? Math.max(3, smallest * .45) : 12;
+      const steps = clamp(Math.ceil((fastest * dt) / safeTravel), 1, 24);
+      const step = dt / steps;
       for (let s = 0; s < steps; s++) {
         for (const b of balls) {
           if (b === draggedBall) continue;
