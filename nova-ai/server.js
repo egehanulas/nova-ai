@@ -12,6 +12,7 @@ const { buildScreenTextFallbackPrompt, buildTextOnlyDesktopFallbackInstruction }
 const { buildGroqVisionRequest } = require("./groq-vision");
 const { runWithRateLimitRetry } = require("./provider-retry");
 const { buildFeedbackEmailText, buildFeedbackTicketCode, normalizeFeedbackPayload } = require("./feedback");
+const { isFeedbackAdmin, normalizeFeedbackStatus } = require("./feedback-admin");
 
 let helmet;
 
@@ -3314,6 +3315,40 @@ app.post("/api/feedback", feedbackRateLimit, requireAuth, asyncRoute(async (req,
   }
 
   return res.status(201).json({ success: true, ticketCode, emailSent });
+}));
+
+// Geliştirici paneli: yetki her istekte doğrulanmış Supabase kullanıcı kaydından denetlenir.
+async function requireFeedbackAdmin(req, res, next) {
+  if (!isFeedbackAdmin(req.user)) return res.status(403).json({ success: false, error: "Bu alan yalnızca doğrulanmış NOVA geliştirici hesabına açıktır." });
+  return next();
+}
+
+app.get("/api/feedback/admin", requireAuth, requireFeedbackAdmin, asyncRoute(async (req, res) => {
+  const client = getUserSupabase(req);
+  const { data, error } = await client.from("nova_feedback")
+    .select("ticket_code, feedback_type, description, include_diagnostics, diagnostics, status, created_at")
+    .order("created_at", { ascending: false }).limit(200);
+  if (error) {
+    console.error("[NOVA AI] Geri bildirim listesi okunamadı:", error.code || "database_error");
+    return res.status(503).json({ success: false, error: "Geri bildirimler şu anda yüklenemiyor." });
+  }
+  return res.json({ success: true, feedback: data || [] });
+}));
+
+app.patch("/api/feedback/admin/:ticketCode", requireAuth, requireFeedbackAdmin, asyncRoute(async (req, res) => {
+  const status = normalizeFeedbackStatus(req.body?.status);
+  const ticketCode = String(req.params.ticketCode || "").trim().slice(0, 40);
+  if (!status) return res.status(400).json({ success: false, error: "Geçersiz bildirim durumu." });
+  if (!/^NOVA-[A-Z0-9]{10}$/i.test(ticketCode)) return res.status(400).json({ success: false, error: "Geçersiz takip numarası." });
+  const client = getUserSupabase(req);
+  const { data, error } = await client.from("nova_feedback").update({ status })
+    .eq("ticket_code", ticketCode).select("ticket_code, status").maybeSingle();
+  if (error) {
+    console.error("[NOVA AI] Geri bildirim durumu güncellenemedi:", error.code || "database_error");
+    return res.status(503).json({ success: false, error: "Bildirim durumu güncellenemedi." });
+  }
+  if (!data) return res.status(404).json({ success: false, error: "Bildirim bulunamadı veya erişilemiyor." });
+  return res.json({ success: true, feedback: data });
 }));
 
 // --------------------------------------------------
