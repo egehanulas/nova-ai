@@ -500,7 +500,7 @@
   developerFeedbackRefresh?.addEventListener("click", loadDeveloperFeedback);
   supabase.auth.getSession().then(({ data }) => {
     const adminUser = data?.session?.user;
-    isFeedbackDeveloper = String(adminUser?.email || "").trim().toLowerCase() === "egehanimat21@gmail.com" && Boolean(adminUser?.email_confirmed_at || adminUser?.confirmed_at);
+    isFeedbackDeveloper = String(adminUser?.email || "").trim().toLowerCase() === "egehan1907cl@gmail.com" && Boolean(adminUser?.email_confirmed_at || adminUser?.confirmed_at);
     if (developerTab && isFeedbackDeveloper) {
       developerTab.hidden = false;
       developerTab.addEventListener("click", loadDeveloperFeedback);
