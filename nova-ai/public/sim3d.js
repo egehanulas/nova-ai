@@ -4,10 +4,8 @@ const $=id=>document.getElementById(id),canvas=$("world3d"),layout=document.quer
 if(!canvas||!layout||!stage)return;
 const gl=canvas.getContext("webgl",{antialias:true,alpha:false,powerPreference:"high-performance"});
 if(!gl){$("object3dState").textContent="Bu tarayıcı WebGL desteklemiyor; 2D laboratuvar kullanılabilir.";$("mode3d").disabled=true;return;}
-const vs=["attribute vec3 aPosition;attribute vec3 aNormal;uniform mat4 uVP;uniform mat4 uModel;varying vec3 vNormal;","void main(){vec4 w=uModel*vec4(aPosition,1.0);vNormal=normalize(mat3(uModel)*aNormal);gl_Position=uVP*w;}"].join("
-");
-const fs=["precision mediump float;uniform vec3 uColor;uniform float uLit;varying vec3 vNormal;","void main(){float d=max(dot(normalize(vNormal),normalize(vec3(-.45,.85,.55))),0.0);gl_FragColor=vec4(mix(uColor,uColor*(.28+d*.82),uLit),1.0);}"].join("
-");
+const vs=["attribute vec3 aPosition;attribute vec3 aNormal;uniform mat4 uVP;uniform mat4 uModel;varying vec3 vNormal;","void main(){vec4 w=uModel*vec4(aPosition,1.0);vNormal=normalize(mat3(uModel)*aNormal);gl_Position=uVP*w;}"].join("\n");
+const fs=["precision mediump float;uniform vec3 uColor;uniform float uLit;varying vec3 vNormal;","void main(){float d=max(dot(normalize(vNormal),normalize(vec3(-.45,.85,.55))),0.0);gl_FragColor=vec4(mix(uColor,uColor*(.28+d*.82),uLit),1.0);}"].join("\n");
 function compile(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s)||"Shader hatası");return s;}
 let program;try{program=gl.createProgram();gl.attachShader(program,compile(gl.VERTEX_SHADER,vs));gl.attachShader(program,compile(gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program)||"Program hatası");}catch(e){$("object3dState").textContent="3D grafik başlatılamadı: "+e.message;$("mode3d").disabled=true;return;}
 gl.useProgram(program);gl.enable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);gl.clearColor(.025,.043,.085,1);
