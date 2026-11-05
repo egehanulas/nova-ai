@@ -1,4 +1,4 @@
-const FEEDBACK_ADMIN_EMAIL = "egehanimat21@gmail.com";
+const FEEDBACK_ADMIN_EMAIL = "egehan1907cl@gmail.com";
 const FEEDBACK_STATUSES = new Set(["new", "reviewing", "fixed", "closed"]);
 
 function isFeedbackAdmin(user) {
