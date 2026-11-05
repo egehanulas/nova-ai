@@ -6,10 +6,12 @@
 
   const $ = (id) => document.getElementById(id);
   const gravityInput = $("gravity"), bounceInput = $("bounce"), speedInput = $("speed");
+  const gravityAngleInput = $("gravityAngle"), maxSpeedInput = $("maxSpeed");
+  const fields = [];
   const balls = [];
   const MAX_BALLS = 100;
   let width = 0, height = 0, running = true, lastTime = 0, fpsFrames = 0, fpsTime = 0, fps = 0;
-  let gravity = Number(gravityInput.value), bounce = Number(bounceInput.value), timeScale = Number(speedInput.value), mass = 1, friction = 0.18;
+  let gravity = Number(gravityInput.value), gravityAngle = Number(gravityAngleInput.value) * Math.PI / 180, maxSpeed = Number(maxSpeedInput.value), bounce = Number(bounceInput.value), timeScale = Number(speedInput.value), mass = 1, friction = 0.18;
   let currentShape = "circle";
   let draggedBall = null, dragOffsetX = 0, dragOffsetY = 0, pointerId = null, dragVX = 0, dragVY = 0, previousPointerTime = 0;
   const colors = ["#9b83ff", "#6edbd0", "#ffb86b", "#ff7eaa", "#83b7ff"];
@@ -122,6 +124,12 @@
     ctx.strokeStyle = "rgba(160,170,220,.07)"; ctx.lineWidth = 1;
     for (let x = 0; x < width; x += 32) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
     for (let y = 0; y < height; y += 32) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
+    for (const field of fields) {
+      ctx.save(); ctx.beginPath(); ctx.arc(field.x, field.y, field.radius, 0, Math.PI * 2);
+      ctx.fillStyle = field.type === "attract" ? "rgba(112,226,176,.07)" : "rgba(255,126,170,.07)"; ctx.fill();
+      ctx.strokeStyle = field.type === "attract" ? "rgba(112,226,176,.65)" : "rgba(255,126,170,.65)"; ctx.setLineDash([6,5]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = field.type === "attract" ? "#70e2b0" : "#ff7eaa"; ctx.font = "11px Inter, sans-serif"; ctx.textAlign = "center"; ctx.fillText(field.type === "attract" ? "ÇEKİM" : "İTİM", field.x, field.y - field.radius - 7); ctx.restore();
+    }
     for (const b of balls) {
       ctx.save(); ctx.shadowColor = b.color; ctx.shadowBlur = b === draggedBall ? 26 : 16;
       const g = ctx.createRadialGradient(b.x - b.r * .35, b.y - b.r * .4, 1, b.x, b.y, b.r * 1.2);
@@ -158,7 +166,20 @@
       for (let s = 0; s < steps; s++) {
         for (const b of balls) {
           if (b === draggedBall) continue;
-          b.vy += gravity * 48 * step;
+          const gx = Math.cos(gravityAngle) * gravity * 48;
+          const gy = Math.sin(gravityAngle) * gravity * 48;
+          b.vx += gx * step; b.vy += gy * step;
+          for (const field of fields) {
+            const dx = field.x - b.x, dy = field.y - b.y, distance = Math.hypot(dx, dy);
+            if (distance > 1 && distance < field.radius) {
+              const falloff = 1 - distance / field.radius;
+              const direction = field.type === "attract" ? 1 : -1;
+              const acceleration = direction * field.strength * falloff;
+              b.vx += dx / distance * acceleration * step; b.vy += dy / distance * acceleration * step;
+            }
+          }
+          const velocity = Math.hypot(b.vx, b.vy);
+          if (maxSpeed > 0 && velocity > maxSpeed) { b.vx = b.vx / velocity * maxSpeed; b.vy = b.vy / velocity * maxSpeed; }
           b.x += b.vx * step; b.y += b.vy * step;
           b.angle += b.angularVelocity * step;
           b.angularVelocity *= Math.max(0, 1 - b.friction * step * .08);
@@ -178,6 +199,8 @@
     input.addEventListener("input", update); return update;
   }
   syncRange(gravityInput, $("gravityValue"), v => v.toFixed(1));
+  syncRange(gravityAngleInput, $("gravityAngleValue"), v => Math.round(v) + "°");
+  syncRange(maxSpeedInput, $("maxSpeedValue"), v => v === 0 ? "Sınırsız" : Math.round(v) + " px/sn");
   syncRange(bounceInput, $("bounceValue"), v => v.toFixed(2));
   syncRange(speedInput, $("speedValue"), v => v.toFixed(1) + "×");
   const massInput = $("mass"), frictionInput = $("friction");
@@ -186,10 +209,30 @@
   massInput.addEventListener("input", () => { mass = Number(massInput.value); for (const b of balls) b.mass = mass; });
   frictionInput.addEventListener("input", () => { friction = Number(frictionInput.value); for (const b of balls) b.friction = friction; });
   gravityInput.addEventListener("input", () => gravity = Number(gravityInput.value));
+  gravityAngleInput.addEventListener("input", () => gravityAngle = Number(gravityAngleInput.value) * Math.PI / 180);
+  maxSpeedInput.addEventListener("input", () => maxSpeed = Number(maxSpeedInput.value));
   bounceInput.addEventListener("input", () => bounce = Number(bounceInput.value));
   speedInput.addEventListener("input", () => timeScale = Number(speedInput.value));
 
   $("addBall").addEventListener("click", () => addBall());
+  function addField(type) { fields.push({ x: width * (.35 + Math.random() * .3), y: height * (.35 + Math.random() * .3), radius: 125, strength: 520, type }); draw(); }
+  $("addAttract").addEventListener("click", () => addField("attract"));
+  $("addRepel").addEventListener("click", () => addField("repel"));
+  $("clearFields").addEventListener("click", () => { fields.length = 0; draw(); });
+  function snapshot() { return { version: 1, settings: { gravity, gravityAngle: Number(gravityAngleInput.value), bounce, timeScale, maxSpeed, mass, friction, currentShape }, balls: balls.map(b => ({ ...b, x:b.x/width, y:b.y/height })), fields: fields.map(f => ({ ...f, x:f.x/width, y:f.y/height })) }; }
+  $("savePreset").addEventListener("click", () => { try { localStorage.setItem("nova-sim-alpha5-preset", JSON.stringify(snapshot())); $("presetState").textContent = "Deney kaydedildi"; } catch { $("presetState").textContent = "Kayıt başarısız"; } });
+  $("loadPreset").addEventListener("click", () => {
+    try {
+      const data = JSON.parse(localStorage.getItem("nova-sim-alpha5-preset") || "null");
+      if (!data || data.version !== 1 || !Array.isArray(data.balls) || !data.settings) throw new Error("invalid");
+      const v = data.settings;
+      for (const [key,value] of [["gravity",v.gravity],["gravityAngle",v.gravityAngle],["bounce",v.bounce],["speed",v.timeScale],["maxSpeed",v.maxSpeed],["mass",v.mass],["friction",v.friction]]) { const input=$(key); if (Number.isFinite(value)) { input.value=String(value); input.dispatchEvent(new Event("input")); } }
+      currentShape = ["circle","box","triangle"].includes(v.currentShape) ? v.currentShape : "circle"; balls.length=0;
+      for (const b of data.balls.slice(0,MAX_BALLS)) if ([b.x,b.y,b.vx,b.vy,b.r,b.mass,b.friction].every(Number.isFinite) && ["circle","box","triangle"].includes(b.shape)) balls.push({ ...b, x:clamp(b.x,0,1)*width, y:clamp(b.y,0,1)*height, mass:clamp(b.mass,.05,20), friction:clamp(b.friction,0,1), r:clamp(b.r,4,60), angle:Number.isFinite(b.angle)?b.angle:0, angularVelocity:Number.isFinite(b.angularVelocity)?b.angularVelocity:0 });
+      fields.length=0; if (Array.isArray(data.fields)) for (const f of data.fields.slice(0,30)) if ([f.x,f.y,f.radius,f.strength].every(Number.isFinite) && ["attract","repel"].includes(f.type)) fields.push({ ...f, x:clamp(f.x,0,1)*width, y:clamp(f.y,0,1)*height, radius:clamp(f.radius,20,500), strength:clamp(f.strength,0,3000) });
+      $("ballCount").textContent=String(balls.length); $("presetState").textContent="Deney yüklendi"; draw();
+    } catch { $("presetState").textContent="Kayıt bulunamadı veya geçersiz"; }
+  });
   for (const [id, shape] of [["spawnCircle", "circle"], ["spawnBox", "box"], ["spawnTriangle", "triangle"]]) {
     $(id).addEventListener("click", () => {
       currentShape = shape;

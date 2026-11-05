@@ -6,10 +6,10 @@ const path = require("node:path");
 const html = fs.readFileSync(path.join(__dirname, "public", "sim.html"), "utf8");
 const script = fs.readFileSync(path.join(__dirname, "public", "sim.js"), "utf8");
 
-test("NOVA Sim Alpha 4 page loads its versioned physics script and canvas", () => {
+test("NOVA Sim Alpha 5 page loads its versioned physics script and canvas", () => {
   assert.match(html, /<canvas[^>]+id="world"/);
-  assert.match(html, /src="\/sim\.js\?v=alpha4-physics"/);
-  assert.match(html, /Fizik Laboratuvarı · Alpha 4/);
+  assert.match(html, /src="\/sim\.js\?v=alpha5-universe"/);
+  assert.match(html, /Fizik Laboratuvarı · Alpha 5/);
   assert.match(html, /href="\/"[^>]*>← NOVA AI'ye dön/);
 });
 
@@ -37,7 +37,7 @@ test("balls can be grabbed, dragged, released and launched with pointer velocity
   assert.match(script, /if \(b === draggedBall\) continue/);
 });
 
-test("Alpha 4 exposes circle, box and triangle shape selectors", () => {
+test("Alpha 5 exposes circle, box and triangle shape selectors", () => {
   for (const id of ["spawnCircle", "spawnBox", "spawnTriangle", "shapeState"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(script, /currentShape = "circle"/);
   assert.match(script, /shape: currentShape/);
@@ -45,7 +45,7 @@ test("Alpha 4 exposes circle, box and triangle shape selectors", () => {
   assert.match(script, /b\.shape === "triangle"/);
 });
 
-test("Alpha 4 exposes mass and friction material controls", () => {
+test("Alpha 5 exposes mass and friction material controls", () => {
   for (const id of ["mass", "massValue", "friction", "frictionValue"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(script, /massInput\.addEventListener\("input"/);
   assert.match(script, /frictionInput\.addEventListener\("input"/);
@@ -53,11 +53,20 @@ test("Alpha 4 exposes mass and friction material controls", () => {
   assert.match(script, /mass, friction,/);
 });
 
-test("Alpha 4 uses polygon SAT manifolds and mass-weighted collision response", () => {
+test("Alpha 5 uses polygon SAT manifolds and mass-weighted collision response", () => {
   assert.match(script, /function vertices\(/);
   assert.match(script, /function project\(/);
   assert.match(script, /function collisionManifold\(/);
   assert.match(script, /const invA = 1 \/ Math\.max\(\.05, a\.mass\)/);
   assert.match(script, /const restitution = bounce/);
   assert.match(script, /Math\.sqrt\(Math\.max\(0, a\.friction \* b\.friction\)\)/);
+});
+
+test("Alpha 5 exposes custom gravity direction, speed cap, force fields and presets", () => {
+  for (const id of ["gravityAngle","gravityAngleValue","maxSpeed","maxSpeedValue","addAttract","addRepel","clearFields","savePreset","loadPreset","presetState"]) assert.ok(html.includes(`id="${id}"`));
+  assert.ok(script.includes("gravityAngleInput"));
+  assert.ok(script.includes("for (const field of fields)"));
+  assert.ok(script.includes("maxSpeed > 0 && velocity > maxSpeed"));
+  assert.ok(script.includes("nova-sim-alpha5-preset"));
+  assert.ok(script.includes("data.version !== 1"));
 });
