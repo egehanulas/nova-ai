@@ -134,7 +134,7 @@ test("NOVA Sim 3D prototype is integrated without removing the existing 2D lab",
   assert.match(html, /id="mode3d"/);
   assert.match(html, /id="world3d"/);
   assert.match(html, /class="sim-panel sim-panel-3d"/);
-  assert.match(html, /src="\/sim3d\.js\?v=alpha3-physics"/);
+  assert.match(html, /src="\/sim3d\.js\?v=alpha5-universe"/);
   assert.match(threeD, /getContext\("webgl"/);
   assert.match(threeD, /function vp\(/);
   assert.match(threeD, /function physics\(/);
@@ -150,7 +150,7 @@ test("NOVA Sim 3D Alpha 2 supports keyboard free-camera movement", () => {
   const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
   assert.match(html, /id="world3d" tabindex="0"/);
   assert.match(html, /WASD: dolaş/);
-  assert.match(html, /sim3d\.js\?v=alpha3-physics/);
+  assert.match(html, /sim3d\.js\?v=alpha5-universe/);
   assert.match(threeD, /function moveCamera\(dt\)/);
   assert.match(threeD, /cameraKeys\.has\("w"\)/);
   assert.match(threeD, /cameraKeys\.has\("shift"\)/);
