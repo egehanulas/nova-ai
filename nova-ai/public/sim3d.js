@@ -8,7 +8,7 @@ const vs=["attribute vec3 aPosition;attribute vec3 aNormal;uniform mat4 uVP;unif
 const fs=["precision mediump float;uniform vec3 uColor;uniform float uLit;varying vec3 vNormal;","void main(){float d=max(dot(normalize(vNormal),normalize(vec3(-.45,.85,.55))),0.0);gl_FragColor=vec4(mix(uColor,uColor*(.28+d*.82),uLit),1.0);}"].join("\n");
 function compile(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s)||"Shader hatası");return s;}
 let program;try{program=gl.createProgram();gl.attachShader(program,compile(gl.VERTEX_SHADER,vs));gl.attachShader(program,compile(gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program)||"Program hatası");}catch(e){$("object3dState").textContent="3D grafik başlatılamadı: "+e.message;$("mode3d").disabled=true;return;}
-gl.useProgram(program);gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.clearColor(.025,.043,.085,1);
+gl.useProgram(program);gl.enable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);gl.clearColor(.025,.043,.085,1);
 const L={p:gl.getAttribLocation(program,"aPosition"),n:gl.getAttribLocation(program,"aNormal"),vp:gl.getUniformLocation(program,"uVP"),model:gl.getUniformLocation(program,"uModel"),color:gl.getUniformLocation(program,"uColor"),lit:gl.getUniformLocation(program,"uLit")};
 const V={add:(a,b)=>a.map((v,i)=>v+b[i]),sub:(a,b)=>a.map((v,i)=>v-b[i]),mul:(a,s)=>a.map(v=>v*s),dot:(a,b)=>a.reduce((n,v,i)=>n+v*b[i],0),cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],norm:a=>{const l=Math.hypot(...a)||1;return a.map(v=>v/l);}};
 const I=()=>[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
