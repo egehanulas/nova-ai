@@ -91,3 +91,23 @@ test("Alpha 7 adds selected-object merge and split universe tools", () => {
   assert.match(script, /localStorage\.setItem\("nova-sim-alpha7-preset"/);
   assert.match(script, /\[1, 2\]\.includes\(data\.version\)/);
 });
+
+
+test("Alpha 7 keeps the full controls reachable with page and panel scrolling", () => {
+  assert.match(html, /html\{min-height:100%;overflow-y:auto\}/);
+  assert.match(html, /body\{min-height:100vh;overflow-y:auto!important/);
+  assert.match(html, /max-height:calc\(100vh - 125px\);overflow-y:auto/);
+  assert.match(html, /@media\(max-width:850px\)[\s\S]*?max-height:none;overflow:visible/);
+  assert.match(html, /Birleştir \/ Böl/);
+  assert.match(html, /id="mergeSelected"/);
+  assert.match(html, /id="splitSelected"/);
+  assert.match(html, /sim.js\?v=alpha7-scrollfix1/);
+});
+
+test("Alpha 7 merge preserves mass-weighted linear and angular momentum calculations", () => {
+  assert.match(script, /const mergedVX = \(a\.vx \* a\.mass \+ b\.vx \* b\.mass\) \/ totalMass/);
+  assert.match(script, /const mergedVY = \(a\.vy \* a\.mass \+ b\.vy \* b\.mass\) \/ totalMass/);
+  assert.match(script, /const mergedSpin = \(a\.angularVelocity \* a\.mass \+ b\.angularVelocity \* b\.mass\) \/ totalMass/);
+  assert.match(script, /a\.mass = totalMass/);
+  assert.match(script, /a\.angularVelocity = mergedSpin/);
+});
