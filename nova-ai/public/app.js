@@ -498,10 +498,14 @@
     finally { if (developerFeedbackRefresh) developerFeedbackRefresh.disabled = false; }
   }
   developerFeedbackRefresh?.addEventListener("click", loadDeveloperFeedback);
-  const adminSession = await supabase.auth.getSession().catch(() => null);
-  const adminUser = adminSession?.data?.session?.user;
-  isFeedbackDeveloper = String(adminUser?.email || "").trim().toLowerCase() === "egehanimat21@gmail.com" && Boolean(adminUser?.email_confirmed_at || adminUser?.confirmed_at);
-  if (developerTab && isFeedbackDeveloper) { developerTab.hidden = false; developerTab.addEventListener("click", loadDeveloperFeedback); }
+  supabase.auth.getSession().then(({ data }) => {
+    const adminUser = data?.session?.user;
+    isFeedbackDeveloper = String(adminUser?.email || "").trim().toLowerCase() === "egehanimat21@gmail.com" && Boolean(adminUser?.email_confirmed_at || adminUser?.confirmed_at);
+    if (developerTab && isFeedbackDeveloper) {
+      developerTab.hidden = false;
+      developerTab.addEventListener("click", loadDeveloperFeedback);
+    }
+  }).catch(() => {});
 
   const feedbackForm = $("#feedbackForm");
   const feedbackType = $("#feedbackType");
