@@ -162,7 +162,7 @@ test("NOVA Sim 3D Alpha 2 supports keyboard free-camera movement", () => {
 test("NOVA Sim 3D Alpha 3 adds adaptive substeps, friction impulses, angular motion and drag throwing", () => {
   const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
   for (const id of ["friction3d", "friction3dValue", "air3d", "air3dValue"]) assert.ok(html.includes('id="' + id + '"'));
-  assert.ok(html.includes("sim3d.js?v=alpha3-physics"));
+  assert.ok(html.includes("sim3d.js?v=alpha5-universe"));
   assert.ok(threeD.includes("function solveCollisions()"));
   assert.ok(threeD.includes("const steps=clamp(Math.ceil(fastest*dt/safeTravel),1,16)"));
   assert.ok(threeD.includes("normalImpulse"));
@@ -176,22 +176,12 @@ test("NOVA Sim 3D Alpha 3 adds adaptive substeps, friction impulses, angular mot
 
 test("NOVA Sim 3D Alpha 4 adds orientation-aware shape support contacts", () => {
   const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
-  assert.match(threeD, /function bodyAxes\\(/);
-  assert.match(threeD, /function supportRadius\\(/);
-  assert.match(threeD, /supportRadius\\(a,n\\)/);
-  assert.match(threeD, /supportRadius\\(b,V\\.mul\\(n,-1\\)\\)/);
-  assert.match(threeD, /const floor=supportRadius\\(b,\\[0,1,0\\]\\)/);
-  assert.match(html, /Alpha 5 · Şekil duyarlı temas/);
+  for (const snippet of ["function bodyAxes(", "function supportRadius(", "supportRadius(a,n)", "supportRadius(b,V.mul(n,-1))", "const floor=supportRadius(b,[0,1,0])"]) assert.ok(threeD.includes(snippet));
+  assert.ok(html.includes("Alpha 5 · Şekil duyarlı temas"));
 });
 
 test("NOVA Sim 3D Alpha 5 adds directional gravity, local force fields and merge/split tools", () => {
   const threeD = fs.readFileSync(path.join(__dirname, "public", "sim3d.js"), "utf8");
   for (const id of ["gravityDirX","gravityDirY","gravityDirZ","fieldStrength3d","fieldRadius3d","addAttract3d","addRepel3d","clearFields3d","merge3d","split3d","universe3dState"]) assert.ok(html.includes('id="' + id + '"'));
-  assert.match(threeD, /gravityDirection=\\[0,-1,0\\]/);
-  assert.match(threeD, /function mergeSelected3d\\(/);
-  assert.match(threeD, /function splitSelected3d\\(/);
-  assert.match(threeD, /forceFields\\.push\\(\\{mode:"attract"/);
-  assert.match(threeD, /forceFields\\.push\\(\\{mode:"repel"/);
-  assert.match(threeD, /field\\.strength\\*falloff\\*falloff/);
-  assert.match(threeD, /Math\\.cbrt\\(volume\\)/);
+  for (const snippet of ["gravityDirection=[0,-1,0]", "function mergeSelected3d(", "function splitSelected3d(", 'forceFields.push({mode:"attract"', 'forceFields.push({mode:"repel"', "field.strength*falloff*falloff", "Math.cbrt(volume)"]) assert.ok(threeD.includes(snippet));
 });
