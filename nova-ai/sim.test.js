@@ -8,7 +8,7 @@ const script = fs.readFileSync(path.join(__dirname, "public", "sim.js"), "utf8")
 
 test("NOVA Sim Alpha 7 page loads its versioned physics script and canvas", () => {
   assert.match(html, /<canvas[^>]+id="world"/);
-  assert.match(html, /src="\/sim\.js\?v=alpha7-field-drag1"/);
+  assert.match(html, /src="\/sim\.js\?v=alpha7-field-drag2"/);
   assert.match(html, /Fizik Laboratuvarı · Alpha 7/);
   assert.match(html, /href="\/"[^>]*>← NOVA AI'ye dön/);
 });
@@ -101,7 +101,7 @@ test("Alpha 7 keeps the full controls reachable with page and panel scrolling", 
   assert.match(html, /Birleştir \/ Böl/);
   assert.match(html, /id="mergeSelected"/);
   assert.match(html, /id="splitSelected"/);
-  assert.match(html, /sim.js\?v=alpha7-field-drag1/);
+  assert.match(html, /sim.js\?v=alpha7-field-drag2/);
 });
 
 test("Alpha 7 merge preserves mass-weighted linear and angular momentum calculations", () => {
