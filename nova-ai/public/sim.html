@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090b12">
+  <title>NOVA Sim — Fizik Laboratuvarı</title>
+  <link rel="icon" type="image/svg+xml" href="/nova-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/layout-fixes.css?v=alpha70-redesign">
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#090b12;color:#f4f3ff;font-family:Inter,system-ui,sans-serif}
+    .sim-wrap{max-width:1250px;margin:auto;padding:24px}.sim-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
+    .sim-brand{display:flex;align-items:center;gap:12px}.sim-brand img{width:42px;height:42px}.sim-brand h1{font-size:21px;margin:0}.sim-brand p{margin:4px 0 0;color:#9297ac;font-size:12px}
+    .sim-link,.sim-btn{border:1px solid #34384b;border-radius:10px;padding:10px 14px;color:#e9e8f5;background:#171a28;text-decoration:none;font:inherit;font-size:13px;cursor:pointer}
+    .sim-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px}.sim-stage{min-width:0;border:1px solid #292d42;border-radius:18px;overflow:hidden;background:#0c1020;box-shadow:0 20px 60px #0005}
+    .stage-top{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid #24283a;color:#b9bdd0;font-size:12px}.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#70e2b0;margin-right:7px}
+    #world{display:block;width:100%;height:min(66vh,650px);min-height:360px;touch-action:manipulation;cursor:crosshair}
+    .sim-panel{padding:18px;border:1px solid #292d42;border-radius:18px;background:#111522;display:flex;flex-direction:column;gap:18px}
+    .sim-panel h2{font-size:15px;margin:0}.sim-panel p{font-size:12px;line-height:1.6;color:#9297ac;margin:6px 0 0}
+    .control label{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#d8d9e5;margin-bottom:9px}.control output{color:#b5a8ff;font-variant-numeric:tabular-nums}
+    input[type=range]{width:100%;accent-color:#9581ff}.sim-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.sim-btn.primary{background:#7865e8;border-color:#7865e8;color:white}.sim-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{padding:11px;border-radius:11px;background:#0b0f1a}.stat span{display:block;color:#8d93a9;font-size:11px}.stat strong{display:block;margin-top:5px;font-size:17px;font-variant-numeric:tabular-nums}
+    .sim-note{padding:12px;border-radius:12px;background:#19172a;color:#aaa2d5;font-size:11px;line-height:1.6}
+    @media(max-width:850px){.sim-layout{grid-template-columns:1fr}.sim-panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.sim-panel>div:first-child,.sim-note{grid-column:1/-1}}
+    @media(max-width:520px){.sim-wrap{padding:14px}.sim-head{align-items:flex-start}.sim-brand h1{font-size:18px}.sim-panel{grid-template-columns:1fr}#world{min-height:330px;height:52vh}}
+  </style>
+</head>
+<body>
+  <main class="sim-wrap">
+    <header class="sim-head">
+      <div class="sim-brand"><img src="/nova-logo.svg" alt=""><div><h1>NOVA Sim</h1><p>Fizik Laboratuvarı · Alpha 1</p></div></div>
+      <a class="sim-link" href="/">← NOVA AI'ye dön</a>
+    </header>
+    <div class="sim-layout">
+      <section class="sim-stage" aria-label="Fizik simülasyonu">
+        <div class="stage-top"><span><i class="live-dot"></i>2D fizik alanı</span><span id="simState">Çalışıyor</span></div>
+        <canvas id="world" aria-label="Top eklemek için alana dokun veya tıkla"></canvas>
+      </section>
+      <aside class="sim-panel">
+        <div><h2>Deney kontrolleri</h2><p>Alana tıklayarak top ekle. Yerçekimini ve zıplama miktarını değiştirerek kendi deneyini yap.</p></div>
+        <div class="control"><label for="gravity">Yerçekimi <output id="gravityValue">9.8</output></label><input id="gravity" type="range" min="0" max="25" step=".1" value="9.8"></div>
+        <div class="control"><label for="bounce">Zıplama <output id="bounceValue">0.82</output></label><input id="bounce" type="range" min=".1" max="1" step=".01" value=".82"></div>
+        <div class="control"><label for="speed">Zaman hızı <output id="speedValue">1.0×</output></label><input id="speed" type="range" min=".2" max="2.5" step=".1" value="1"></div>
+        <div class="sim-actions"><button class="sim-btn primary" id="addBall">＋ Top ekle</button><button class="sim-btn" id="pause">Ⅱ Duraklat</button><button class="sim-btn" id="reset">↻ Sıfırla</button><button class="sim-btn" id="burst">✦ 10 top</button></div>
+        <div class="sim-stats"><div class="stat"><span>Top sayısı</span><strong id="ballCount">0</strong></div><div class="stat"><span>FPS</span><strong id="fps">—</strong></div></div>
+        <div class="sim-note">Bu ilk sürüm 2D deney alanıdır. İleride 3D cisimler, kamera ve NOVA'ya özgü fizik kuralları için genişletilecek.</div>
+      </aside>
+    </div>
+  </main>
+  <script src="/sim.js?v=alpha1"></script>
+</body>
+</html>
