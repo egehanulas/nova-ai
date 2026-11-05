@@ -30,7 +30,7 @@
 <body>
   <main class="sim-wrap">
     <header class="sim-head">
-      <div class="sim-brand"><img src="/nova-logo.svg" alt=""><div><h1>NOVA Sim</h1><p>Fizik Laboratuvarı · Alpha 3</p></div></div>
+      <div class="sim-brand"><img src="/nova-logo.svg" alt=""><div><h1>NOVA Sim</h1><p>Fizik Laboratuvarı · Alpha 4</p></div></div>
       <a class="sim-link" href="/">← NOVA AI'ye dön</a>
     </header>
     <div class="sim-layout">
@@ -43,12 +43,14 @@
         <div class="control"><label for="gravity">Yerçekimi <output id="gravityValue">9.8</output></label><input id="gravity" type="range" min="0" max="25" step=".1" value="9.8"></div>
         <div class="control"><label for="bounce">Zıplama <output id="bounceValue">0.82</output></label><input id="bounce" type="range" min=".1" max="1" step=".01" value=".82"></div>
         <div class="control"><label for="speed">Zaman hızı <output id="speedValue">1.0×</output></label><input id="speed" type="range" min=".2" max="2.5" step=".1" value="1"></div>
-        <div><h2 style="margin-bottom:9px">Nesne şekli</h2><div class="sim-actions"><button class="sim-btn selected" id="spawnCircle" type="button">● Daire</button><button class="sim-btn" id="spawnBox" type="button">■ Kare</button><button class="sim-btn" id="spawnTriangle" type="button">▲ Üçgen</button></div><p>Seçtiğin şekil yeni eklenen nesnelerde kullanılır.</p><p id="shapeState">Daire</p></div><div class="sim-actions"><button class="sim-btn primary" id="addBall">＋ Nesne ekle</button><button class="sim-btn" id="pause">Ⅱ Duraklat</button><button class="sim-btn" id="reset">↻ Sıfırla</button><button class="sim-btn" id="burst">✦ 10 top</button></div>
-        <div class="sim-stats"><div class="stat"><span>Top sayısı</span><strong id="ballCount">0</strong></div><div class="stat"><span>FPS</span><strong id="fps">—</strong></div></div>
-        <div class="sim-note">Alpha 3 · Daire, kare ve üçgen nesneler oluştur; sürükleyip bırakarak hareket kazandır. Şekillerin çarpışma fiziği bu aşamada dairesel sınır yaklaşımı kullanır.</div>
+        <div class="control"><label for="mass">Kütle <output id="massValue">1.0</output></label><input id="mass" type="range" min=".2" max="5" step=".1" value="1"></div>
+        <div class="control"><label for="friction">Sürtünme <output id="frictionValue">0.18</output></label><input id="friction" type="range" min="0" max="1" step=".01" value=".18"></div>
+        <div><h2 style="margin-bottom:9px">Nesne şekli</h2><div class="sim-actions"><button class="sim-btn selected" id="spawnCircle" type="button">● Daire</button><button class="sim-btn" id="spawnBox" type="button">■ Kare</button><button class="sim-btn" id="spawnTriangle" type="button">▲ Üçgen</button></div><p>Seçtiğin şekil yeni eklenen nesnelerde kullanılır.</p><p id="shapeState">Daire</p></div><div class="sim-actions"><button class="sim-btn primary" id="addBall">＋ Nesne ekle</button><button class="sim-btn" id="pause">Ⅱ Duraklat</button><button class="sim-btn" id="reset">↻ Sıfırla</button><button class="sim-btn" id="burst">✦ 10 nesne</button></div>
+        <div class="sim-stats"><div class="stat"><span>Nesne sayısı</span><strong id="ballCount">0</strong></div><div class="stat"><span>FPS</span><strong id="fps">—</strong></div></div>
+        <div class="sim-note">Alpha 4 · Daire, kare ve üçgen nesneler oluştur; sürükleyip bırakarak hareket kazandır. Çarpışmalar şekil geometrisine göre hesaplanır; kütle, sürtünme ve esneklik ayarları etkileşimi değiştir.</div>
       </aside>
     </div>
   </main>
-  <script src="/sim.js?v=alpha3-shapes"></script>
+  <script src="/sim.js?v=alpha4-physics"></script>
 </body>
 </html>
