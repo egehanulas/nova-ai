@@ -9,7 +9,7 @@
   const balls = [];
   const MAX_BALLS = 100;
   let width = 0, height = 0, running = true, lastTime = 0, fpsFrames = 0, fpsTime = 0, fps = 0;
-  let gravity = Number(gravityInput.value), bounce = Number(bounceInput.value), timeScale = Number(speedInput.value);
+  let gravity = Number(gravityInput.value), bounce = Number(bounceInput.value), timeScale = Number(speedInput.value), mass = 1, friction = 0.18;
   let currentShape = "circle";
   let draggedBall = null, dragOffsetX = 0, dragOffsetY = 0, pointerId = null, dragVX = 0, dragVY = 0, previousPointerTime = 0;
   const colors = ["#9b83ff", "#6edbd0", "#ffb86b", "#ff7eaa", "#83b7ff"];
@@ -28,7 +28,7 @@
   function addBall(x = width * (.25 + Math.random() * .5), y = Math.max(35, height * .15), vx = (Math.random() - .5) * 260, vy = (Math.random() - .5) * 100) {
     if (balls.length >= MAX_BALLS) balls.shift();
     const r = 9 + Math.random() * 13;
-    const ball = { x: clamp(x, r, Math.max(r, width - r)), y: clamp(y, r, Math.max(r, height - r)), vx, vy, r, shape: currentShape, color: colors[Math.floor(Math.random() * colors.length)] };
+    const ball = { x: clamp(x, r, Math.max(r, width - r)), y: clamp(y, r, Math.max(r, height - r)), vx, vy, r, shape: currentShape, angle: Math.random() * Math.PI * 2, angularVelocity: 0, mass, friction, color: colors[Math.floor(Math.random() * colors.length)] };
     balls.push(ball);
     $("ballCount").textContent = String(balls.length);
     return ball;
@@ -46,23 +46,70 @@
     }
   }
 
+  function vertices(body) {
+    const count = body.shape === "triangle" ? 3 : body.shape === "box" ? 4 : 20;
+    const points = [];
+    for (let i = 0; i < count; i++) {
+      const angle = body.angle + (body.shape === "triangle" ? -Math.PI / 2 + i * Math.PI * 2 / 3 : body.shape === "box" ? Math.PI / 4 + i * Math.PI / 2 : i * Math.PI * 2 / count);
+      const radius = body.shape === "box" ? body.r * Math.SQRT2 * .82 : body.r;
+      points.push({ x: body.x + Math.cos(angle) * radius, y: body.y + Math.sin(angle) * radius });
+    }
+    return points;
+  }
+
+  function project(points, axis) {
+    let min = Infinity, max = -Infinity;
+    for (const p of points) { const value = p.x * axis.x + p.y * axis.y; min = Math.min(min, value); max = Math.max(max, value); }
+    return { min, max };
+  }
+
+  function collisionManifold(a, b) {
+    const ap = vertices(a), bp = vertices(b);
+    let smallest = Infinity, normal = null;
+    for (const polygon of [ap, bp]) {
+      for (let i = 0; i < polygon.length; i++) {
+        const p1 = polygon[i], p2 = polygon[(i + 1) % polygon.length];
+        const edgeX = p2.x - p1.x, edgeY = p2.y - p1.y, length = Math.hypot(edgeX, edgeY) || 1;
+        const axis = { x: -edgeY / length, y: edgeX / length };
+        const pa = project(ap, axis), pb = project(bp, axis);
+        const overlap = Math.min(pa.max, pb.max) - Math.max(pa.min, pb.min);
+        if (overlap <= 0) return null;
+        if (overlap < smallest) { smallest = overlap; normal = axis; }
+      }
+    }
+    if ((b.x - a.x) * normal.x + (b.y - a.y) * normal.y < 0) normal = { x: -normal.x, y: -normal.y };
+    return { normal, depth: smallest };
+  }
+
   function collide() {
     for (let i = 0; i < balls.length; i++) for (let j = i + 1; j < balls.length; j++) {
       const a = balls[i], b = balls[j];
       if (a === draggedBall || b === draggedBall) continue;
-      const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy), min = a.r + b.r;
-      if (!dist || dist >= min) continue;
-      const nx = dx / dist, ny = dy / dist, overlap = (min - dist) / 2;
-      a.x -= nx * overlap; a.y -= ny * overlap; b.x += nx * overlap; b.y += ny * overlap;
-      const relative = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
-      if (relative < 0) {
-        const impulse = -(1 + bounce * .88) * relative / 2;
-        a.vx -= impulse * nx; a.vy -= impulse * ny;
-        b.vx += impulse * nx; b.vy += impulse * ny;
+      const manifold = collisionManifold(a, b);
+      if (!manifold) continue;
+      const { normal, depth } = manifold;
+      const invA = 1 / Math.max(.05, a.mass), invB = 1 / Math.max(.05, b.mass), invTotal = invA + invB;
+      const correction = Math.max(0, depth - .01) * .78 / invTotal;
+      a.x -= normal.x * correction * invA; a.y -= normal.y * correction * invA;
+      b.x += normal.x * correction * invB; b.y += normal.y * correction * invB;
+      const rvx = b.vx - a.vx, rvy = b.vy - a.vy, alongNormal = rvx * normal.x + rvy * normal.y;
+      if (alongNormal >= 0) continue;
+      const restitution = bounce;
+      const impulse = -(1 + restitution) * alongNormal / invTotal;
+      const ix = impulse * normal.x, iy = impulse * normal.y;
+      a.vx -= ix * invA; a.vy -= iy * invA; b.vx += ix * invB; b.vy += iy * invB;
+      const tangentX0 = rvx - alongNormal * normal.x, tangentY0 = rvy - alongNormal * normal.y;
+      const tangentLength = Math.hypot(tangentX0, tangentY0);
+      if (tangentLength > 1e-6) {
+        const tx = tangentX0 / tangentLength, ty = tangentY0 / tangentLength;
+        let jt = -(rvx * tx + rvy * ty) / invTotal;
+        const mu = Math.sqrt(Math.max(0, a.friction * b.friction));
+        jt = clamp(jt, -impulse * mu, impulse * mu);
+        a.vx -= jt * tx * invA; a.vy -= jt * ty * invA;
+        b.vx += jt * tx * invB; b.vy += jt * ty * invB;
       }
     }
   }
-
   function draw() {
     ctx.clearRect(0, 0, width, height);
     const bg = ctx.createLinearGradient(0, 0, width, height);
@@ -76,9 +123,11 @@
       const g = ctx.createRadialGradient(b.x - b.r * .35, b.y - b.r * .4, 1, b.x, b.y, b.r * 1.2);
       g.addColorStop(0, "#ffffff"); g.addColorStop(.2, b.color); g.addColorStop(1, b.color + "88");
       ctx.fillStyle = g; ctx.beginPath();
-      if (b.shape === "box") ctx.rect(b.x - b.r * .82, b.y - b.r * .82, b.r * 1.64, b.r * 1.64);
-      else if (b.shape === "triangle") { ctx.moveTo(b.x, b.y - b.r); ctx.lineTo(b.x + b.r * .92, b.y + b.r * .78); ctx.lineTo(b.x - b.r * .92, b.y + b.r * .78); ctx.closePath(); }
-      else ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      if (b.shape === "box" || b.shape === "triangle") {
+        const points = vertices(b); ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+        ctx.closePath();
+      } else ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
       ctx.fill();
       if (b === draggedBall) { ctx.strokeStyle = "rgba(255,255,255,.95)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 5, 0, Math.PI * 2); ctx.stroke(); }
       ctx.restore();
@@ -107,6 +156,8 @@
           if (b === draggedBall) continue;
           b.vy += gravity * 48 * step;
           b.x += b.vx * step; b.y += b.vy * step;
+          b.angle += b.angularVelocity * step;
+          b.angularVelocity *= Math.max(0, 1 - b.friction * step * .08);
           resolveWalls(b);
         }
         collide();
@@ -125,6 +176,11 @@
   syncRange(gravityInput, $("gravityValue"), v => v.toFixed(1));
   syncRange(bounceInput, $("bounceValue"), v => v.toFixed(2));
   syncRange(speedInput, $("speedValue"), v => v.toFixed(1) + "×");
+  const massInput = $("mass"), frictionInput = $("friction");
+  syncRange(massInput, $("massValue"), v => v.toFixed(1));
+  syncRange(frictionInput, $("frictionValue"), v => v.toFixed(2));
+  massInput.addEventListener("input", () => { mass = Number(massInput.value); for (const b of balls) b.mass = mass; });
+  frictionInput.addEventListener("input", () => { friction = Number(frictionInput.value); for (const b of balls) b.friction = friction; });
   gravityInput.addEventListener("input", () => gravity = Number(gravityInput.value));
   bounceInput.addEventListener("input", () => bounce = Number(bounceInput.value));
   speedInput.addEventListener("input", () => timeScale = Number(speedInput.value));
