@@ -43,8 +43,8 @@
       <section class="sim-stage" aria-label="Fizik simülasyonu">
         <div class="stage-top"><span><i class="live-dot"></i><span id="stageModeLabel">2D fizik alanı</span></span><div class="sim-mode-tabs"><button class="sim-mode-tab active" id="mode2d" type="button" aria-pressed="true">2D Laboratuvar</button><button class="sim-mode-tab" id="mode3d" type="button" aria-pressed="false">3D Laboratuvar <span class="mode-beta">NEW</span></button></div><span id="simState">Çalışıyor</span></div>
         <canvas id="world" aria-label="Topları sürükleyerek taşı veya boş alana tıklayarak yeni top ekle"></canvas>
-        <canvas id="world3d" aria-label="3D sahnede kamerayı döndür, nesneleri seç ve taşı" hidden></canvas>
-        <div class="sim-3d-hint" id="sim3dHint" hidden>Boş alanda sürükle: kamerayı döndür · Nesneyi sürükle: taşı · Çift tık: nesneye odaklan · Tekerlek: yakınlaştır</div>
+        <canvas id="world3d" tabindex="0" aria-label="3D sahne. WASD ile yatay hareket, Space ile yüksel, Shift ile alçal; fareyle kamerayı döndür." hidden></canvas>
+        <div class="sim-3d-hint" id="sim3dHint" hidden>WASD: dolaş · Space: yüksel · Shift: alçal · Boş alanda fareyi sürükle: kamerayı döndür · Nesneyi sürükle: taşı · Tekerlek: yakınlaştır</div>
       </section>
       <aside class="sim-panel sim-panel-2d">
         <div><h2>Deney kontrolleri</h2><p>Topları fareyle tutup taşı. Bıraktığında hareket yönüne göre fırlatılır. Boş alana tıklayarak yeni top ekleyebilirsin.</p></div>
@@ -66,7 +66,7 @@
       <aside class="sim-panel sim-panel-3d" id="sim3dPanel" hidden>
         <div><h2>3D deney kontrolleri</h2><p>İlk 3D laboratuvar prototipi. Nesne ekle, seç, taşı ve kamerayı istediğin açıya getir.</p></div>
         <div><h2 style="margin-bottom:9px">Nesne ekle</h2><div class="sim-actions"><button class="sim-btn primary" id="add3dSphere" type="button">＋ Küre</button><button class="sim-btn" id="add3dCube" type="button">＋ Küp</button><button class="sim-btn" id="add3dCylinder" type="button">＋ Silindir</button><button class="sim-btn" id="remove3dObject" type="button">Seçileni sil</button></div><p id="object3dState" aria-live="polite">Sahnede bir küre var. Seçmek için tıkla.</p></div>
-        <div><h2 style="margin-bottom:9px">Kamera</h2><div class="sim-actions"><button class="sim-btn primary selected" id="cameraFree" type="button">Serbest kamera</button><button class="sim-btn" id="cameraFocus" type="button">Nesneye odaklan</button><button class="sim-btn" id="cameraReset" type="button">Kamerayı sıfırla</button></div><p>Boş alanda sürükleyerek kamerayı döndür, fare tekerleğiyle yaklaş veya uzaklaş.</p></div>
+        <div><h2 style="margin-bottom:9px">Kamera</h2><div class="sim-actions"><button class="sim-btn primary selected" id="cameraFree" type="button">Serbest kamera</button><button class="sim-btn" id="cameraFocus" type="button">Nesneye odaklan</button><button class="sim-btn" id="cameraReset" type="button">Kamerayı sıfırla</button></div><p>Canvas alanına tıklayıp WASD ile yatay dolaş; Space ile yüksel, Shift ile alçal. Fareyle sürükleyerek bakış yönünü değiştir, tekerlekle yaklaş veya uzaklaş.</p></div>
         <div><h2 style="margin-bottom:9px">Taşıma ekseni</h2><div class="sim-actions axis-actions"><button class="sim-btn selected" data-axis="free" type="button">Serbest</button><button class="sim-btn" data-axis="x" type="button">X</button><button class="sim-btn" data-axis="y" type="button">Y</button><button class="sim-btn" data-axis="z" type="button">Z</button></div><p>Seçili eksen boyunca sürükle veya konum değerlerini düzenle.</p></div>
         <div class="control"><label for="pos3dX">Konum X <output id="pos3dXValue">0.00</output></label><input id="pos3dX" type="range" min="-10" max="10" step=".1" value="0"></div>
         <div class="control"><label for="pos3dY">Konum Y <output id="pos3dYValue">2.00</output></label><input id="pos3dY" type="range" min="0" max="15" step=".1" value="2"></div>
@@ -81,6 +81,6 @@
     </div>
   </main>
   <script src="/sim.js?v=alpha7-field-drag2"></script>
-  <script src="/sim3d.js?v=alpha1-prototype" defer></script>
+  <script src="/sim3d.js?v=alpha2-wasd-camera" defer></script>
 </body>
 </html>
