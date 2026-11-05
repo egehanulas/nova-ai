@@ -13,7 +13,7 @@
   let width = 0, height = 0, running = true, lastTime = 0, fpsFrames = 0, fpsTime = 0, fps = 0;
   let gravity = Number(gravityInput.value), gravityAngle = Number(gravityAngleInput.value) * Math.PI / 180, maxSpeed = Number(maxSpeedInput.value), bounce = Number(bounceInput.value), timeScale = Number(speedInput.value), mass = 1, friction = 0.18;
   let currentShape = "circle";
-  let selectedBall = null;
+  let selectedBall = null, selectedField = null, draggedField = null, fieldDragOffsetX = 0, fieldDragOffsetY = 0, moveFieldsMode = false;
   let fieldStrength = 520, fieldRadius = 125;
   let draggedBall = null, dragOffsetX = 0, dragOffsetY = 0, pointerId = null, dragVX = 0, dragVY = 0, previousPointerTime = 0;
   const colors = ["#9b83ff", "#6edbd0", "#ffb86b", "#ff7eaa", "#83b7ff"];
@@ -142,7 +142,7 @@
       ctx.save(); ctx.beginPath(); ctx.arc(field.x, field.y, field.radius, 0, Math.PI * 2);
       ctx.fillStyle = field.type === "attract" ? "rgba(112,226,176,.07)" : "rgba(255,126,170,.07)"; ctx.fill();
       ctx.strokeStyle = field.type === "attract" ? "rgba(112,226,176,.65)" : "rgba(255,126,170,.65)"; ctx.setLineDash([6,5]); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = field.type === "attract" ? "#70e2b0" : "#ff7eaa"; ctx.font = "11px Inter, sans-serif"; ctx.textAlign = "center"; ctx.fillText(field.type === "attract" ? "ÇEKİM" : "İTİM", field.x, field.y - field.radius - 7); ctx.restore();
+      ctx.fillStyle = field.type === "attract" ? "#70e2b0" : "#ff7eaa"; ctx.font = "11px Inter, sans-serif"; ctx.textAlign = "center"; ctx.fillText(field.type === "attract" ? "ÇEKİM" : "İTİM", field.x, field.y - field.radius - 7); if (field === selectedField) { ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.setLineDash([]); ctx.beginPath(); ctx.arc(field.x, field.y, 12, 0, Math.PI * 2); ctx.stroke(); } ctx.fillStyle = field.type === "attract" ? "#70e2b0" : "#ff7eaa"; ctx.beginPath(); ctx.arc(field.x, field.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(field.x - 9, field.y); ctx.lineTo(field.x + 9, field.y); ctx.moveTo(field.x, field.y - 9); ctx.lineTo(field.x, field.y + 9); ctx.stroke(); ctx.restore();
     }
     for (const b of balls) {
       ctx.save(); if (b === selectedBall) { ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 8, 0, Math.PI * 2); ctx.stroke(); } ctx.shadowColor = b.color; ctx.shadowBlur = b === draggedBall ? 26 : 16;
@@ -228,8 +228,8 @@
   const fieldStrengthInput = $("fieldStrength"), fieldRadiusInput = $("fieldRadius");
   syncRange(fieldStrengthInput, $("fieldStrengthValue"), v => String(Math.round(v)));
   syncRange(fieldRadiusInput, $("fieldRadiusValue"), v => Math.round(v) + " px");
-  fieldStrengthInput.addEventListener("input", () => fieldStrength = Number(fieldStrengthInput.value));
-  fieldRadiusInput.addEventListener("input", () => fieldRadius = Number(fieldRadiusInput.value));
+  fieldStrengthInput.addEventListener("input", () => { fieldStrength = Number(fieldStrengthInput.value); if (selectedField) selectedField.strength = fieldStrength; draw(); });
+  fieldRadiusInput.addEventListener("input", () => { fieldRadius = Number(fieldRadiusInput.value); if (selectedField) selectedField.radius = fieldRadius; draw(); });
   massInput.addEventListener("input", () => { mass = Number(massInput.value); for (const b of balls) b.mass = mass; });
   frictionInput.addEventListener("input", () => { friction = Number(frictionInput.value); for (const b of balls) b.friction = friction; });
   gravityInput.addEventListener("input", () => gravity = Number(gravityInput.value));
@@ -239,10 +239,13 @@
   speedInput.addEventListener("input", () => timeScale = Number(speedInput.value));
 
   $("addBall").addEventListener("click", () => addBall());
-  function addField(type) { fields.push({ x: width * (.35 + Math.random() * .3), y: height * (.35 + Math.random() * .3), radius: fieldRadius, strength: fieldStrength, type }); draw(); }
+  function selectField(field) { selectedField = field; $("deleteField").disabled = !field; if (field) { fieldStrength = field.strength; fieldRadius = field.radius; fieldStrengthInput.value = String(fieldStrength); fieldRadiusInput.value = String(fieldRadius); $("fieldStrengthValue").textContent = String(Math.round(fieldStrength)); $("fieldRadiusValue").textContent = Math.round(fieldRadius) + " px"; $("fieldState").textContent = (field.type === "attract" ? "Çekim" : "İtim") + " alanı seçildi. Merkez tutamacından taşıyabilir, gücünü ve yarıçapını ayarlayabilirsin."; } else $("fieldState").textContent = "Alan taşı modunu aç, sonra sahnedeki alanın merkez tutamacını sürükle."; draw(); }
+  function addField(type) { const field = { x: width * (.35 + Math.random() * .3), y: height * (.35 + Math.random() * .3), radius: fieldRadius, strength: fieldStrength, type }; fields.push(field); selectField(field); }
   $("addAttract").addEventListener("click", () => addField("attract"));
   $("addRepel").addEventListener("click", () => addField("repel"));
-  $("clearFields").addEventListener("click", () => { fields.length = 0; draw(); });
+  $("clearFields").addEventListener("click", () => { fields.length = 0; selectField(null); });
+  $("moveFields").addEventListener("click", () => { moveFieldsMode = !moveFieldsMode; $("moveFields").classList.toggle("selected", moveFieldsMode); $("moveFields").setAttribute("aria-pressed", String(moveFieldsMode)); $("moveFields").textContent = moveFieldsMode ? "↖ Alan taşı: Açık" : "↖ Alan taşı: Kapalı"; $("fieldState").textContent = moveFieldsMode ? "Taşımak istediğin alanın merkez tutamacını sürükle." : "Nesneleri normal şekilde sürükleyebilirsin."; canvas.style.cursor = moveFieldsMode ? "crosshair" : "grab"; });
+  $("deleteField").addEventListener("click", () => { if (!selectedField) return; const index = fields.indexOf(selectedField); if (index >= 0) fields.splice(index, 1); selectField(null); $("fieldState").textContent = "Seçili kuvvet alanı silindi."; });
   function snapshot() { return { version: 2, settings: { gravity, gravityAngle: Number(gravityAngleInput.value), bounce, timeScale, maxSpeed, mass, friction, currentShape, fieldStrength, fieldRadius }, balls: balls.map(b => ({ ...b, x:b.x/width, y:b.y/height })), fields: fields.map(f => ({ ...f, x:f.x/width, y:f.y/height })) }; }
   $("savePreset").addEventListener("click", () => { try { localStorage.setItem("nova-sim-alpha7-preset", JSON.stringify(snapshot())); $("presetState").textContent = "Deney kaydedildi"; } catch { $("presetState").textContent = "Kayıt başarısız"; } });
   $("loadPreset").addEventListener("click", () => {
@@ -256,7 +259,7 @@
       if (Number.isFinite(v.fieldRadius)) { fieldRadius = clamp(v.fieldRadius,30,500); fieldRadiusInput.value=String(fieldRadius); fieldRadiusInput.dispatchEvent(new Event("input")); }
       balls.length=0; selectedBall=null;
       for (const b of data.balls.slice(0,MAX_BALLS)) if ([b.x,b.y,b.vx,b.vy,b.r,b.mass,b.friction].every(Number.isFinite) && ["circle","box","triangle"].includes(b.shape)) balls.push({ ...b, x:clamp(b.x,0,1)*width, y:clamp(b.y,0,1)*height, mass:clamp(b.mass,.05,20), friction:clamp(b.friction,0,1), r:clamp(b.r,4,60), angle:Number.isFinite(b.angle)?b.angle:0, angularVelocity:Number.isFinite(b.angularVelocity)?b.angularVelocity:0 });
-      fields.length=0; if (Array.isArray(data.fields)) for (const f of data.fields.slice(0,30)) if ([f.x,f.y,f.radius,f.strength].every(Number.isFinite) && ["attract","repel"].includes(f.type)) fields.push({ ...f, x:clamp(f.x,0,1)*width, y:clamp(f.y,0,1)*height, radius:clamp(f.radius,20,500), strength:clamp(f.strength,0,3000) });
+      fields.length=0; selectedField=null; $("deleteField").disabled=true; if (Array.isArray(data.fields)) for (const f of data.fields.slice(0,30)) if ([f.x,f.y,f.radius,f.strength].every(Number.isFinite) && ["attract","repel"].includes(f.type)) fields.push({ ...f, x:clamp(f.x,0,1)*width, y:clamp(f.y,0,1)*height, radius:clamp(f.radius,20,500), strength:clamp(f.strength,0,3000) });
       $("ballCount").textContent=String(balls.length); $("presetState").textContent="Deney yüklendi"; draw();
     } catch { $("presetState").textContent="Kayıt bulunamadı veya geçersiz"; }
   });
@@ -319,6 +322,7 @@
   canvas.addEventListener("pointerdown", (event) => {
     if (draggedBall) return;
     const point = pointerPosition(event);
+    if (moveFieldsMode) { let fieldHit = null, fieldDistance = Infinity; for (let i = fields.length - 1; i >= 0; i--) { const field = fields[i], distance = Math.hypot(point.x - field.x, point.y - field.y); if (distance <= 20 && distance < fieldDistance) { fieldHit = field; fieldDistance = distance; } } if (!fieldHit) { $("fieldState").textContent = "Taşımak için bir alanın merkez tutamacına tıkla."; return; } selectField(fieldHit); draggedField = fieldHit; pointerId = event.pointerId; fieldDragOffsetX = fieldHit.x - point.x; fieldDragOffsetY = fieldHit.y - point.y; canvas.setPointerCapture(pointerId); canvas.style.cursor = "grabbing"; event.preventDefault(); return; }
     let hit = null;
     for (let i = balls.length - 1; i >= 0; i--) {
       const b = balls[i];
@@ -334,8 +338,11 @@
   });
 
   canvas.addEventListener("pointermove", (event) => {
-    if (!draggedBall || event.pointerId !== pointerId) return;
-    const point = pointerPosition(event), now = performance.now();
+    if (event.pointerId !== pointerId) return;
+    const point = pointerPosition(event);
+    if (draggedField) { draggedField.x = clamp(point.x + fieldDragOffsetX, 0, width); draggedField.y = clamp(point.y + fieldDragOffsetY, 0, height); draw(); return; }
+    if (!draggedBall) return;
+    const now = performance.now();
     const elapsed = Math.max(1, now - previousPointerTime) / 1000;
     const nextX = clamp(point.x + dragOffsetX, draggedBall.r, Math.max(draggedBall.r, width - draggedBall.r));
     const nextY = clamp(point.y + dragOffsetY, draggedBall.r, Math.max(draggedBall.r, height - draggedBall.r));
@@ -346,7 +353,9 @@
   });
 
   function finishDrag(event) {
-    if (!draggedBall || (event && event.pointerId !== pointerId)) return;
+    if (event && event.pointerId !== pointerId) return;
+    if (draggedField) { draggedField = null; pointerId = null; canvas.style.cursor = moveFieldsMode ? "crosshair" : "grab"; $("fieldState").textContent = "Kuvvet alanının konumu güncellendi."; return; }
+    if (!draggedBall) return;
     draggedBall.vx = dragVX; draggedBall.vy = dragVY;
     draggedBall = null; pointerId = null;
     canvas.style.cursor = "grab";
