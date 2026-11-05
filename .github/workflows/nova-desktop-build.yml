@@ -12,6 +12,7 @@ on:
   pull_request:
     paths:
       - "nova-ai/desktop/**"
+      - "nova-ai/public/**"
       - ".github/workflows/nova-desktop-build.yml"
   workflow_dispatch:
 
