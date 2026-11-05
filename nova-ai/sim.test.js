@@ -45,7 +45,7 @@ test("Alpha 4 exposes circle, box and triangle shape selectors", () => {
   assert.match(script, /b\.shape === "triangle"/);
 });
 
-\ntest("Alpha 4 exposes mass and friction material controls", () => {
+test("Alpha 4 exposes mass and friction material controls", () => {
   for (const id of ["mass", "massValue", "friction", "frictionValue"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(script, /massInput\.addEventListener\("input"/);
   assert.match(script, /frictionInput\.addEventListener\("input"/);
