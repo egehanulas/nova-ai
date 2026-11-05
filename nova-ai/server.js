@@ -11,6 +11,7 @@ const { normalizeDesktopIntent, enforceNoSend, enforceMessageSend } = require(".
 const { buildScreenTextFallbackPrompt, buildTextOnlyDesktopFallbackInstruction } = require("./desktop-ai-fallback");
 const { buildGroqVisionRequest } = require("./groq-vision");
 const { runWithRateLimitRetry } = require("./provider-retry");
+const { buildFeedbackEmailText, buildFeedbackTicketCode, normalizeFeedbackPayload } = require("./feedback");
 
 let helmet;
 
@@ -3240,6 +3241,80 @@ async function learnUserMemory(req, userText) {
   if (error) throw error;
   return { saved: Boolean(data), memory: data };
 }
+
+// --------------------------------------------------
+// NOVA FEEDBACK CENTER
+// --------------------------------------------------
+
+const feedbackRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Saatlik geri bildirim sınırına ulaştın. Daha sonra tekrar dene." }
+});
+
+app.post("/api/feedback", feedbackRateLimit, requireAuth, asyncRoute(async (req, res) => {
+  const normalized = normalizeFeedbackPayload(req.body);
+  if (!normalized.ok) return res.status(400).json({ success: false, error: normalized.error });
+
+  const reportId = require("node:crypto").randomUUID();
+  const ticketCode = buildFeedbackTicketCode(reportId);
+  const report = normalized.value;
+  const client = getUserSupabase(req);
+
+  const { error: insertError } = await client.from("nova_feedback").insert({
+    ticket_code: ticketCode,
+    user_id: req.user.id,
+    feedback_type: report.feedbackType,
+    description: report.description,
+    include_diagnostics: report.includeDiagnostics,
+    diagnostics: report.diagnostics
+  });
+
+  if (insertError) {
+    console.error("[NOVA AI] Geri bildirim kaydı başarısız:", insertError.code || "database_error");
+    return res.status(503).json({ success: false, error: "Geri bildirim şu anda kaydedilemedi. Biraz sonra tekrar dene." });
+  }
+
+  let emailSent = false;
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const sender = process.env.NOVA_FEEDBACK_FROM;
+  const recipient = process.env.NOVA_FEEDBACK_TO || "egehanimat21@gmail.com";
+
+  if (resendApiKey && sender) {
+    try {
+      const emailText = buildFeedbackEmailText({
+        ticketCode,
+        feedbackType: report.feedbackType,
+        description: report.description,
+        includeDiagnostics: report.includeDiagnostics,
+        diagnostics: report.diagnostics,
+        createdAt: new Date().toISOString()
+      });
+      const emailResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + resendApiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          from: sender,
+          to: [recipient],
+          subject: "[NOVA AI] " + ticketCode + " geri bildirimi",
+          text: emailText
+        }),
+        signal: AbortSignal.timeout(10000)
+      });
+      emailSent = emailResponse.ok;
+      if (!emailSent) console.warn("[NOVA AI] Geri bildirim e-posta bildirimi gönderilemedi. HTTP", emailResponse.status);
+    } catch (emailError) {
+      console.warn("[NOVA AI] Geri bildirim e-posta bildirimi gönderilemedi:", emailError.name || "mail_error");
+    }
+  }
+
+  return res.status(201).json({ success: true, ticketCode, emailSent });
+}));
 
 // --------------------------------------------------
 // SAYFALAR VE SAĞLIK KONTROLÜ
