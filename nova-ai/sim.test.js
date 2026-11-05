@@ -134,7 +134,7 @@ test("NOVA Sim 3D prototype is integrated without removing the existing 2D lab",
   assert.match(html, /id="mode3d"/);
   assert.match(html, /id="world3d"/);
   assert.match(html, /class="sim-panel sim-panel-3d"/);
-  assert.match(html, /src="\/sim3d\.js\?v=alpha1-prototype"/);
+  assert.match(html, /src="\/sim3d\.js\?v=alpha2-wasd-camera"/);
   assert.match(threeD, /getContext\("webgl"/);
   assert.match(threeD, /function vp\(/);
   assert.match(threeD, /function physics\(/);
