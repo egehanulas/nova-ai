@@ -284,7 +284,8 @@
       if (distance < nearestDistance) { nearestDistance = distance; nearest = body; }
     }
     if (!nearest) { $("universeState").textContent = "Birleştirmek için en az iki nesne gerekli."; return; }
-    const a = selectedBall, b = nearest, totalMass = a.mass + b.mass;\n    const spin = (a.angularVelocity * a.mass + b.angularVelocity * b.mass) / totalMass;
+    const a = selectedBall, b = nearest, totalMass = a.mass + b.mass;
+    const spin = (a.angularVelocity * a.mass + b.angularVelocity * b.mass) / totalMass;
     a.x = (a.x * a.mass + b.x * b.mass) / totalMass;
     a.y = (a.y * a.mass + b.y * b.mass) / totalMass;
     a.vx = (a.vx * a.mass + b.vx * b.mass) / totalMass;
