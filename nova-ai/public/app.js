@@ -454,6 +454,54 @@
   try { setSettingsTab(localStorage.getItem("nova-ai-settings-tab") || "appearance"); }
   catch { setSettingsTab("appearance"); }
 
+  const developerTab = $("#developerTab");
+  const developerFeedbackList = $("#developerFeedbackList");
+  const developerFeedbackStatus = $("#developerFeedbackStatus");
+  const developerFeedbackRefresh = $("#developerFeedbackRefresh");
+  const adminStatuses = { new: "Yeni", reviewing: "İnceleniyor", fixed: "Düzeltildi", closed: "Kapatıldı" };
+  async function feedbackAdminRequest(url, options = {}) {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    const token = data.session?.access_token;
+    if (!token) throw new Error("Oturum süren dolmuş. Yeniden giriş yap.");
+    const response = await fetch(url, { ...options, headers: { "Content-Type": "application/json", Authorization: "Bearer " + token, ...(options.headers || {}) } });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Geliştirici paneli isteği başarısız.");
+    return result;
+  }
+  function renderDeveloperFeedback(items) {
+    if (!developerFeedbackList) return;
+    developerFeedbackList.replaceChildren();
+    if (!items.length) { const empty = document.createElement("p"); empty.className = "feedback-intro"; empty.textContent = "Henüz geri bildirim yok."; developerFeedbackList.append(empty); return; }
+    items.forEach((item) => {
+      const card = document.createElement("article"); card.className = "developer-feedback-card";
+      const header = document.createElement("div"); header.className = "developer-feedback-header";
+      const title = document.createElement("strong"); title.textContent = item.ticket_code + " · " + String(item.feedback_type || "general");
+      const date = document.createElement("time"); date.textContent = item.created_at ? new Date(item.created_at).toLocaleString("tr-TR") : "";
+      header.append(title, date); card.append(header);
+      const description = document.createElement("p"); description.className = "developer-feedback-description"; description.textContent = item.description || ""; card.append(description);
+      if (item.include_diagnostics && item.diagnostics) { const details = document.createElement("details"); const summary = document.createElement("summary"); summary.textContent = "İsteğe bağlı teknik bilgiler"; const pre = document.createElement("pre"); pre.className = "developer-feedback-diagnostics"; pre.textContent = JSON.stringify(item.diagnostics, null, 2); details.append(summary, pre); card.append(details); }
+      const footer = document.createElement("div"); footer.className = "developer-feedback-footer";
+      const select = document.createElement("select"); select.className = "developer-feedback-status"; select.setAttribute("aria-label", item.ticket_code + " durumu");
+      Object.entries(adminStatuses).forEach(([value, label]) => { const option = document.createElement("option"); option.value = value; option.textContent = label; option.selected = item.status === value; select.append(option); });
+      select.addEventListener("change", async () => { const previous = item.status; select.disabled = true; try { await feedbackAdminRequest("/api/feedback/admin/" + encodeURIComponent(item.ticket_code), { method: "PATCH", body: JSON.stringify({ status: select.value }) }); item.status = select.value; if (developerFeedbackStatus) developerFeedbackStatus.textContent = item.ticket_code + " durumu kaydedildi."; } catch (error) { select.value = previous; if (developerFeedbackStatus) developerFeedbackStatus.textContent = error.message; } finally { select.disabled = false; } });
+      footer.append(select); card.append(footer); developerFeedbackList.append(card);
+    });
+  }
+  async function loadDeveloperFeedback() {
+    if (!developerFeedbackList || !developerFeedbackStatus) return;
+    if (developerFeedbackRefresh) developerFeedbackRefresh.disabled = true;
+    developerFeedbackStatus.textContent = "Bildirimler yükleniyor…";
+    try { const result = await feedbackAdminRequest("/api/feedback/admin"); const items = Array.isArray(result.feedback) ? result.feedback : []; renderDeveloperFeedback(items); developerFeedbackStatus.textContent = items.length + " bildirim listelendi."; }
+    catch (error) { developerFeedbackList.replaceChildren(); developerFeedbackStatus.textContent = error.message; }
+    finally { if (developerFeedbackRefresh) developerFeedbackRefresh.disabled = false; }
+  }
+  developerFeedbackRefresh?.addEventListener("click", loadDeveloperFeedback);
+  const adminSession = await supabase.auth.getSession().catch(() => null);
+  const adminUser = adminSession?.data?.session?.user;
+  isFeedbackDeveloper = String(adminUser?.email || "").trim().toLowerCase() === "egehanimat21@gmail.com" && Boolean(adminUser?.email_confirmed_at || adminUser?.confirmed_at);
+  if (developerTab && isFeedbackDeveloper) { developerTab.hidden = false; developerTab.addEventListener("click", loadDeveloperFeedback); }
+
   const feedbackForm = $("#feedbackForm");
   const feedbackType = $("#feedbackType");
   const feedbackDescription = $("#feedbackDescription");
