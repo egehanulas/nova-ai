@@ -33,4 +33,10 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "NOVA|Movement")
     float SprintSpeed = 680.0f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "NOVA|Earthquake", meta = (ClampMin = "100.0"))
+    float EarthquakeRadius = 2500.0f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "NOVA|Earthquake", meta = (ClampMin = "1000.0"))
+    float EarthquakeImpulse = 180000.0f;
 };
