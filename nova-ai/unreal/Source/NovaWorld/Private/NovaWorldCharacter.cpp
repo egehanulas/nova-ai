@@ -5,6 +5,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Engine/StaticMeshActor.h"
+#include "EngineUtils.h"
+#include "Components/StaticMeshComponent.h"
 #include "InputCoreTypes.h"
 
 ANovaWorldCharacter::ANovaWorldCharacter()
@@ -49,6 +52,7 @@ void ANovaWorldCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
     PlayerInputComponent->BindAction(TEXT("Jump"), IE_Released, this, &ACharacter::StopJumping);
     PlayerInputComponent->BindAction(TEXT("Sprint"), IE_Pressed, this, &ANovaWorldCharacter::StartSprint);
     PlayerInputComponent->BindAction(TEXT("Sprint"), IE_Released, this, &ANovaWorldCharacter::StopSprint);
+    PlayerInputComponent->BindAction(TEXT("Earthquake"), IE_Pressed, this, &ANovaWorldCharacter::TriggerEarthquake);
 }
 
 void ANovaWorldCharacter::MoveForward(float Value)
@@ -75,4 +79,37 @@ void ANovaWorldCharacter::StartSprint()
 void ANovaWorldCharacter::StopSprint()
 {
     GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+}
+
+void ANovaWorldCharacter::TriggerEarthquake()
+{
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    constexpr float EffectRadius = 2500.0f;
+    constexpr float ImpulseStrength = 180000.0f;
+    const FVector Origin = GetActorLocation();
+
+    for (TActorIterator<AStaticMeshActor> It(GetWorld()); It; ++It)
+    {
+        AStaticMeshActor* MeshActor = *It;
+        if (!IsValid(MeshActor) || FVector::DistSquared(Origin, MeshActor->GetActorLocation()) > FMath::Square(EffectRadius))
+        {
+            continue;
+        }
+
+        UStaticMeshComponent* MeshComponent = MeshActor->GetStaticMeshComponent();
+        if (!MeshComponent || !MeshComponent->IsSimulatingPhysics())
+        {
+            continue;
+        }
+
+        FVector Direction = MeshActor->GetActorLocation() - Origin;
+        Direction.Z = FMath::Max(Direction.Z, 120.0f);
+        Direction = Direction.GetSafeNormal();
+        const FVector Jitter(FMath::FRandRange(-0.25f, 0.25f), FMath::FRandRange(-0.25f, 0.25f), 0.0f);
+        MeshComponent->AddImpulse((Direction + Jitter).GetSafeNormal() * ImpulseStrength, NAME_None, true);
+    }
 }
