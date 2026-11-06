@@ -23,6 +23,7 @@ private:
     void MoveRight(float Value);
     void StartSprint();
     void StopSprint();
+    void TriggerEarthquake();
 
     UPROPERTY(VisibleAnywhere, Category = "NOVA|Camera")
     TObjectPtr<UCameraComponent> FirstPersonCamera;
