@@ -20,6 +20,7 @@ import { getComputerInfo, listUserFolders, searchUserFiles, openAllowedApp, open
 import { parseDesktopCommand } from "./desktop-command.js";
 import { runComputerAction } from "./computer-control.js";
 import { createUpdateRetryScheduler } from "./update-retry.js";
+import { getNovaSimStatus, configureNovaSimProject, launchNovaSim } from "./nova-sim.js";
 
 const NOVA_URL = "https://nova-ai-xxid.onrender.com/";
 const NOVA_ORIGIN = new URL(NOVA_URL).origin;
@@ -324,6 +325,30 @@ function registerDesktopAssistantIpc() {
   };
   const getDialogParent = (event) => assistantWindow && !assistantWindow.isDestroyed() &&
     event.sender === assistantWindow.webContents ? assistantWindow : mainWindow;
+
+  const novaSimConfigPath = path.join(app.getPath("userData"), "nova-sim.json");
+  ipcMain.handle("nova-sim:get-status", (event) => { requireTrustedWindows(event); return getNovaSimStatus(novaSimConfigPath); });
+  ipcMain.handle("nova-sim:configure", async (event) => {
+    requireTrustedWindows(event);
+    const parentWindow = getDialogParent(event);
+    const projectChoice = await dialog.showOpenDialog(parentWindow, {
+      title: "NOVA Sim Unreal projesini seç",
+      properties: ["openFile"],
+      filters: [{ name: "Unreal Project", extensions: ["uproject"] }]
+    });
+    if (projectChoice.canceled || !projectChoice.filePaths[0]) return { cancelled: true };
+    const editorChoice = await dialog.showOpenDialog(parentWindow, {
+      title: "Unreal Engine 5.8.4 UnrealEditor.exe dosyasını seç",
+      properties: ["openFile"],
+      filters: [{ name: "Unreal Editor", extensions: ["exe"] }]
+    });
+    if (editorChoice.canceled || !editorChoice.filePaths[0]) return { cancelled: true };
+    if (path.basename(editorChoice.filePaths[0]).toLowerCase() !== "unrealeditor.exe") {
+      throw new Error("Seçilen uygulama UnrealEditor.exe değil.");
+    }
+    return configureNovaSimProject(novaSimConfigPath, projectChoice.filePaths[0], editorChoice.filePaths[0]);
+  });
+  ipcMain.handle("nova-sim:launch", (event) => { requireTrustedWindows(event); return launchNovaSim(novaSimConfigPath); });
 
   ipcMain.handle("nova-desktop:computer-info", (event) => { requireTrustedWindows(event); return getComputerInfo(); });
   ipcMain.handle("nova-desktop:list-folders", (event) => { requireTrustedWindows(event); return listUserFolders(); });
