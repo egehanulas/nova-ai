@@ -39,7 +39,7 @@
   <main class="sim-wrap">
     <header class="sim-head">
       <div class="sim-brand"><img src="/nova-logo.svg" alt=""><div><h1>NOVA Sim</h1><p>Fizik Laboratuvarı · Earthquake Alpha 6–10</p></div></div>
-      <a class="sim-link" href="/">← NOVA AI'ye dön</a>
+      <a class="sim-link" href="/" id="simBackLink">← NOVA AI'ye dön</a>
     </header>
     <div class="sim-layout">
       <section class="sim-stage" aria-label="Fizik simülasyonu">
@@ -108,5 +108,13 @@
   <script src="/sim.js?v=alpha7-field-drag2"></script>
   <script src="/sim3d.js?v=alpha5-universe" defer></script>
   <script src="/earthquake.js?v=alpha6-10" defer></script>
+  <script>
+    document.getElementById("simBackLink")?.addEventListener("click", event => {
+      if (window.parent !== window) {
+        event.preventDefault();
+        window.parent.postMessage("nova-sim:back", window.location.origin);
+      }
+    });
+  </script>
 </body>
 </html>

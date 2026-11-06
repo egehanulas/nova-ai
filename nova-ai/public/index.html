@@ -473,11 +473,11 @@
             <span class="research-copy"><span class="research-title">Görsel galerisi</span><span class="research-subtitle">Oluşturduğun resimler</span></span>
             <span class="research-indicator" aria-hidden="true">↗</span>
           </button>
-          <a class="research-toggle" href="/sim.html" style="text-decoration:none">
+          <button class="research-toggle" id="openNovaSim" type="button">
             <span class="research-icon" aria-hidden="true">◉</span>
-            <span class="research-copy"><span class="research-title">NOVA Sim</span><span class="research-subtitle">2D fizik laboratuvarı</span></span>
-            <span class="research-indicator" aria-hidden="true">↗</span>
-          </a>
+            <span class="research-copy"><span class="research-title">NOVA Sim</span><span class="research-subtitle">Simülasyon laboratuvarını aç</span></span>
+            <span class="research-indicator" aria-hidden="true">›</span>
+          </button>
         </div>
       </section>
 
@@ -540,6 +540,14 @@
           </div>
         </div>
       </header>
+
+      <section id="novaSimView" hidden style="height:calc(100vh - 76px);min-height:520px;padding:0 18px 18px;flex-direction:column;gap:10px" aria-label="NOVA Sim">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 4px">
+          <div><strong style="font-size:16px">NOVA Sim</strong><div style="font-size:12px;color:var(--muted,#9aa0b5)">NOVA içi simülasyon laboratuvarı</div></div>
+          <button class="settings-back" id="closeNovaSim" type="button">← Sohbete dön</button>
+        </div>
+        <iframe id="novaSimFrame" title="NOVA Sim simülasyon laboratuvarı" src="about:blank" data-src="/sim.html" style="width:100%;height:100%;min-height:0;flex:1;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:#090b12" allow="fullscreen"></iframe>
+      </section>
 
       <section class="settings-view" id="settingsView" hidden aria-label="Ayarlar">
         <div class="settings-heading">
@@ -766,5 +774,6 @@
   <script src="/app.js?v=desktop-auto-43" defer></script>
   <script src="/desktop-voice.js?v=whisper-desktop-2" defer></script>
   <script src="/voice.js?v=desktop-aware-1" defer></script>
+  <script src="/nova-sim-tab.js?v=alpha-sim-tab-1" defer></script>
 </body>
 </html>
