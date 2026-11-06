@@ -1,22 +1,32 @@
 # NOVA 3D Dünya Altyapısı — Unreal Engine 5.8.4
 
-Bu klasör, NOVA'nın farklı türlerde 3D oyun dünyalarını aynı ana altyapı üzerinde geliştirebilmesi için hazırlanmış Unreal Engine C++ projesidir.
+Bu klasör, NOVA'nın farklı türlerde 3D oyun dünyalarını aynı ana altyapı üzerinde geliştirebilmesi için hazırlanan Unreal Engine C++ projesidir.
 
-## Şu an projede bulunanlar
+## Şu anki test prototipi
 
 - Unreal Engine 5.8.4 hedefli C++ çalışma zamanı modülü.
-- Birinci şahıs karakter: WASD hareket, fareyle bakış, Space ile zıplama, Shift ile koşma.
+- Birinci şahıs karakter: WASD hareket, fareyle bakış, Space ile zıplama, Left Shift ile koşma.
+- Play başladığında otomatik oluşturulan test zemini ve yönlü ışık.
+- Play başladığında otomatik oluşturulan 3×3 tabanlı, 3 katlı, 27 ayrı fizik gövdeli blok bina.
+- **E tuşuyla** karakterin çevresindeki fizik etkin Static Mesh aktörlerine deprem prototipi darbesi.
+- Deprem darbe gücü ve etki yarıçapı karakter sınıfında düzenlenebilir özelliklerdir.
 - Veri odaklı dünya tanımı: oyun türü, başlangıç haritası, etkin sistemler ve gerekli varlık listesi.
-- Play'e basıldığında otomatik oluşturulan başlangıç test alanı: zemin, birkaç ölçek referansı küpü ve yönlü ışık.
-- Gelecekteki oyun türlerini birbirinden ayırmaya uygun modüler mimari.
 
 ## Ege için açma ve test etme
 
 1. ZIP'i yeni bir klasöre çıkart.
 2. `nova-ai/unreal/NovaWorld.uproject` dosyasını Unreal Engine 5.8.4 ile aç.
 3. Modül yeniden derleme sorusu gelirse **Yes / Evet** seç.
-4. Editör açıldıktan sonra boş bir seviye oluşturup kaydetmen yeterlidir; test alanı Play sırasında otomatik oluşturulur.
-5. **Play** tuşuna bas. WASD ile hareket et, fareyle etrafa bak, Space ile zıpla, Shift ile koş.
+4. Editör açıldığında boş bir seviye oluşturup kaydet; test alanı Play sırasında otomatik oluşturulur.
+5. **Play** tuşuna bas.
+6. WASD ile hareket et, fareyle bak, Space ile zıpla ve Shift ile koş.
+7. Blok binaya yaklaş ve **E** tuşuna bas. Yakındaki fizik etkin bloklara darbe uygulanır.
+
+## Test kapsamı ve sınırlar
+
+Bu aşama bir gri-kutu oynanabilirlik prototipidir. Blokların fizik motoruyla hareket etmesi hedeflenir; gerçekçi beton/çelik davranışı, kolon-kiriş taşıyıcı sistemleri, kat kat hasar, kontrollü parçalanma, enkaz simülasyonu veya mühendislik doğruluğunda deprem modeli değildir. Gerçek davranış Unreal 5.8.4 editöründe Play testiyle doğrulanmalıdır.
+
+GitHub'daki statik doğrulayıcı dosya yapısını ve bazı kaynak kod beklentilerini denetler; Unreal Engine C++ derlemesi veya oyunun çalıştığını kanıtlamaz. Unreal Engine'in kurulu olduğu Windows bilgisayarında derleme ve Play testi ayrıca yapılmalıdır.
 
 ## Türkçe kullanımı
 
@@ -37,9 +47,7 @@ Yapay zekâ, kullanıcı metninden rastgele C++ kodu üretip çalıştırmamalı
 ## Henüz tamamlanmayanlar
 
 - Gerçekçi apartman, daire içi, sokak, çevre ve karakter sanat varlıkları.
-- Deprem dalgası, bina hasarı, parçalanma ve gelişmiş fizik.
-- İkinci oyunun türüne özel mekanikler.
+- Deprem dalgası, bina hasarı, kontrollü parçalanma ve gelişmiş fizik.
+- İkinci oyun türünün özel mekanikleri.
 - NOVA Desktop üzerinden oyun indirme, güncelleme ve başlatma entegrasyonu.
 - Paketlenmiş Windows oyunu.
-
-GitHub doğrulamaları dosya yapısını ve bazı kaynak beklentilerini kontrol eder; Unreal Engine'in kendisi GitHub'ın standart çalıştırıcılarında kurulu değildir. Bu nedenle gerçek C++ derlemesi ve Windows paketlemesi, Unreal Engine 5.8.4 bulunan bilgisayarda ayrıca doğrulanmalıdır.
