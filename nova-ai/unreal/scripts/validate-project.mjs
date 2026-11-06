@@ -59,7 +59,8 @@ const earthquakeFeatures = [
   [character, "TriggerEarthquake"],
   [character, 'BindAction(TEXT("Earthquake")'],
   [gameMode, "SetSimulatePhysics(bSimulatePhysics)"],
-  [character, "ImpulseStrength"],
+  [character, "EarthquakeImpulse"],
+  [character, "EarthquakeRadius"],
   [inputConfig, 'ActionName="Earthquake",Key=E']
 ];
 for (const [source, expected] of earthquakeFeatures) {
