@@ -1,0 +1,25 @@
+name: NOVA Unreal Scaffold Checks
+
+on:
+  pull_request:
+    paths:
+      - "nova-ai/unreal/**"
+      - ".github/workflows/nova-unreal-scaffold-check.yml"
+  push:
+    branches: [main]
+    paths:
+      - "nova-ai/unreal/**"
+      - ".github/workflows/nova-unreal-scaffold-check.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate Unreal project scaffold
+        run: node nova-ai/unreal/scripts/validate-project.mjs
