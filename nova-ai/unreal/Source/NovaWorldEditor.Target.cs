@@ -8,6 +8,7 @@ public class NovaWorldEditorTarget : TargetRules
         Type = TargetType.Editor;
         DefaultBuildSettings = BuildSettingsVersion.V7;
         IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
+        BuildEnvironment = TargetBuildEnvironment.Shared;
         bOverrideBuildEnvironment = true;
         ExtraModuleNames.Add("NovaWorld");
     }
