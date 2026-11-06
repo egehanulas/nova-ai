@@ -11,4 +11,10 @@ class NOVAWORLD_API ANovaWorldGameMode : public AGameModeBase
 
 public:
     ANovaWorldGameMode();
+
+protected:
+    virtual void BeginPlay() override;
+
+private:
+    void BuildStarterWorld();
 };
