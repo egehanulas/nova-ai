@@ -88,14 +88,12 @@ void ANovaWorldCharacter::TriggerEarthquake()
         return;
     }
 
-    constexpr float EffectRadius = 2500.0f;
-    constexpr float ImpulseStrength = 180000.0f;
     const FVector Origin = GetActorLocation();
 
     for (TActorIterator<AStaticMeshActor> It(GetWorld()); It; ++It)
     {
         AStaticMeshActor* MeshActor = *It;
-        if (!IsValid(MeshActor) || FVector::DistSquared(Origin, MeshActor->GetActorLocation()) > FMath::Square(EffectRadius))
+        if (!IsValid(MeshActor) || FVector::DistSquared(Origin, MeshActor->GetActorLocation()) > FMath::Square(EarthquakeRadius))
         {
             continue;
         }
@@ -110,6 +108,6 @@ void ANovaWorldCharacter::TriggerEarthquake()
         Direction.Z = FMath::Max(Direction.Z, 120.0f);
         Direction = Direction.GetSafeNormal();
         const FVector Jitter(FMath::FRandRange(-0.25f, 0.25f), FMath::FRandRange(-0.25f, 0.25f), 0.0f);
-        MeshComponent->AddImpulse((Direction + Jitter).GetSafeNormal() * ImpulseStrength, NAME_None, true);
+        MeshComponent->AddImpulse((Direction + Jitter).GetSafeNormal() * EarthquakeImpulse, NAME_None, true);
     }
 }
