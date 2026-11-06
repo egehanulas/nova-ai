@@ -54,11 +54,25 @@ void ANovaWorldGameMode::BuildStarterWorld()
     // Oyuncunun altında otomatik bir başlangıç zemini oluştur.
     SpawnMesh(PlaneMesh, FVector(0.0f, 0.0f, -100.0f), FVector(30.0f, 30.0f, 1.0f), false);
 
-    // Sahnenin ölçeğini hissettiren birkaç basit test yapısı.
-    SpawnMesh(CubeMesh, FVector(650.0f, 0.0f, 0.0f), FVector(2.0f, 2.0f, 2.0f), true);
-    SpawnMesh(CubeMesh, FVector(950.0f, 250.0f, 50.0f), FVector(1.5f, 1.5f, 3.0f), true);
-    SpawnMesh(CubeMesh, FVector(950.0f, -250.0f, 50.0f), FVector(1.5f, 1.5f, 3.0f), true);
-    SpawnMesh(CubeMesh, FVector(1250.0f, 0.0f, 0.0f), FVector(2.0f, 2.0f, 2.0f), true);
+    // Otomatik oluşturulan 3 katlı, fizik etkin blok bina test yapısı.
+    // Her blok ayrı fizik gövdesidir; E tuşu deprem darbesini uygular.
+    constexpr float BlockSpacing = 155.0f;
+    constexpr float BlockScale = 1.5f;
+    constexpr float BlockHalfHeight = 75.0f;
+    for (int32 Floor = 0; Floor < 3; ++Floor)
+    {
+        for (int32 Row = 0; Row < 3; ++Row)
+        {
+            for (int32 Column = 0; Column < 3; ++Column)
+            {
+                const FVector BlockLocation(
+                    850.0f + static_cast<float>(Column) * BlockSpacing,
+                    -155.0f + static_cast<float>(Row) * BlockSpacing,
+                    BlockHalfHeight + static_cast<float>(Floor) * BlockSpacing);
+                SpawnMesh(CubeMesh, BlockLocation, FVector(BlockScale), true);
+            }
+        }
+    }
 
     ADirectionalLight* Sun = World->SpawnActor<ADirectionalLight>(
         ADirectionalLight::StaticClass(),
