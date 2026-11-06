@@ -13,6 +13,7 @@ footer{padding:4px 0 24px;color:#858da5;font-size:11px;text-align:center}@media(
 <header><div><div class="brand">NOVA <span style="color:#8b80ff">DESKTOP</span></div><div class="sub">Bilgisayar Asistanı</div></div><button id="refresh">Bilgileri yenile</button></header>
 <main><section class="intro"><h1>Bilgisayarında sana yardımcı olayım.</h1><div class="muted">Uygulama ve Steam oyunu açabilir, web sitelerine gidebilir, Spotify'da şarkı arayabilir; desteklenen pencerelerde mouse ve klavyeyi kullanarak ekrandaki öğeleri bulup tıklayabilir ve metin yazabilir. Ayrıca erişilebilir yerel sürücülerde dosya arar ve açar. Dosya taşıma, klasör oluşturma ve silme işlemleri ayrıca onay ister.</div></section>
 <div class="grid">
+<section class="card" style="grid-column:1/-1"><h2>NOVA Sim — Unreal deprem projesi</h2><p class="muted">Unreal proje dosyasını ve UnrealEditor.exe konumunu bir kez seç. NOVA bu bilgileri kendi kullanıcı ayarlarında saklar; sonraki açılışlarda projeyi buradan başlatabilirsin.</p><div id="simStatus" class="muted">NOVA Sim durumu kontrol ediliyor…</div><div class="apps" style="margin-top:12px"><button id="simConfigure" class="primary">Projeyi / Unreal'ı tanıt</button><button id="simLaunch">NOVA Sim'i başlat</button><button id="simRefresh">Durumu yenile</button></div><p class="muted" style="margin-top:10px">Not: Bu düğme Unreal Editor'ü seçilen projeyle açar. Derleme, Play testi veya simülasyonun başarılı çalıştığını otomatik olarak doğrulamaz.</p></section>
 <section class="card"><h2>Uygulama aç</h2><div class="apps"><button data-app="notepad">Not Defteri</button><button data-app="calculator">Hesap Makinesi</button><button data-app="explorer">Dosya Gezgini</button><button data-app="steam">Steam</button><button data-app="discord">Discord</button><button data-app="paint">Paint</button></div></section>
 <section class="card"><h2>Bilgisayar bilgileri</h2><div id="info" class="muted">Yükleniyor…</div></section>
 <section class="card"><h2>Dosya ara</h2><form id="search"><label>Dosya veya klasör adı</label><div class="row"><input id="query" placeholder="Örn. sunum.pdf" required><button class="primary">Ara</button></div></form><div id="results"></div></section>
@@ -21,7 +22,12 @@ footer{padding:4px 0 24px;color:#858da5;font-size:11px;text-align:center}@media(
 <section class="card"><h2>Hızlı erişim</h2><div id="folders" class="muted">Klasörler yükleniyor…</div></section></div>
 <div id="status" role="status" aria-live="polite">NOVA hazır. Ne yapmak istersin?</div><footer>Windows masaüstü kontrolü · Uygulama, tarayıcı, mouse ve klavye · Güvenlik sınırları etkin</footer></main>
 <script>
-const $=id=>document.getElementById(id);const api=window.novaDesktop.assistant;
+const $=id=>document.getElementById(id);const api=window.novaDesktop.assistant;const sim=window.novaDesktop.novaSim;
+async function refreshSim(){try{const value=await sim.getStatus();$("simStatus").textContent=value.message+(value.projectPath?"\\nProje: "+value.projectPath:"")+(value.editorPath?"\\nUnreal: "+value.editorPath:"");$("simLaunch").disabled=!value.configured}catch(error){$("simStatus").textContent=error.message}}
+$("simConfigure").addEventListener("click",async()=>{try{const value=await sim.configure();if(value.cancelled){status("NOVA Sim kurulumu iptal edildi.");return}status(value.message);await refreshSim()}catch(error){status(error.message)}});
+$("simLaunch").addEventListener("click",async()=>{try{const value=await sim.launch();status(value.message)}catch(error){status(error.message)}});
+$("simRefresh").addEventListener("click",refreshSim);
+
 function status(message){$("status").textContent=message}
 async function run(action){try{const result=await action();status(result.message||"İşlem tamamlandı.");return result}catch(error){status(error.message||"İşlem gerçekleştirilemedi.");return null}}
 async function refresh(){
