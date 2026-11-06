@@ -5,7 +5,6 @@
 #include "Engine/World.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/DirectionalLight.h"
-#include "Engine/DirectionalLight.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/DirectionalLightComponent.h"
 #include "GameFramework/PlayerController.h"
