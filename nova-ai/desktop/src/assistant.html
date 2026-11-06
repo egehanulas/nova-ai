@@ -45,4 +45,5 @@ $("search").addEventListener("submit",async event=>{event.preventDefault();const
 $("mkdir").addEventListener("submit",async event=>{event.preventDefault();const name=$("folderName").value.trim();const result=await run(()=>api.createFolder($("folderParent").value,name));if(result){$("folderName").value="";await refresh()}});
 $("move").addEventListener("submit",async event=>{event.preventDefault();const source=$("source").value;const newName=$("newName").value.trim();const destination=$("destination").value;const result=await run(()=>api.moveFile(source,destination,newName));if(result){$("source").value="";$("newName").value="";await refresh()}});
 refresh();
+refreshSim();
 </script></body></html>
