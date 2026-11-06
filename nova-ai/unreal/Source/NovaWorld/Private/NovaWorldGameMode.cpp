@@ -56,7 +56,7 @@ void ANovaWorldGameMode::BuildStarterWorld()
 
     // Otomatik oluşturulan 3 katlı, fizik etkin blok bina test yapısı.
     // Her blok ayrı fizik gövdesidir; E tuşu deprem darbesini uygular.
-    constexpr float BlockSpacing = 155.0f;
+    constexpr float BlockSpacing = 150.0f;
     constexpr float BlockScale = 1.5f;
     constexpr float BlockHalfHeight = 75.0f;
     for (int32 Floor = 0; Floor < 3; ++Floor)
