@@ -57,8 +57,8 @@ void ANovaWorldGameMode::BuildStarterWorld()
     // Sahnenin ölçeğini hissettiren birkaç basit test yapısı.
     SpawnMesh(CubeMesh, FVector(650.0f, 0.0f, 100.0f), FVector(2.0f, 2.0f, 2.0f), true);
     SpawnMesh(CubeMesh, FVector(950.0f, 250.0f, 150.0f), FVector(1.5f, 1.5f, 3.0f), true);
-    SpawnMesh(CubeMesh, FVector(950.0f, -250.0f, 150.0f), FVector(1.5f, 1.5f, 3.0f));
-    SpawnMesh(CubeMesh, FVector(1250.0f, 0.0f, 100.0f), FVector(2.0f, 2.0f, 2.0f));
+    SpawnMesh(CubeMesh, FVector(950.0f, -250.0f, 150.0f), FVector(1.5f, 1.5f, 3.0f), true);
+    SpawnMesh(CubeMesh, FVector(1250.0f, 0.0f, 100.0f), FVector(2.0f, 2.0f, 2.0f), true);
 
     ADirectionalLight* Sun = World->SpawnActor<ADirectionalLight>(
         ADirectionalLight::StaticClass(),
