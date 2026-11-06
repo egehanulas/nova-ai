@@ -55,6 +55,13 @@ for (const expected of ["BuildStarterWorld", "Plane.Plane", "Cube.Cube", "Direct
   }
 }
 
+const readme = await readFile(path.join(root, "README.md"), "utf8");
+for (const expected of ["**E** tuşuna bas", "Play", "27 ayrı fizik gövdeli", "gerçekçi beton/çelik davranışı"]) {
+  if (!readme.includes(expected)) {
+    throw new Error(`README test guide is missing expected detail: ${expected}`);
+  }
+}
+
 const earthquakeFeatures = [
   [character, "TriggerEarthquake"],
   [character, 'BindAction(TEXT("Earthquake")'],
