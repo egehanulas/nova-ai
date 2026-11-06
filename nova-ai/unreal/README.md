@@ -1,45 +1,45 @@
-# NOVA World Runtime — Unreal Engine 5.8.4
+# NOVA 3D Dünya Altyapısı — Unreal Engine 5.8.4
 
-This folder contains the first native Unreal Engine project foundation for NOVA's modular 3D worlds. It is intentionally separate from the existing web-based Sim and from the Electron desktop shell.
+Bu klasör, NOVA'nın farklı türlerde 3D oyun dünyalarını aynı ana altyapı üzerinde geliştirebilmesi için hazırlanmış Unreal Engine C++ projesidir.
 
-## Project
+## Şu an projede bulunanlar
 
-- Project: `NovaWorld.uproject`
-- Target engine: Unreal Engine 5.8.4 (project association: 5.8)
-- Code: C++ runtime module `NovaWorld`
-- Initial controller: first-person WASD + mouse, Space to jump, Left Shift to sprint
-- World definitions: `UNovaWorldDefinition` Primary Data Asset
+- Unreal Engine 5.8.4 hedefli C++ çalışma zamanı modülü.
+- Birinci şahıs karakter: WASD hareket, fareyle bakış, Space ile zıplama, Shift ile koşma.
+- Veri odaklı dünya tanımı: oyun türü, başlangıç haritası, etkin sistemler ve gerekli varlık listesi.
+- Play'e basıldığında otomatik oluşturulan başlangıç test alanı: zemin, birkaç ölçek referansı küpü ve yönlü ışık.
+- Gelecekteki oyun türlerini birbirinden ayırmaya uygun modüler mimari.
 
-## Architecture direction
+## Ege için açma ve test etme
 
-NOVA should not generate and compile a brand-new Unreal project for every prompt. It should use one packaged runtime with a controlled library of reusable systems and assets.
+1. ZIP'i yeni bir klasöre çıkart.
+2. `nova-ai/unreal/NovaWorld.uproject` dosyasını Unreal Engine 5.8.4 ile aç.
+3. Modül yeniden derleme sorusu gelirse **Yes / Evet** seç.
+4. Editör açıldıktan sonra boş bir seviye oluşturup kaydetmen yeterlidir; test alanı Play sırasında otomatik oluşturulur.
+5. **Play** tuşuna bas. WASD ile hareket et, fareyle etrafa bak, Space ile zıpla, Shift ile koş.
 
-1. The AI converts a user's request into a structured world specification.
-2. A validator checks the specification against supported world types, asset IDs, system IDs, performance budgets, and safety limits.
-3. The runtime loads a matching `UNovaWorldDefinition`, map, assets, and allow-listed gameplay systems.
-4. World-specific mechanics live in separate modules or plugins. The earthquake experience is one world package, not the whole engine.
-5. Additional genres can be added as independent world packages without rewriting the runtime.
+## Türkçe kullanımı
 
-The AI must never turn arbitrary user text into native code or execute arbitrary scripts. Generated content is data interpreted by allow-listed runtime systems.
+Oyuncuya görünen menü, görev, açıklama ve arayüz metinleri Türkçe hazırlanacaktır. Unreal ve C++ kaynak kodlarının teknik sınıf, dosya ve API adları motor uyumluluğu için İngilizce kalabilir.
 
-## Open locally
+## Uzun vadeli mimari
 
-1. Clone or download the repository.
-2. Open `NovaWorld.uproject` with Unreal Engine 5.8.4.
-3. When prompted, allow Unreal to build the `NovaWorld` C++ modules. Visual Studio 2022 with the Desktop development with C++ workload and a compatible Windows SDK may be required.
-4. Create/open a level in the editor and place a Player Start and basic test geometry.
-5. Press Play to test first-person movement.
+NOVA her oyun isteğinde sıfırdan ayrı bir Unreal projesi üretmemelidir. Bunun yerine:
 
-## Current limitations
+1. Yapay zekâ, isteği yapılandırılmış bir dünya tanımına dönüştürür.
+2. Doğrulayıcı; desteklenen oyun türlerini, varlık kimliklerini, sistemleri, performans bütçelerini ve güvenlik sınırlarını kontrol eder.
+3. Çalışma zamanı uygun dünya tanımını, haritayı, varlıkları ve izin verilen oyun sistemlerini yükler.
+4. Deprem deneyimi, yarış oyunu veya başka bir tür kendi bağımsız oyun paketi olarak eklenir.
+5. Ortak kontroller, kayıt, ses, fizik ve performans altyapısı yeniden kullanılır.
 
-- This is a source project scaffold, not a packaged game.
-- No apartment art, destruction assets, sound, lighting pass, or earthquake mechanics have been added yet.
-- This repository's standard GitHub runners do not include Unreal Engine. A real Unreal compile and packaged Windows build must be verified on a machine with the matching engine installed.
-- The existing NOVA Desktop does not yet download, install, or launch this game package.
+Yapay zekâ, kullanıcı metninden rastgele C++ kodu üretip çalıştırmamalıdır. Üretilen dünya tanımları, yalnızca izin verilen çalışma zamanı sistemleri tarafından yorumlanan veriler olmalıdır.
 
-## Planned layers
+## Henüz tamamlanmayanlar
 
-- Runtime foundation: player, input, world definitions, asset loading, settings.
-- Shared interaction/physics systems: doors, pickups, rigid bodies, breakables, environment events.
-- World packages: earthquake apartment, then independently selected second game genre.
-- Delivery: signed/versioned Windows game package downloaded on demand by NOVA Desktop.
+- Gerçekçi apartman, daire içi, sokak, çevre ve karakter sanat varlıkları.
+- Deprem dalgası, bina hasarı, parçalanma ve gelişmiş fizik.
+- İkinci oyunun türüne özel mekanikler.
+- NOVA Desktop üzerinden oyun indirme, güncelleme ve başlatma entegrasyonu.
+- Paketlenmiş Windows oyunu.
+
+GitHub doğrulamaları dosya yapısını ve bazı kaynak beklentilerini kontrol eder; Unreal Engine'in kendisi GitHub'ın standart çalıştırıcılarında kurulu değildir. Bu nedenle gerçek C++ derlemesi ve Windows paketlemesi, Unreal Engine 5.8.4 bulunan bilgisayarda ayrıca doğrulanmalıdır.
