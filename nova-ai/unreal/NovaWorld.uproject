@@ -1,0 +1,14 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.8",
+  "EngineVersion": "5.8.4",
+  "Category": "NOVA",
+  "Description": "NOVA modular real-time 3D world runtime foundation.",
+  "Modules": [
+    {
+      "Name": "NovaWorld",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}
