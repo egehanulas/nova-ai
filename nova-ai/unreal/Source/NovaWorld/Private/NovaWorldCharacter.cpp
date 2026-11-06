@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Engine/StaticMeshActor.h"
+#include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "Components/StaticMeshComponent.h"
 #include "InputCoreTypes.h"
@@ -89,6 +90,7 @@ void ANovaWorldCharacter::TriggerEarthquake()
     }
 
     const FVector Origin = GetActorLocation();
+    int32 AffectedBodies = 0;
 
     for (TActorIterator<AStaticMeshActor> It(GetWorld()); It; ++It)
     {
@@ -109,5 +111,14 @@ void ANovaWorldCharacter::TriggerEarthquake()
         Direction = Direction.GetSafeNormal();
         const FVector Jitter(FMath::FRandRange(-0.25f, 0.25f), FMath::FRandRange(-0.25f, 0.25f), 0.0f);
         MeshComponent->AddImpulse((Direction + Jitter).GetSafeNormal() * EarthquakeImpulse, NAME_None, true);
+        ++AffectedBodies;
+    }
+
+    if (GEngine)
+    {
+        const FString Feedback = AffectedBodies > 0
+            ? FString::Printf(TEXT("NOVA | Deprem darbesi uygulandi: %d fizik govdesi"), AffectedBodies)
+            : TEXT("NOVA | Etki alaninda fizik etkin blok bulunamadi");
+        GEngine->AddOnScreenDebugMessage(-1, 2.5f, AffectedBodies > 0 ? FColor::Yellow : FColor::Red, Feedback);
     }
 }
