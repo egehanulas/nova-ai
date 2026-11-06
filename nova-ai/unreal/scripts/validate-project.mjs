@@ -64,6 +64,9 @@ for (const expected of ["**E** tuşuna bas", "Play", "27 ayrı fizik gövdeli", 
 
 const earthquakeFeatures = [
   [character, "TriggerEarthquake"],
+  [character, "AffectedBodies"],
+  [character, "AddOnScreenDebugMessage"],
+  [character, "Deprem darbesi uygulandi"],
   [character, 'BindAction(TEXT("Earthquake")'],
   [gameMode, "SetSimulatePhysics(bSimulatePhysics)"],
   [character, "EarthquakeImpulse"],
