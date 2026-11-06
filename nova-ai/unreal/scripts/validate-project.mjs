@@ -48,9 +48,23 @@ for (const expected of ["WorldGenre", "StartupMap", "EnabledSystems", "RequiredA
 
 
 const gameMode = await readFile(path.join(root, "Source/NovaWorld/Private/NovaWorldGameMode.cpp"), "utf8");
+const inputConfig = await readFile(path.join(root, "Config/DefaultInput.ini"), "utf8");
 for (const expected of ["BuildStarterWorld", "Plane.Plane", "Cube.Cube", "DirectionalLight"]) {
   if (!gameMode.includes(expected)) {
     throw new Error(`Automatic starter world is missing expected feature: ${expected}`);
+  }
+}
+
+const earthquakeFeatures = [
+  [character, "TriggerEarthquake"],
+  [character, 'BindAction(TEXT("Earthquake")'],
+  [gameMode, "SetSimulatePhysics(bSimulatePhysics)"],
+  [gameMode, "ImpulseStrength"],
+  [inputConfig, 'ActionName="Earthquake",Key=E']
+];
+for (const [source, expected] of earthquakeFeatures) {
+  if (!source.includes(expected)) {
+    throw new Error(`Earthquake prototype is missing expected feature: ${expected}`);
   }
 }
 
