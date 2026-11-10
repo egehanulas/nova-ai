@@ -47,6 +47,11 @@
   function setVoiceStatus(message, state = "idle") {
     statusLabel.textContent = message;
     statusLabel.dataset.state = state;
+    const companionState = state === "listening" ? "listening"
+      : state === "error" ? "error"
+        : state === "speaking" && /^NOVA( AI)?( konuşuyor| yanıtını|['’]nın sesi)/i.test(message) ? "speaking"
+          : "idle";
+    window.dispatchEvent(new CustomEvent("nova:companion-state", { detail: { state: companionState } }));
   }
 
   function updateButtons() {
