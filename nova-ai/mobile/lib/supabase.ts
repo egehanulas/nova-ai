@@ -3,14 +3,11 @@ import { AppState, Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { createClient } from '@supabase/supabase-js';
 import { createChunkedSecureStorage } from './secure-storage';
-
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() ?? '';
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ?? '';
-const isConfigured = Boolean(supabaseUrl && supabaseKey);
+import { isSupabaseConfigured, mobileConfiguration } from './app-config';
 
 export const supabase = createClient(
-  isConfigured ? supabaseUrl : 'https://configuration-missing.invalid',
-  isConfigured ? supabaseKey : 'configuration-missing',
+  mobileConfiguration.supabaseUrl ?? 'https://configuration-missing.invalid',
+  mobileConfiguration.supabasePublishableKey ?? 'configuration-missing',
   {
     auth: {
       ...(Platform.OS !== 'web' ? { storage: createChunkedSecureStorage(SecureStore) } : {}),
@@ -22,7 +19,7 @@ export const supabase = createClient(
   },
 );
 
-export { isConfigured as isSupabaseConfigured };
+export { isSupabaseConfigured };
 
 if (Platform.OS !== 'web') {
   supabase.auth.startAutoRefresh();

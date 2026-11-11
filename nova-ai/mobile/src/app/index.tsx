@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useEffect } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,21 +7,23 @@ import { supabase } from '../../lib/supabase';
 import { colors } from '../../theme';
 import { BrandMark } from '../../components/BrandMark';
 import { BottomNav } from '../../components/BottomNav';
+import { ConfigurationNotice } from '../../components/ConfigurationNotice';
+import { signOutSafely } from '../../lib/auth-actions';
 
 export default function HomeScreen() {
-  const { session, ready, configured } = useAuth();
+  const { session, ready } = useAuth();
   useEffect(() => { if (ready && !session) router.replace('/login'); }, [ready, session]);
   if (!ready) return <View style={styles.loading}><ActivityIndicator color={colors.purple} /></View>;
   if (!session) return null;
   return <SafeAreaView style={styles.safe}>
     <ScrollView contentContainerStyle={styles.page}>
       <View style={styles.top}><View style={styles.brand}><BrandMark size={42} /><View><Text style={styles.brandName}>EYRION</Text><Text style={styles.brandSub}>AI COMPANION</Text></View></View>
-        <Pressable onPress={() => void supabase.auth.signOut()} style={styles.avatar}><Text style={styles.avatarText}>{session.user.email?.[0]?.toUpperCase() ?? 'E'}</Text></Pressable>
+        <Pressable accessibilityLabel="Çıkış yap" onPress={() => void signOutSafely(() => supabase.auth.signOut()).then((ok) => { if (!ok) Alert.alert('Çıkış yapılamadı', 'Oturum kapatılamadı. Bağlantını kontrol edip tekrar dene.'); })} style={styles.avatar}><Text style={styles.avatarText}>{session.user.email?.[0]?.toUpperCase() ?? 'E'}</Text></Pressable>
       </View>
       <Text style={styles.eyebrow}>KİŞİSEL YAPAY ZEKÂN</Text>
       <Text style={styles.title}>Merhaba, <Text style={styles.name}>{session.user.user_metadata?.name || 'yeniden hoş geldin'}</Text></Text>
       <Text style={styles.subtitle}>Bugün aklında ne var? Birlikte keşfedelim.</Text>
-      {!configured && <View style={styles.notice}><Text style={styles.noticeTitle}>Bağlantı ayarları bekleniyor</Text><Text style={styles.noticeBody}>Supabase ayarları eklenmeden giriş kullanılamaz. API adresi de sohbet bağlantısı için gereklidir.</Text></View>}
+      <ConfigurationNotice />
       <View style={styles.hero}><View style={styles.orbitOne} /><View style={styles.orbitTwo} /><BrandMark size={92} /><View style={styles.heroText}><Text style={styles.heroKicker}>YENİ BİR FİKİR</Text><Text style={styles.heroTitle}>Merakını takip et.</Text><Text style={styles.heroBody}>Sorular, düşünceler ve yeni keşifler için buradayım.</Text></View></View>
       <Text style={styles.section}>Nasıl yardımcı olayım?</Text>
       <Pressable style={styles.startCard} onPress={() => router.push('/chat')}><View style={styles.spark}><Text style={styles.sparkText}>✳</Text></View><View style={{ flex: 1 }}><Text style={styles.cardTitle}>Yeni bir sohbet başlat</Text><Text style={styles.cardSub}>Aklındaki konuyu birlikte açalım</Text></View><Text style={styles.arrow}>↗</Text></Pressable>

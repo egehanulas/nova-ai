@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav } from '../../components/BottomNav';
@@ -8,6 +8,7 @@ import { useAuth } from '../../lib/auth-context';
 import { chatService } from '../../lib/chat';
 import type { ChatUpdate, Conversation } from '../../lib/chat-domain';
 import { supabase } from '../../lib/supabase';
+import { signOutSafely } from '../../lib/auth-actions';
 import { colors } from '../../theme';
 
 export default function HistoryScreen() {
@@ -57,7 +58,7 @@ export default function HistoryScreen() {
   useEffect(() => { if (ready && !session) router.replace('/login'); }, [ready, session]);
   if (!ready || !session) return <View style={styles.center}><ActivityIndicator color={colors.purple} /></View>;
   return <SafeAreaView style={styles.safe} edges={['top']}><View style={styles.page}>
-    <View style={styles.header}><View><Text style={styles.kicker}>KÜTÜPHANEN</Text><Text style={styles.title}>Sohbet geçmişi</Text></View><Pressable style={styles.avatar} accessibilityLabel="Çıkış yap" onPress={() => void supabase.auth.signOut()}><Text style={styles.avatarText}>{session.user.email?.[0]?.toUpperCase() ?? 'E'}</Text></Pressable></View>
+    <View style={styles.header}><View><Text style={styles.kicker}>KÜTÜPHANEN</Text><Text style={styles.title}>Sohbet geçmişi</Text></View><Pressable style={styles.avatar} accessibilityLabel="Çıkış yap" onPress={() => void signOutSafely(() => supabase.auth.signOut()).then((ok) => { if (!ok) Alert.alert('Çıkış yapılamadı', 'Oturum kapatılamadı. Bağlantını kontrol edip tekrar dene.'); })}><Text style={styles.avatarText}>{session.user.email?.[0]?.toUpperCase() ?? 'E'}</Text></Pressable></View>
     <Pressable style={styles.newChat} onPress={() => router.push('/chat')}><Text style={styles.plus}>＋</Text><View style={{ flex: 1 }}><Text style={styles.newTitle}>Yeni sohbet</Text><Text style={styles.newCopy}>Aklındaki bir şeyi sor</Text></View><Text style={styles.arrow}>↗</Text></Pressable>
     <Text style={styles.section}>SON KONUŞMALAR</Text>
     {loading ? <View style={styles.center}><ActivityIndicator color={colors.purple} /></View> : error ? <View style={styles.empty}><Text style={styles.emptyTitle}>Bağlantı kurulamadı</Text><Text style={styles.emptyCopy}>{error}</Text><Pressable style={styles.retry} onPress={() => void load()}><Text style={styles.retryText}>Tekrar dene</Text></Pressable></View> : <FlatList data={rows} keyExtractor={(item) => item.id} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.purple} />} contentContainerStyle={rows.length ? styles.list : styles.listEmpty}

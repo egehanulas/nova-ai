@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { fetch as expoFetch } from 'expo/fetch';
+import { formatConfigurationIssues, isApiConfigured, mobileConfiguration, apiConfigurationIssues } from './app-config';
 
 export class ApiError extends Error {
   status: number;
@@ -10,10 +11,17 @@ export class ApiError extends Error {
   }
 }
 
-const apiBaseUrl = process.env.EXPO_PUBLIC_EYRION_API_URL?.trim().replace(/\/+$/, '');
+const apiBaseUrl = mobileConfiguration.apiBaseUrl;
+
+function requireApiUrl() {
+  if (!isApiConfigured || !apiBaseUrl) {
+    throw new Error(formatConfigurationIssues(apiConfigurationIssues) || 'EXPO_PUBLIC_EYRION_API_URL yapılandırılmamış.');
+  }
+  return apiBaseUrl;
+}
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  if (!apiBaseUrl) throw new Error('EXPO_PUBLIC_EYRION_API_URL yapılandırılmamış.');
+  const baseUrl = requireApiUrl();
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
   if (!data.session?.access_token) throw new Error('Bu işlem için oturum açmalısınız.');
@@ -21,7 +29,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   if (!headers.has('Accept')) headers.set('Accept', 'application/json');
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   headers.set('Authorization', `Bearer ${data.session.access_token}`);
-  const response = await expoFetch(`${apiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`, {
+  const response = await expoFetch(`${baseUrl}${path.startsWith('/') ? path : `/${path}`}`, {
     ...init,
     headers,
   });
@@ -33,11 +41,11 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 }
 
 export async function apiStreamRequest(path: string, body: unknown, signal: AbortSignal): Promise<Response> {
-  if (!apiBaseUrl) throw new Error('EXPO_PUBLIC_EYRION_API_URL yapılandırılmamış.');
+  const baseUrl = requireApiUrl();
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
   if (!data.session?.access_token) throw new Error('Bu işlem için oturum açmalısınız.');
-  const response = await expoFetch(`${apiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`, {
+  const response = await expoFetch(`${baseUrl}${path.startsWith('/') ? path : `/${path}`}`, {
     method: 'POST', signal,
     headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` },
     body: JSON.stringify(body),
@@ -49,4 +57,4 @@ export async function apiStreamRequest(path: string, body: unknown, signal: Abor
   return response;
 }
 
-export const isApiConfigured = Boolean(apiBaseUrl);
+export { isApiConfigured };
