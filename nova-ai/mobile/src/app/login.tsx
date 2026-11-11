@@ -14,10 +14,15 @@ export default function LoginScreen() {
     if (!isSupabaseConfigured) { Alert.alert('Kurulum tamamlanmadı', 'mobile/.env dosyasına Supabase URL ve publishable key değerlerini ekleyin.'); return; }
     if (!email.trim() || !password) { Alert.alert('Bilgileri kontrol et', 'E-posta ve şifre alanlarını doldurun.'); return; }
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setBusy(false);
-    if (error) Alert.alert('Giriş yapılamadı', error.message);
-    else router.replace('/');
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) Alert.alert('Giriş yapılamadı', error.message);
+      else router.replace('/');
+    } catch {
+      Alert.alert('Bağlantı kurulamadı', 'Giriş isteği tamamlanamadı. İnternet bağlantını kontrol edip yeniden dene.');
+    } finally {
+      setBusy(false);
+    }
   };
   return <SafeAreaView style={styles.safe}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
     <Pressable onPress={() => router.replace('/')} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable>

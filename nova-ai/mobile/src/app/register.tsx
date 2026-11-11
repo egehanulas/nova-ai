@@ -14,11 +14,16 @@ export default function RegisterScreen() {
     if (!isSupabaseConfigured) { Alert.alert('Kurulum tamamlanmadı', 'mobile/.env dosyasına Supabase URL ve publishable key değerlerini ekleyin.'); return; }
     if (!email.trim() || password.length < 8) { Alert.alert('Bilgileri kontrol et', 'E-posta girin; şifre en az 8 karakter olmalı.'); return; }
     setBusy(true);
-    const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: { name: name.trim() || undefined }, emailRedirectTo: 'eyrionai://auth/callback' } });
-    setBusy(false);
-    if (error) Alert.alert('Hesap oluşturulamadı', error.message);
-    else if (!data.session) Alert.alert('E-postanı doğrula', 'Hesabını etkinleştirmek için gelen kutundaki bağlantıyı aç.');
-    else router.replace('/');
+    try {
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: { name: name.trim() || undefined }, emailRedirectTo: 'eyrionai://auth/callback' } });
+      if (error) Alert.alert('Hesap oluşturulamadı', error.message);
+      else if (!data.session) Alert.alert('E-postanı doğrula', 'Hesabını etkinleştirmek için gelen kutundaki bağlantıyı aç.');
+      else router.replace('/');
+    } catch {
+      Alert.alert('Bağlantı kurulamadı', 'Hesap isteği tamamlanamadı. İnternet bağlantını kontrol edip yeniden dene.');
+    } finally {
+      setBusy(false);
+    }
   };
   return <SafeAreaView style={styles.safe}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
     <View style={styles.brand}><BrandMark size={54} /><Text style={styles.wordmark}>EYRION AI</Text><Text style={styles.tagline}>Kendi keşif yolculuğunu başlat.</Text></View>

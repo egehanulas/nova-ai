@@ -2,25 +2,12 @@ import { createContext, useContext, useEffect, useMemo, useState, type PropsWith
 import { Linking } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { createAuthLinkQueue } from './auth-deep-link';
+import { createAuthSessionSync } from './auth-session-sync';
 
 type AuthState = { session: Session | null; ready: boolean; configured: boolean };
 const Context = createContext<AuthState>({ session: null, ready: false, configured: false });
 export const useAuth = () => useContext(Context);
-
-async function handleAuthUrl(url: string) {
-  const parsed = new URL(url);
-  const code = parsed.searchParams.get('code');
-  if (code) {
-    await supabase.auth.exchangeCodeForSession(code);
-    return;
-  }
-  const params = new URLSearchParams(parsed.hash.replace(/^#/, ''));
-  const accessToken = params.get('access_token');
-  const refreshToken = params.get('refresh_token');
-  if (accessToken && refreshToken) {
-    await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-  }
-}
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
@@ -29,18 +16,42 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     let alive = true;
+    let sessionHydrated = false;
+    const sessionSync = createAuthSessionSync<Session | null>((nextSession) => { if (alive) setSession(nextSession); });
+    const linkQueue = createAuthLinkQueue(async (code) => {
+      if (!sessionHydrated) throw new Error('Stored auth session could not be restored.');
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) throw error;
+    });
     const subscription = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (alive) setSession(nextSession);
+      sessionSync.fromAuthEvent(nextSession);
     }).data.subscription;
     const processUrl = (url: string | null) => {
-      if (url) void handleAuthUrl(url).catch((error) => console.warn('Auth deep link failed:', error));
+      if (url) void linkQueue.enqueue(url).catch((error) => console.warn('Auth deep link rejected:', error));
     };
-    void supabase.auth.getSession().then(({ data }) => {
-      if (alive) setSession(data.session);
-      setReady(true);
-    });
-    void Linking.getInitialURL().then((url) => processUrl(url ?? null));
     const listener = Linking.addEventListener('url', ({ url }) => processUrl(url));
+    void (async () => {
+      try {
+        const initialUrl = await Linking.getInitialURL();
+        const revisionAtReadStart = sessionSync.revision;
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        sessionSync.applySnapshotIfCurrent(revisionAtReadStart, data.session);
+        processUrl(initialUrl ?? null);
+        sessionHydrated = true;
+        linkQueue.sessionLoaded();
+        await linkQueue.flush();
+        const finalRevision = sessionSync.revision;
+        const { data: finalData, error: finalError } = await supabase.auth.getSession();
+        if (finalError) throw finalError;
+        sessionSync.applySnapshotIfCurrent(finalRevision, finalData.session);
+      } catch (error) {
+        console.warn('Auth session initialization failed:', error);
+      } finally {
+        linkQueue.sessionLoaded();
+        if (alive) setReady(true);
+      }
+    })();
     return () => {
       alive = false;
       subscription.unsubscribe();
