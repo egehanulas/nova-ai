@@ -11,7 +11,7 @@ import { formatConfigurationIssues, supabaseConfigurationIssues } from '../../li
 import { colors } from '../../theme';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [busy, setBusy] = useState(false);
+  const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [busy, setBusy] = useState(false); const [resetMode, setResetMode] = useState(false);
   const submit = async () => {
     if (!isSupabaseConfigured) { Alert.alert('Kurulum tamamlanmadı', formatConfigurationIssues(supabaseConfigurationIssues)); return; }
     if (!email.trim() || !password) { Alert.alert('Bilgileri kontrol et', 'E-posta ve şifre alanlarını doldurun.'); return; }
@@ -26,14 +26,25 @@ export default function LoginScreen() {
       setBusy(false);
     }
   };
+  const sendReset = async () => {
+    if (!isSupabaseConfigured) { Alert.alert('Kurulum tamamlanmadı', formatConfigurationIssues(supabaseConfigurationIssues)); return; }
+    if (!email.trim()) { Alert.alert('E-posta gerekli', 'Şifre yenileme bağlantısı için e-posta adresini yaz.'); return; }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: 'eyrionai://auth/callback' });
+      if (error) throw error;
+      Alert.alert('E-postanı kontrol et', 'Şifre yenileme bağlantısı gönderildiyse e-postana iletildi.'); setResetMode(false);
+    } catch (error) { Alert.alert('İstek gönderilemedi', error instanceof Error ? error.message : 'Bağlantını kontrol edip tekrar dene.'); }
+    finally { setBusy(false); }
+  };
   return <SafeAreaView style={styles.safe}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
     <Pressable onPress={() => router.replace('/')} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable>
     <View style={styles.brand}><BrandMark size={58} /><Text style={styles.wordmark}>EYRION<Text style={styles.ai}> AI</Text></Text><Text style={styles.tagline}>Yeni bir bakış açısı.</Text></View>
-    <Text style={styles.eyebrow}>YENİDEN MERHABA</Text><Text style={styles.title}>Sohbete devam et.</Text><Text style={styles.subtitle}>Hesabına giriş yap, kaldığın yerden keşfet.</Text>
+    <Text style={styles.eyebrow}>YENİDEN MERHABA</Text><Text style={styles.title}>{resetMode ? 'Şifreni yenile.' : 'Sohbete devam et.'}</Text><Text style={styles.subtitle}>{resetMode ? 'Hesabınla eşleşen adresine güvenli yenileme bağlantısı gönderelim.' : 'Hesabına giriş yap, kaldığın yerden keşfet.'}</Text>
     <ConfigurationNotice scope="supabase" />
-    <View style={styles.fields}><AuthField label="E-posta" value={email} onChangeText={setEmail} placeholder="ornek@email.com" keyboardType="email-address" autoComplete="email" textContentType="emailAddress" /><AuthField label="Şifre" value={password} onChangeText={setPassword} placeholder="Şifren" secureTextEntry autoComplete="password" textContentType="password" /></View>
-    <PrimaryButton title="Giriş yap  →" onPress={() => void submit()} busy={busy} />
-    <View style={styles.footer}><Text style={styles.footerText}>Henüz hesabın yok mu?</Text><Link href="/register" style={styles.link}> Hesap oluştur</Link></View>
+    <View style={styles.fields}><AuthField label="E-posta" value={email} onChangeText={setEmail} placeholder="ornek@email.com" keyboardType="email-address" autoComplete="email" textContentType="emailAddress" />{!resetMode && <AuthField label="Şifre" value={password} onChangeText={setPassword} placeholder="Şifren" secureTextEntry autoComplete="password" textContentType="password" />}</View>
+    <PrimaryButton title={resetMode ? 'Yenileme bağlantısı gönder' : 'Giriş yap  →'} onPress={() => void (resetMode ? sendReset() : submit())} busy={busy} />
+    {resetMode ? <Pressable onPress={() => setResetMode(false)} style={styles.footer}><Text style={styles.link}>Girişe dön</Text></Pressable> : <><Pressable onPress={() => setResetMode(true)} style={styles.footer}><Text style={styles.link}>Şifremi unuttum</Text></Pressable><View style={styles.footer}><Text style={styles.footerText}>Henüz hesabın yok mu?</Text><Link href="/register" style={styles.link}> Hesap oluştur</Link></View></>}
     <Text style={styles.legal}>Hesabın mevcut EYRION kimlik doğrulama servisiyle korunur.</Text>
   </ScrollView></KeyboardAvoidingView></SafeAreaView>;
 }
