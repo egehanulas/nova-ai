@@ -63,10 +63,18 @@
     { q: "Bitkiler fotosentez sırasında en çok hangi gazı kullanır?", choices: ["Karbondioksit", "Oksijen", "Azot"], answer: 0 },
     { q: "Işığın boşluktaki hızı yaklaşık kaç km/s?", choices: ["30.000", "300.000", "3.000"], answer: 1 }
   ];
+  const stories = [
+    { title: "Sisli istasyon", intro: "Son tren kalkmış. Peronda üzerinde kendi adın yazan bir zarf buluyorsun.", choices: [["Zarfı aç", "Not seni saat kulesine çağırıyor. İçeride istasyonun kayıp saatini buluyor, eski bir bulmacanın ilk parçasını keşfediyorsun."], ["İstasyondan yardım iste", "Görevli zarfın haritasını tanıyor. Birlikte küçük bir araştırma başlatıp kayıp saatin izini sürüyorsunuz."]] },
+    { title: "Fenerdeki ışık", intro: "Kıyıdaki deniz feneri yıllardır kapalı; bu gece ışığı üç kez yanıp sönüyor.", choices: [["Fenerin merdivenlerini çık", "Fenerin tepesinde eski bir deniz haritası buluyorsun. Işık, yıllar önce kaybolan araştırma teknesinin rotasını gösteriyormuş."], ["Kıyıda işaret ver", "Kayalıklardan bir sandal beliriyor. İçindeki denizci, fenerin ışığını uzaktan çalıştıran bir düzenek kurduğunu anlatıyor."]] },
+    { title: "Bahçedeki kapı", intro: "Mahallendeki eski bahçede yalnızca yağmurdan sonra görünen küçük bir kapı buluyorsun.", choices: [["Kapıyı çal", "Kapı açılıyor ve içeride mahallenin anılarını toplayan minik bir kütüphane görüyorsun. İlk kitabın senin bugünkü keşfin oluyor."], ["Kapının çevresini incele", "Taşların altındaki işaretler seni bahçenin kurucusunun notlarına götürüyor. Gizli kapının neden yalnız yağmurda göründüğünü çözüyorsun."]] }
+  ];
+  let storyRound = 0;
   let round = 0;
   let memoryTimer;
+  let wordChainLength = 0;
   const el = (tag, text, cls) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (cls) node.className = cls; return node; };
   function openActivity(title, description) {
+    window.clearInterval(memoryTimer);
     panel.hidden = false; panel.replaceChildren(el("h3", title), el("p", description));
     setState("exploring", title + " etkinliği açık.");
   }
@@ -78,6 +86,7 @@
     const field = input("Cevabın");
     panel.append(action("Yanıtla", () => { const answer = field.value.trim().toLocaleLowerCase("tr"); if (item.a.includes(answer)) completeActivity("Doğru bildin! Harika çözüm. Etkinlik tamamlandı."); else feedback("Henüz değil. İstersen ipucunu kullan."); }));
     panel.append(action("İpucu", () => feedback(item.h), "activity-action secondary"));
+    panel.append(action("Çözümü göster", () => completeActivity(`Yanıt: ${item.a[0]}. Yeni bilmecede tekrar deneyebilirsin.`), "activity-action secondary"));
     panel.append(action("Başka bilmece", startRiddle, "activity-action secondary"));
   }
   function startQuiz() {
@@ -104,12 +113,13 @@
     const starters = ["merak", "kitap", "deniz", "bulut", "ışık"];
     const previous = lastWord || starters[round++ % starters.length]; openActivity("Kelime zinciri", `${lastWord ? `Güzel! “${lastWord}” kabul edildi. ` : `Başlangıç kelimesi: ${previous}. `}Son harf “${previous.slice(-1)}”. Bu harfle başlayan bir Türkçe kelime yaz.`);
     const field = input("Yeni kelime");
-    panel.append(action("Kelimeyi gönder", () => { const value = field.value.trim().toLocaleLowerCase("tr"); if (value.length < 2 || value[0] !== previous.slice(-1)) { feedback(`Kelime “${previous.slice(-1)}” harfiyle başlamalı.`); return; } if ((window.wordChainLength = (window.wordChainLength || 0) + 1) >= 5) { window.wordChainLength = 0; completeActivity("Beş kelimelik zinciri tamamladın! Yeni bir tur başlatabilirsin."); panel.append(action("Yeni tur", () => startWord(""))); return; } openActivity("Kelime zinciri", `“${value}” kabul edildi (${window.wordChainLength}/5). Sıradaki kelime “${value.slice(-1)}” harfiyle başlamalı.`); panel.append(action("Devam et", () => startWord(value)), action("Baştan", () => { window.wordChainLength = 0; startWord(""); }, "activity-action secondary")); }, "activity-action"));
+    panel.append(action("Kelimeyi gönder", () => { const value = field.value.trim().toLocaleLowerCase("tr"); if (value.length < 2 || value[0] !== previous.slice(-1)) { feedback(`Kelime “${previous.slice(-1)}” harfiyle başlamalı.`); return; } if (++wordChainLength >= 5) { wordChainLength = 0; completeActivity("Beş kelimelik zinciri tamamladın! Yeni bir tur başlatabilirsin."); panel.append(action("Yeni tur", () => startWord(""))); return; } openActivity("Kelime zinciri", `“${value}” kabul edildi (${wordChainLength}/5). Sıradaki kelime “${value.slice(-1)}” harfiyle başlamalı.`); panel.append(action("Devam et", () => startWord(value)), action("Baştan", () => { wordChainLength = 0; startWord(""); }, "activity-action secondary")); }, "activity-action"));
   }
   function startStory() {
     recordAs ||= "story";
-    openActivity("Sisli istasyon", "Son tren kalkmış. Peronda üzerinde kendi adın yazan bir zarf buluyorsun. Ne yaparsın?");
-    panel.append(action("Zarfı aç", () => { openActivity("Bir not", "Notta yalnızca şu yazıyor: ‘Saat kulesine gel. Yanında kimseyi getirme.’ Kuleye vardığında kapı aralık."); panel.append(action("İçeri gir", () => ending("Merdivenlerin sonunda istasyonun kayıp saatini buluyorsun. Zarf, sana ait eski bir bulmacanın ilk parçasıymış.")), action("Dışarıdan seslen", () => ending("İçeriden bir görevli çıkıyor. Saatin yıllardır durduğunu, onu ancak senin fark edebileceğini söylüyor."))); }), action("İstasyondan yardım iste", () => ending("Görevli zarfın içindeki haritayı görünce gülümsüyor. Kayıp saat için küçük bir araştırma başlıyor."), "activity-action secondary"));
+    const story = stories[storyRound++ % stories.length];
+    openActivity(story.title, story.intro);
+    story.choices.forEach(([choice, endingText], index) => panel.append(action(choice, () => ending(endingText), index ? "activity-action secondary" : "activity-action")));
   }
   function ending(text) { openActivity("Hikâyenin sonu", text); completeActivity("Hikâyeyi tamamladın. Yeni seçimlerle farklı bir son keşfedebilirsin."); panel.append(action("Yeni kararlar ver", startStory)); }
   function startGuess() {
@@ -118,7 +128,7 @@
     panel.append(action("Tahmin et", () => { const guess = Number(field.value); if (!Number.isInteger(guess) || guess < 1 || guess > 20) { feedback("1 ile 20 arasında tam sayı yaz."); return; } attempts++; if (guess === target) { completeActivity(`${attempts}. denemede buldun!`); return; } if (attempts >= 6) { completeActivity(`Tur tamamlandı. Tuttuğum sayı ${target} idi; yeni turda tekrar dene.`); return; } feedback(`${guess < target ? "Daha büyük" : "Daha küçük"}. Kalan deneme: ${6 - attempts}.`); field.value = ""; field.focus(); }));
   }
   const localActivities = { riddle: startRiddle, quiz: startQuiz, memory: startMemory, word: startWord, story: startStory, guess: startGuess };
-  for (const button of document.querySelectorAll("[data-activity]")) button.addEventListener("click", () => { recordAs = button.dataset.activity; localActivities[button.dataset.activity]?.(); });
+  for (const button of document.querySelectorAll("[data-activity]")) button.addEventListener("click", () => { recordAs = button.dataset.activity; if (button.dataset.activity === "word") wordChainLength = 0; localActivities[button.dataset.activity]?.(); });
   document.querySelector('[data-activity="daily"]')?.addEventListener("click", () => { const id = window.EyrionDiscoveryState?.dailyChallenge() || "riddle"; recordAs = "daily"; localActivities[id]?.(); });
   for (const button of document.querySelectorAll("[data-companion-prompt]")) button.addEventListener("click", () => {
     const prompt = button.dataset.companionPrompt;

@@ -46,6 +46,7 @@ test("Beta 1 discovery adds a daily number game, local progress, and the request
   assert.match(script, /window\.EyrionDiscoveryState\?\.dailyChallenge/);
   assert.match(script, /window\.EyrionDiscoveryState\.recommend/);
   assert.match(script, /window\.EyrionDiscoveryState\?\.record/);
+  for (const story of ["Sisli istasyon", "Fenerdeki ışık", "Bahçedeki kapı"]) assert.ok(script.includes(story));
 });
 
 test("Beta 1 preserves the three existing themes and adds exactly six selectable themes", () => {
