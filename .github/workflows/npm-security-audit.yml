@@ -85,7 +85,7 @@ jobs:
           fi
 
           curl -fsS "http://127.0.0.1:$PORT/" > /tmp/nova-index.html
-          grep -q 'NOVA AI' /tmp/nova-index.html
+          grep -q 'EYRION AI' /tmp/nova-index.html
 
       - name: Test local embedding model
         working-directory: nova-ai
