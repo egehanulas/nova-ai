@@ -94,15 +94,13 @@ function quitApplication() {
 }
 
 function createTray() {
-  // Embedded PNG keeps the Windows notification-area icon self-contained.
-  const trayImage = nativeImage.createFromDataURL(
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAnUlEQVR4nO3VwQ2AIAwFUGbw4AIu5LDuV8LBxBApv6W1mNCkN/C/AEJKq2au8yKyaHHwth/k0aHhMCIUUPbLG8CeiTfAfZC0YfVcNUCKaM0TAzQIbrwKIEH0xqkB6Md7yCFAb2/RFTIDtHoBXAEcBJ03DKhDJYh//wWh90DoTRj6FkzxGlo2CyjlDWDDpwB4IqDwZyH3PtLi4FVfVgbpz2l1rjeY+wAAAABJRU5ErkJggg=="
-  );
+  const trayMark = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M16 2.5 27 9l3.5 12-9 8-11-2.5L2.5 17 6 7z" fill="#8175e8"/><path d="m16 2.5 1.5 11L27 9m-9.5 4.5L30.5 21l-9 8-4-15Zm0 0L2.5 17l8 9.5 7-12Zm0 0L6 7l-3.5 10 14 0Z" fill="#fff" fill-opacity=".36"/><path d="M10 18c2.2-3 4.4-3 6.5 0s4.4 3 6.5 0" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/></svg>';
+  const trayImage = nativeImage.createFromDataURL("data:image/svg+xml;charset=utf-8," + encodeURIComponent(trayMark));
   tray = new Tray(trayImage);
-  tray.setToolTip("NOVA AI");
+  tray.setToolTip("EYRION AI");
 
   const contextMenu = Menu.buildFromTemplate([
-    { label: "NOVA AI'ı Aç", click: showWindow },
+    { label: "EYRION AI'ı Aç", click: showWindow },
     { label: "Bilgisayar Asistanı", click: showDesktopAssistant },
     { label: "Göster / Gizle  (Ctrl+Shift+Space)", click: toggleWindow },
     { type: "separator" },
@@ -127,10 +125,10 @@ function createApplicationMenu() {
     {
       label: "Dosya",
       submenu: [
-        { label: "NOVA'yı Göster", click: showWindow },
+        { label: "EYRION'u Göster", click: showWindow },
         { label: "Bilgisayar Asistanı", click: showDesktopAssistant },
         {
-          label: "NOVA'yı Yenile",
+          label: "EYRION'u Yenile",
           accelerator: "CommandOrControl+R",
           click: () => mainWindow?.webContents.reload()
         },
@@ -172,19 +170,19 @@ function createApplicationMenu() {
           click: checkForUpdates
         },
         {
-          label: "NOVA AI Hakkında",
+          label: "EYRION AI Hakkında",
           click: () => {
             void dialog.showMessageBox(mainWindow, {
               type: "info",
-              title: "NOVA AI Hakkında",
-              message: "NOVA AI",
+              title: "EYRION AI Hakkında",
+              message: "EYRION AI",
               detail: `Sürüm: ${app.getVersion()}\nAlpha sürümü — geri bildirimlerin geliştirmeye yardımcı olur.`,
               buttons: ["Tamam"]
             });
           }
         },
         {
-          label: "NOVA AI Web Sitesini Aç",
+          label: "EYRION AI Web Sitesini Aç",
           click: () => openExternal(NOVA_URL)
         }
       ]
@@ -236,7 +234,7 @@ function createWindow() {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: "#090b12",
-    title: "NOVA AI",
+    title: "EYRION AI",
     webPreferences: {
       preload: path.join(app.getAppPath(), "src", "preload.cjs"),
       nodeIntegration: false,
@@ -269,8 +267,8 @@ function createWindow() {
     retryDialogOpen = true;
     const result = await dialog.showMessageBox(mainWindow, {
       type: "warning",
-      title: "NOVA AI bağlantı sorunu",
-      message: "NOVA AI sunucusuna bağlanılamadı.",
+      title: "EYRION AI bağlantı sorunu",
+      message: "EYRION AI sunucusuna bağlanılamadı.",
       detail: `${errorDescription} (Kod: ${errorCode})\n\nİnternet bağlantını kontrol edip tekrar deneyebilirsin.`,
       buttons: ["Tekrar dene", "Kapat"],
       defaultId: 0,
@@ -307,7 +305,7 @@ function showDesktopAssistant() {
   const assistantFileUrl = pathToFileURL(assistantFile).href;
   assistantWindow = new BrowserWindow({
     width: 1040, height: 860, minWidth: 760, minHeight: 650, show: false,
-    backgroundColor: "#090b12", title: "NOVA AI — Bilgisayar Asistanı",
+    backgroundColor: "#090b12", title: "EYRION AI — Bilgisayar Asistanı",
     webPreferences: {
       preload: path.join(app.getAppPath(), "src", "preload.cjs"),
       nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true
@@ -395,9 +393,9 @@ function registerDesktopAssistantIpc() {
     if (approvalReason) {
       const approval = await dialog.showMessageBox(parent, {
         type: "warning",
-        title: "NOVA işlem onayı",
+        title: "EYRION işlem onayı",
         message: approvalReason + " işlemi başlatılmak üzere.",
-        detail: "NOVA yalnızca sen onaylarsan devam edecek. İşlem sırasında ödeme bilgilerini veya parolanı sohbete yazma.",
+        detail: "EYRION yalnızca sen onaylarsan devam edecek. İşlem sırasında ödeme bilgilerini veya parolanı sohbete yazma.",
         buttons: ["Onayla ve devam et", "Vazgeç"],
         defaultId: 1,
         cancelId: 1,
@@ -413,7 +411,7 @@ function registerDesktopAssistantIpc() {
       if (Date.now() > taskDeadline) throw new Error("Görev 8 dakikalık güvenli çalışma sınırına ulaştı.");
       if (!accessToken || accessToken.length >= 5000) return null;
       const latestSnapshot = observations[observations.length - 1];
-      reportProgress("planning", "NOVA sonraki adımı planlıyor.");
+      reportProgress("planning", "EYRION sonraki adımı planlıyor.");
       const response = await fetch(new URL("/api/desktop/interpret", NOVA_URL), {
         method: "POST",
         headers: {
@@ -423,7 +421,7 @@ function registerDesktopAssistantIpc() {
         body: JSON.stringify({ command: rawCommand, observations: observations.slice(-6).map((item, index, items) => ({ activeWindow: item.activeWindow, items: item.items, screenshot: index === items.length - 1 ? item.screenshot : "", screenshotMimeType: item.screenshotMimeType })) }),
         signal: AbortSignal.timeout(60000)
       });
-      if (!response.ok) throw new Error("NOVA komut yorumlama servisi HTTP " + response.status);
+      if (!response.ok) throw new Error("EYRION komut yorumlama servisi HTTP " + response.status);
       const interpreted = await response.json();
       return interpreted?.intent && typeof interpreted.intent === "object" ? interpreted.intent : null;
     };
@@ -431,7 +429,7 @@ function registerDesktopAssistantIpc() {
       try {
         intent = await requestInterpretation() || intent;
       } catch (error) {
-        console.warn("NOVA AI intent interpretation failed; local parser remains available:", error.message);
+        console.warn("EYRION AI intent interpretation failed; local parser remains available:", error.message);
       }
     }
     const folders = () => listUserFolders();
@@ -504,7 +502,7 @@ function registerDesktopAssistantIpc() {
           (items.length ? "\nErişilebilir ekrandaki öğeler:\n" + items.slice(0, 30).map((item, index) =>
             (index + 1) + ". " + (item.name || item.controlType || "Adsız öğe") + " (" + item.controlType + ")").join("\n")
             : "\nBu pencereden erişilebilir metin veya denetim alınamadı.") +
-          (accessToken ? "\nGörsel analiz için ekran görüntüsü alınamadı." : "\nGörsel analiz için NOVA hesabında oturum açmalısın.") };
+          (accessToken ? "\nGörsel analiz için ekran görüntüsü alınamadı." : "\nGörsel analiz için EYRION hesabında oturum açmalısın.") };
       }
       case "list-folders": {
         const all = await folders();
@@ -569,7 +567,7 @@ function registerDesktopAssistantIpc() {
                 throw new Error("Görev planında bitiş adımı son sırada değil; güvenli olması için işlem durduruldu.");
               }
               if (completed === 0) {
-                throw new Error("NOVA herhangi bir masaüstü işlemini doğrulayamadı; görevi tamamlandı olarak göstermiyorum.");
+                throw new Error("EYRION herhangi bir masaüstü işlemini doğrulayamadı; görevi tamamlandı olarak göstermiyorum.");
               }
               const message = currentIntent.message || "İstenen masaüstü işlemleri tamamlandı.";
               reportProgress("completed", message, completed, completed);
@@ -592,7 +590,7 @@ function registerDesktopAssistantIpc() {
             if (actionApprovalReason) {
               const approval = await dialog.showMessageBox(parent, {
                 type: "warning",
-                title: "NOVA işlem onayı",
+                title: "EYRION işlem onayı",
                 message: actionApprovalReason + " işlemi yapılmak üzere.",
                 detail: "Komut: " + rawCommand + "\\nHedef: " + (action.text || action.name || action.type),
                 buttons: ["Onayla", "Vazgeç"],
@@ -615,7 +613,7 @@ function registerDesktopAssistantIpc() {
               }
               result = await capturePrimaryScreen(result);
               observations.push({ activeWindow: result.activeWindow || "", items: result.items || [], screenshot: typeof result.screenshot === "string" ? result.screenshot : "", screenshotMimeType: result.screenshotMimeType || "image/jpeg" });
-              reportProgress("planning", "Ekran okundu; NOVA sonraki adımı belirliyor.", completed, 0);
+              reportProgress("planning", "Ekran okundu; EYRION sonraki adımı belirliyor.", completed, 0);
               try {
                 currentIntent = await requestInterpretation();
               } catch (error) {
@@ -624,7 +622,7 @@ function registerDesktopAssistantIpc() {
                   error.message + "). Şu ana kadar yapılan işlemler geri alınmadı; yeni bir işlem başlatmadım.", steps: completed, partial: true };
               }
               if (!currentIntent || currentIntent.intent !== "computer-control" || !Array.isArray(currentIntent.actions)) {
-                throw new Error("NOVA ekrandaki durumu yorumlayamadı; güvenli olması için işlem durduruldu.");
+                throw new Error("EYRION ekrandaki durumu yorumlayamadı; güvenli olması için işlem durduruldu.");
               }
               needsReplan = true;
               break;
@@ -652,7 +650,7 @@ function registerDesktopAssistantIpc() {
             } else if (action.type === "spotify-search") {
               await searchSpotify(action.query);
             } else if (action.type === "research-web") {
-              if (!accessToken) throw new Error("Web araştırması için önce NOVA hesabında oturum açmalısın.");
+              if (!accessToken) throw new Error("Web araştırması için önce EYRION hesabında oturum açmalısın.");
               const response = await fetch(new URL("/api/research", NOVA_URL), {
                 method: "POST",
                 headers: {
@@ -664,7 +662,7 @@ function registerDesktopAssistantIpc() {
               });
               const research = await response.json().catch(() => ({}));
               if (!response.ok || !research.success || typeof research.answer !== "string" || !research.answer.trim()) {
-                throw new Error(research.error || "NOVA web araştırmasını tamamlayamadı.");
+                throw new Error(research.error || "EYRION web araştırmasını tamamlayamadı.");
               }
               reportProgress("completed", "Araştırma yanıtı hazır.", completed + 1, completed + 1);
               return { message: research.answer, steps: completed + 1, sources: research.sources || [] };
@@ -676,12 +674,12 @@ function registerDesktopAssistantIpc() {
           }
           if (!needsReplan) {
             if (currentIntent.done === true) {
-              if (completed === 0) throw new Error("NOVA herhangi bir masaüstü işlemini tamamlayamadı; görevi tamamlandı olarak göstermiyorum.");
+              if (completed === 0) throw new Error("EYRION herhangi bir masaüstü işlemini tamamlayamadı; görevi tamamlandı olarak göstermiyorum.");
               const message = currentIntent.message || "İstenen masaüstü işlemleri tamamlandı.";
               reportProgress("completed", message, completed, completed);
               return { message, steps: completed };
             }
-            reportProgress("planning", "Mevcut adımlar bitti; NOVA görevin devamını otomatik planlıyor.", completed, 0);
+            reportProgress("planning", "Mevcut adımlar bitti; EYRION görevin devamını otomatik planlıyor.", completed, 0);
             try {
               currentIntent = await requestInterpretation();
             } catch (error) {
@@ -849,7 +847,7 @@ function handleUpdateError(error) {
   clearUpdateTimeouts();
   updateCheckInProgress = false;
   updateDownloadInProgress = false;
-  console.error("NOVA auto-update error:", error);
+  console.error("EYRION auto-update error:", error);
   sendUpdateStatus("error");
   scheduleUpdateRetry();
 }
@@ -860,7 +858,7 @@ function checkForUpdates() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       void dialog.showMessageBox(mainWindow, {
         type: "info",
-        title: "NOVA AI Güncelleme",
+        title: "EYRION AI Güncelleme",
         message: "Güncelleme denetimi yalnızca kurulu Windows sürümünde kullanılabilir.",
         buttons: ["Tamam"]
       });
@@ -876,7 +874,7 @@ function checkForUpdates() {
   updateCheckTimeout = setTimeout(() => {
     updateCheckTimeout = undefined;
     updateCheckInProgress = false;
-    console.warn("NOVA update check timed out.");
+    console.warn("EYRION update check timed out.");
     sendUpdateStatus("error");
     scheduleUpdateRetry();
   }, UPDATE_CHECK_TIMEOUT_MS);
@@ -899,25 +897,31 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
   const versionMatch = String(releaseName || "").match(/\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?/);
   const nextVersion = versionMatch?.[0] || "Yeni sürüm";
   const releaseHighlights = {
+    "0.2.0-alpha.72": [
+      "EYRION AI marka kimliği ve yenilenmiş güncelleme ekranı",
+      "EYRION dijital karakteri için gerçek sohbet, ses ve görev durumları",
+      "Bilmeceler, bilgi turu, hafıza, kelime zinciri ve seçimli hikâye",
+      "Sohbet, hesap, hafıza ve mevcut Windows güncelleme uyumluluğu korunuyor"
+    ],
     "0.2.0-alpha.71": [
-      "Yeni, özgün NOVA Companion görsel kimliği ve etkileşim alanı",
+      "Yeni, özgün EYRION görsel kimliği ve etkileşim alanı",
       "Sesli sohbet ve masaüstü görevlerinde Companion durum göstergesi",
       "Mobil ve dar ekranlarda daha düzenli Companion yerleşimi",
-      "NOVA Sim ana uygulama menüsünden kaldırıldı; kaynak dosyaları korundu"
+      "Companion keşif alanı ve etkileşimli etkinlikler eklendi"
     ],
     "0.2.0-alpha.7": [
-      "NOVA'ya özel, animasyonlu güncelleme penceresi",
+      "EYRION'a özel, animasyonlu güncelleme penceresi",
       "Her sürümde yenilikleri ve iyileştirmeleri gösteren sürüm notları",
       "Daha anlaşılır sürüm karşılaştırması ve yeniden başlatma akışı"
     ],
     "0.2.0-alpha.10": [
-      "Windows için NOVA Bilgisayar Asistanı eklendi",
+      "Windows için EYRION Bilgisayar Asistanı eklendi",
       "Bilgisayar bilgilerini görüntüleme ve kişisel klasörlerde dosya arama",
       "Not Defteri, Hesap Makinesi, Dosya Gezgini ve Steam'i açma",
       "Klasör oluşturma, dosya taşıma ve yeniden adlandırma işlemleri için güvenlik onayları"
     ],
     "0.2.0-alpha.28": [
-      "NOVA artık Windows masaüstünde mouse ve klavyeyi kullanabiliyor",
+      "EYRION artık Windows masaüstünde mouse ve klavyeyi kullanabiliyor",
       "Discord, Chrome, Spotify ve diğer desteklenen uygulamalar arasında işlem yapabiliyor",
       "Steam kütüphanesindeki kurulu oyunları adlarıyla başlatabiliyor",
       "Ekrandaki erişilebilir öğeleri okuyup adım adım tıklama ve metin yazma",
@@ -935,7 +939,7 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
     "0.2.0-alpha.34": [
       "Windows Ayarları ve Görev Yöneticisi için daha güvenilir doğrudan başlatma",
       "Türkçe uygulama adlarında doğal ekleri tanıma ve YouTube/yt arama komutları",
-      "Google araştırma isteklerinde kaynakları inceleyip yanıtı NOVA içinde sunma",
+      "Google araştırma isteklerinde kaynakları inceleyip yanıtı EYRION içinde sunma",
       "Dosyaları incele isteğinde erişilebilir sürücülerin üst düzey içeriğini listeleme",
       "Mouse/fare yön komutları ve imleç hareketinin gerçek konumla doğrulanması",
       "Uygulama başlatma hatalarında UTF-8 yapılandırılmış hata çıktısı"
@@ -958,7 +962,7 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
     .filter((line) => line && !/^what's changed/i.test(line) && !/^full changelog/i.test(line) && !/^compare view/i.test(line))
     .slice(0, 7);
   const items = releaseHighlights[nextVersion] || (parsedNotes.length ? parsedNotes : [
-    "NOVA AI için yeni iyileştirmeler ve hata düzeltmeleri",
+    "EYRION AI için yeni iyileştirmeler ve hata düzeltmeleri",
     "Daha iyi ve kararlı bir kullanım deneyimi"
   ]);
 
@@ -977,7 +981,7 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
     modal: Boolean(mainWindow && !mainWindow.isDestroyed()),
     parent: mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined,
     backgroundColor: "#0b0b14",
-    title: "NOVA AI — Güncelleme hazır",
+    title: "EYRION AI — Güncelleme hazır",
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(app.getAppPath(), "src", "preload.cjs"),
@@ -1029,7 +1033,7 @@ function configureAutoUpdates() {
     updateDownloadTimeout = setTimeout(() => {
       updateDownloadTimeout = undefined;
       updateDownloadInProgress = false;
-      console.warn("NOVA update download timed out.");
+      console.warn("EYRION update download timed out.");
       sendUpdateStatus("error");
       scheduleUpdateRetry();
     }, UPDATE_DOWNLOAD_TIMEOUT_MS);
@@ -1038,7 +1042,7 @@ function configureAutoUpdates() {
     sendUpdateStatus("available");
     if (Notification.isSupported()) {
       new Notification({
-        title: "NOVA AI güncellemesi",
+        title: "EYRION AI güncellemesi",
         body: "Yeni sürüm indiriliyor. İndirme tamamlandığında haber vereceğiz."
       }).show();
     }
@@ -1048,7 +1052,7 @@ function configureAutoUpdates() {
     updateCheckInProgress = false;
     updateDownloadInProgress = false;
     updateRetryScheduler.reset();
-    console.info("NOVA is up to date.");
+    console.info("EYRION is up to date.");
     sendUpdateStatus("not-available");
   });
   autoUpdater.on("update-downloaded", (_event, releaseNotes, releaseName) => {
@@ -1100,7 +1104,7 @@ function handleSquirrelEvent() {
       });
       child.unref();
     } catch (error) {
-      console.error("NOVA shortcut setup failed:", error);
+      console.error("EYRION shortcut setup failed:", error);
     }
   };
 
@@ -1122,7 +1126,7 @@ function handleSquirrelEvent() {
 }
 
 if (!handleSquirrelEvent()) {
-  app.setName("NOVA AI");
+  app.setName("EYRION AI");
   if (process.platform === "win32") app.setAppUserModelId("com.squirrel.nova_ai.nova_ai");
 
   ipcMain.handle("nova-desktop:app-info", () => ({

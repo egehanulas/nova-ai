@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NOVA Desktop Assistant</title>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EYRION AI · Bilgisayar Asistanı</title>
 <style>
 :root{color-scheme:dark;font-family:Inter,"Segoe UI",sans-serif;background:#090b12;color:#eef0f8}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0%,#202044 0,transparent 38%),#090b12;min-height:100vh}
 header{padding:24px 28px;border-bottom:1px solid #ffffff18;display:flex;align-items:center;justify-content:space-between}.brand{font-size:20px;font-weight:750;letter-spacing:.08em}.sub{color:#9da4bd;font-size:12px;margin-top:5px}
@@ -10,7 +10,7 @@ input,select{width:100%;background:#0a0e18;color:#f4f5fc;border:1px solid #fffff
 #status{padding:12px 14px;border-radius:12px;background:#171d2c;color:#d8def4;font-size:13px;min-height:42px;white-space:pre-wrap}#results{display:grid;gap:7px;margin-top:12px}.result{padding:10px;border:1px solid #ffffff16;border-radius:9px;font-size:12px;overflow-wrap:anywhere;display:flex;justify-content:space-between;gap:8px}
 footer{padding:4px 0 24px;color:#858da5;font-size:11px;text-align:center}@media(max-width:700px){.grid{grid-template-columns:1fr}main{padding:14px}header{padding:18px}}
 </style></head><body>
-<header><div><div class="brand">NOVA <span style="color:#8b80ff">DESKTOP</span></div><div class="sub">Bilgisayar Asistanı</div></div><button id="refresh">Bilgileri yenile</button></header>
+<header><div><div class="brand">EYRION <span style="color:#8b80ff">DESKTOP</span></div><div class="sub">Bilgisayar Asistanı</div></div><button id="refresh">Bilgileri yenile</button></header>
 <main><section class="intro"><h1>Bilgisayarında sana yardımcı olayım.</h1><div class="muted">Uygulama ve Steam oyunu açabilir, web sitelerine gidebilir, Spotify'da şarkı arayabilir; desteklenen pencerelerde mouse ve klavyeyi kullanarak ekrandaki öğeleri bulup tıklayabilir ve metin yazabilir. Ayrıca erişilebilir yerel sürücülerde dosya arar ve açar. Dosya taşıma, klasör oluşturma ve silme işlemleri ayrıca onay ister. Ekran analizi istediğinde birincil monitörün sıkıştırılmış görüntüsü, görsel yorumlama için oturum doğrulaması sonrası Gemini API'ye gönderilir; parola veya ödeme bilgisi içeren ekranları analiz ettirmemeni öneririz.</div></section>
 <div class="grid">
 <section class="card"><h2>Uygulama aç</h2><div class="apps"><button data-app="notepad">Not Defteri</button><button data-app="calculator">Hesap Makinesi</button><button data-app="explorer">Dosya Gezgini</button><button data-app="steam">Steam</button><button data-app="discord">Discord</button><button data-app="paint">Paint</button></div></section>
@@ -19,7 +19,7 @@ footer{padding:4px 0 24px;color:#858da5;font-size:11px;text-align:center}@media(
 <section class="card"><h2>Klasör oluştur</h2><form id="mkdir"><label>Konum</label><select id="folderParent"></select><label>Klasör adı</label><input id="folderName" maxlength="80" placeholder="Yeni klasör" required><button class="primary">Klasör oluştur</button></form></section>
 <section class="card"><h2>Dosya taşı / yeniden adlandır</h2><form id="move"><label>Taşınacak dosyanın tam yolu</label><input id="source" placeholder="Arama sonucundan seçebilirsin" required><label>Hedef klasör</label><select id="destination"></select><label>Yeni ad (isteğe bağlı)</label><input id="newName" maxlength="180" placeholder="Aynı kalsın"><button class="primary">Taşı / yeniden adlandır</button></form></section>
 <section class="card"><h2>Hızlı erişim</h2><div id="folders" class="muted">Klasörler yükleniyor…</div></section></div>
-<div id="status" role="status" aria-live="polite">NOVA hazır. Ne yapmak istersin?</div><footer>Windows masaüstü kontrolü · Uygulama, tarayıcı, mouse ve klavye · Güvenlik sınırları etkin</footer></main>
+<div id="status" role="status" aria-live="polite">EYRION hazır. Ne yapmak istersin?</div><footer>Windows masaüstü kontrolü · Uygulama, tarayıcı, mouse ve klavye · Güvenlik sınırları etkin</footer></main>
 <script>
 const $=id=>document.getElementById(id);const api=window.novaDesktop.assistant;
 function status(message){$("status").textContent=message}

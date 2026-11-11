@@ -1,13 +1,13 @@
-# NOVA AI
+# EYRION AI
 
 **Web/API sürümü:** 0.2.0-alpha.10 · **Windows masaüstü:** 0.2.0-alpha.71 · **Kanal:** Alfa
 
-NOVA AI; Türkçe sohbet, kalıcı kullanıcı hafızası, canlı web araştırması, yapılandırılmış hava durumu/futbol sorguları ve Unreal Engine 5.8 bilgi tabanı için geliştirilmiş kişisel asistandır.
+EYRION AI; Türkçe sohbet, kalıcı kullanıcı hafızası, canlı web araştırması, yapılandırılmış hava durumu/futbol sorguları ve Unreal Engine 5.8 bilgi tabanı için geliştirilmiş kişisel asistandır.
 
 > **Alfa sürümü:** Aktif geliştirme ve test aşamasındadır. Özellikler, sağlayıcı erişimi ve kullanılabilirlik değişebilir. Kritik işlerde yanıtları bağımsız kaynaklardan doğrulayın; önemli verilerin yedeğini alın.
 
 
-NOVA AI; Türkçe sohbet, kalıcı kullanıcı hafızası, canlı web araştırması, yapılandırılmış hava durumu/futbol sorguları ve Unreal Engine 5.8 bilgi tabanı için geliştirilmiş kişisel asistandır.
+EYRION AI; Türkçe sohbet, kalıcı kullanıcı hafızası, canlı web araştırması, yapılandırılmış hava durumu/futbol sorguları ve Unreal Engine 5.8 bilgi tabanı için geliştirilmiş kişisel asistandır.
 
 ## Çalışma yapısı
 
@@ -54,7 +54,7 @@ Supabase SQL Editor'de sırasıyla `003`, `004` ve `006` migration dosyalarını
 
 ## Güvenilirlik notları
 
-- Arama motoru sonuçları özet/snippet olabilir; NOVA kaynakta açıkça bulunmayan skor, tarih veya tahmin değerlerini uydurmamalıdır.
+- Arama motoru sonuçları özet/snippet olabilir; EYRION kaynakta açıkça bulunmayan skor, tarih veya tahmin değerlerini uydurmamalıdır.
 - Hava durumu önerileri hedef günün tahminine dayanmalı; anlık gözlemle gelecek gün karıştırılmamalıdır.
 - API anahtarı, kota veya sağlayıcı erişimi yoksa ilgili özellik çalışmayabilir. Ücretsiz servislerin kota, hız ve kullanılabilirlik koşulları değişebilir.
 - `/health` endpoint'i servis durumunu ve anahtarların yalnızca ayarlı olup olmadığını gösterir; anahtar değerlerini döndürmez.
@@ -78,8 +78,8 @@ Supabase SQL Editor'de sırasıyla `003`, `004` ve `006` migration dosyalarını
 
 - Bu sürüm erken test içindir; üretim kararlılığı veya kesintisiz erişim garantisi vermez.
 - Sohbet, web araştırması, hafıza, ses ve görsel üretimi harici servislerin erişimine, kota ve API anahtarlarına bağlıdır.
-- NOVA Desktop, barındırılan web uygulamasını açan çevrimiçi Electron istemcisidir; yerel dosya arama/açma/taşıma, Windows Başlat menüsüne kayıtlı uygulamaları açma ve erişilebilir pencerelerde UI Automation ile çok adımlı kontrol Windows masaüstü IPC katmanında çalışır. Uygulama ve site otomasyonu, erişilebilir arayüz denetimlerine bağlıdır; her özel uygulama/oyun ekranı aynı düzeyde otomatikleştirilemeyebilir. Çevrimdışı sohbet henüz yoktur.
+- EYRION Desktop, barındırılan web uygulamasını açan çevrimiçi Electron istemcisidir; yerel dosya arama/açma/taşıma, Windows Başlat menüsüne kayıtlı uygulamaları açma ve erişilebilir pencerelerde UI Automation ile çok adımlı kontrol Windows masaüstü IPC katmanında çalışır. Uygulama ve site otomasyonu, erişilebilir arayüz denetimlerine bağlıdır; her özel uygulama/oyun ekranı aynı düzeyde otomatikleştirilemeyebilir. Çevrimdışı sohbet henüz yoktur.
 - Masaüstü otomatik güncellemesi GitHub Releases/Squirrel.Windows üzerinden dağıtılır; güncelleme indirildiğinde kurulum kullanıcı onayıyla yapılır.
-- NOVA Desktop, erişilebilir uygulama pencerelerinde fare/klavye kontrolü ve çok adımlı görev otomasyonu sunar; Discord mesajları kullanıcı komutuyla gönderilebilir. UI Automation kapsamı uygulamaya ve siteye göre değişebilir.
+- EYRION Desktop, erişilebilir uygulama pencerelerinde fare/klavye kontrolü ve çok adımlı görev otomasyonu sunar; Discord mesajları kullanıcı komutuyla gönderilebilir. UI Automation kapsamı uygulamaya ve siteye göre değişebilir.
 - /health endpoint'i sürüm ve kanal bilgisini verir; gizli anahtar değerlerini açığa çıkarmaz.
 - Sürüm numaraları nova-ai/package.json, nova-ai/package-lock.json ve nova-ai/desktop/package.json dosyalarında birlikte tutulur. npm run check bu eşleşmeyi test eder.

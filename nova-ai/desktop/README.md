@@ -1,6 +1,6 @@
-# NOVA AI Desktop
+# EYRION AI Desktop
 
-NOVA AI web uygulamasını Windows masaüstü penceresinde çalıştıran Electron istemcisidir. Mevcut Render web/API servisini kullanır; masaüstü sürümünde Türkçe konuşma tanıma Transformers.js + Whisper Small ile cihaz üzerinde yapılır. Daha iyi Türkçe tanıma için Whisper Base yerine Whisper Small kullanılır; ilk kullanımda daha büyük bir model indirilir. Mikrofon sesi bir konuşma tanıma sunucusuna gönderilmez.
+EYRION AI web uygulamasını Windows masaüstü penceresinde çalıştıran Electron istemcisidir. Mevcut Render web/API servisini kullanır; masaüstü sürümünde Türkçe konuşma tanıma Transformers.js + Whisper Small ile cihaz üzerinde yapılır. Daha iyi Türkçe tanıma için Whisper Base yerine Whisper Small kullanılır; ilk kullanımda daha büyük bir model indirilir. Mikrofon sesi bir konuşma tanıma sunucusuna gönderilmez.
 
 ## Gereksinimler
 
@@ -10,23 +10,23 @@ NOVA AI web uygulamasını Windows masaüstü penceresinde çalıştıran Electr
 
 ## Windows özellikleri
 
-- Pencereyi kapatmak NOVA'yı sonlandırmaz; sistem tepsisine küçültür.
-- Tepsi simgesine çift tıklayarak NOVA'yı tekrar aç.
-- `Ctrl + Shift + Space`: NOVA penceresini göster/gizle.
+- Pencereyi kapatmak EYRION'u sonlandırmaz; sistem tepsisine küçültür.
+- Tepsi simgesine çift tıklayarak EYRION'u tekrar aç.
+- `Ctrl + Shift + Space`: EYRION penceresini göster/gizle.
 - Tepsi menüsünden Windows açılışında otomatik başlatmayı açıp kapat.
-- Tepsi menüsünden NOVA'yı tamamen kapat.
+- Tepsi menüsünden EYRION'u tamamen kapat.
 - Windows bildirimleri güncelleme indirme durumunu bildirir.
 
 ## Klavye ve menü
 
-- `Ctrl + R`: NOVA'yı yenile
+- `Ctrl + R`: EYRION'u yenile
 - `Ctrl + +`: Yakınlaştır
 - `Ctrl + -`: Uzaklaştır
 - `Ctrl + 0`: Yakınlaştırmayı sıfırla
 - `Alt`: Gizli menüyü göster (Dosya, Görünüm, Yardım)
 - Görünüm menüsünden tam ekranı aç/kapat.
 - Yardım > Güncellemeleri denetle bölümünden güncellemeyi elle kontrol et.
-- Yardım > NOVA AI Hakkında bölümünden kurulu sürümü gör.
+- Yardım > EYRION AI Hakkında bölümünden kurulu sürümü gör.
 
 ## Bilgisayar Asistanı (Windows masaüstü)
 
@@ -61,7 +61,7 @@ Kurulum paketi `out/make/squirrel.windows/x64/` altında üretilir.
 
 ## Otomatik güncelleme yayınlama
 
-Windows Squirrel güncelleme dosyaları GitHub Releases üzerinden dağıtılır. Masaüstü `package.json` sürümünü artıran her değişiklik `main` dalına alındığında GitHub Actions aynı sürüm için `desktop-v<package-version>` etiketini ve GitHub Release'ini otomatik oluşturur; Windows Setup.exe, `.nupkg` ve `RELEASES` güncelleme manifestini yayımlar. İhtiyaç halinde `desktop-v<package-version>` etiketiyle manuel yayın da yapılabilir. Kurulu uygulama bu yayın kanalını denetler; güncelleme indirildiğinde NOVA'nın animasyonlu güncelleme penceresi yeni özellikleri, iyileştirmeleri ve sürüm karşılaştırmasını gösterir; kurulum yalnızca kullanıcı onayıyla başlar.
+Windows Squirrel güncelleme dosyaları GitHub Releases üzerinden dağıtılır. Masaüstü `package.json` sürümünü artıran her değişiklik `main` dalına alındığında GitHub Actions aynı sürüm için `desktop-v<package-version>` etiketini ve GitHub Release'ini otomatik oluşturur; Windows Setup.exe, `.nupkg` ve `RELEASES` güncelleme manifestini yayımlar. İhtiyaç halinde `desktop-v<package-version>` etiketiyle manuel yayın da yapılabilir. Kurulu uygulama bu yayın kanalını denetler; güncelleme indirildiğinde EYRION'un animasyonlu güncelleme penceresi yeni özellikleri, iyileştirmeleri ve sürüm karşılaştırmasını gösterir; kurulum yalnızca kullanıcı onayıyla başlar.
 
 Otomatik güncellemeler yalnızca paketlenmiş Windows uygulamasında çalışır. İlk kurulum yine Setup.exe ile yapılır. Actions derleme artefaktı tek başına otomatik güncelleme kaynağı değildir; güncellemenin çalışması için aynı sürümün GitHub Release'inde Setup.exe, `.nupkg` ve `RELEASES` dosyaları bulunmalıdır.
 
@@ -84,18 +84,18 @@ Otomatik güncellemeler yalnızca paketlenmiş Windows uygulamasında çalışı
 - Görevlerin planlama, çalışma, yeniden deneme ve tamamlanma durumları sohbet penceresinde ayrıntılı gösterilir.
 - Satın alma/ödeme, hesap ayarı değiştirme ve program kurma/kaldırma komutlarında yerel onay alınır. Dosya silme işlemleri mevcut ayrı onayını korur.
 - Uygulama başlatma için rastgele PowerShell/CMD komutu çalıştırılmaz; yalnızca Windows Başlat menüsündeki kayıtlı uygulamalar aranır.
-- Parola ve tek kullanımlık kodlar NOVA'ya yazdırılmaz; giriş ekranındaki hassas alanlarda kullanıcı girişi beklenir.
+- Parola ve tek kullanımlık kodlar EYRION'a yazdırılmaz; giriş ekranındaki hassas alanlarda kullanıcı girişi beklenir.
 
 ## Güvenlik ve mimari
 
 - Renderer içinde Node.js entegrasyonu kapalıdır.
 - Context isolation ve Chromium sandbox açıktır.
 - Harici bağlantılar varsayılan tarayıcıda açılır.
-- Uygulama yalnızca `https://nova-ai-xxid.onrender.com/` adresindeki NOVA AI servisini yükler.
+- Uygulama yalnızca `https://nova-ai-xxid.onrender.com/` adresindeki EYRION AI servisini yükler.
 - API anahtarları EXE içine gömülmez; mevcut sunucu tarafında kalır.
 - Windows başlangıçta otomatik açılma kullanıcı tarafından tepsi menüsünden açılıp kapatılır.
 - Güncellemeler indirilir ancak kullanıcı onayı olmadan yüklenmez.
 
-Sesli sohbet: Windows masaüstü uygulaması, Chromium SpeechRecognition ağına bağımlı değildir. İlk kullanımda Whisper modeli internetten indirilir ve tarayıcı/Electron önbelleğine alınır; sonraki kullanımlarda konuşma çözümlenmesi cihazda yapılır. NOVA'nın yapay zekâ yanıtı için internet bağlantısı gerekir. Web sürümü mevcut tarayıcı konuşma tanıma yöntemini kullanmaya devam eder.
+Sesli sohbet: Windows masaüstü uygulaması, Chromium SpeechRecognition ağına bağımlı değildir. İlk kullanımda Whisper modeli internetten indirilir ve tarayıcı/Electron önbelleğine alınır; sonraki kullanımlarda konuşma çözümlenmesi cihazda yapılır. EYRION'un yapay zekâ yanıtı için internet bağlantısı gerekir. Web sürümü mevcut tarayıcı konuşma tanıma yöntemini kullanmaya devam eder.
 
 Bu sürüm çevrimiçi istemcidir. Tam çevrimdışı sohbet ve kod imzalama henüz yoktur.

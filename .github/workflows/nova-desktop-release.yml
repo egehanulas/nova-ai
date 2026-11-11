@@ -1,4 +1,4 @@
-name: NOVA Desktop Release
+name: EYRION Desktop Release
 
 on:
   push:
@@ -69,7 +69,7 @@ jobs:
         with:
           tag_name: ${{ steps.release.outputs.tag_name }}
           target_commitish: ${{ github.sha }}
-          name: NOVA AI Desktop ${{ steps.release.outputs.tag_name }}
+          name: EYRION AI Desktop ${{ steps.release.outputs.tag_name }}
           generate_release_notes: true
           overwrite_files: true
           files: |

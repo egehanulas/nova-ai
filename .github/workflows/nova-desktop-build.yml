@@ -1,4 +1,4 @@
-name: NOVA Desktop Windows Build
+name: EYRION Desktop Windows Build
 
 on:
   push:
@@ -46,7 +46,7 @@ jobs:
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: NOVA-AI-Windows-Setup
+          name: EYRION-AI-Windows-Setup
           path: nova-ai/desktop/out/make/squirrel.windows/x64/*.exe
           if-no-files-found: error
           retention-days: 14

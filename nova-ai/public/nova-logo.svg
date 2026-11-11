@@ -1,20 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
-<title>NOVA AI</title><desc>Elektrik mavisi ve mor ışık halkalarıyla çevrelenmiş özgün N sembolü</desc>
-<defs>
- <linearGradient id="bg" x1="22" y1="12" x2="232" y2="244" gradientUnits="userSpaceOnUse"><stop stop-color="#17113b"/><stop offset=".52" stop-color="#090d22"/><stop offset="1" stop-color="#07172c"/></linearGradient>
- <linearGradient id="n" x1="58" y1="45" x2="196" y2="210" gradientUnits="userSpaceOnUse"><stop stop-color="#f2c7ff"/><stop offset=".32" stop-color="#a78bfa"/><stop offset=".68" stop-color="#60a5fa"/><stop offset="1" stop-color="#67e8f9"/></linearGradient>
- <linearGradient id="orbit" x1="23" y1="169" x2="236" y2="87" gradientUnits="userSpaceOnUse"><stop stop-color="#8b5cf6"/><stop offset=".5" stop-color="#c4b5fd"/><stop offset="1" stop-color="#38bdf8"/></linearGradient>
- <radialGradient id="glow"><stop stop-color="#8b5cf6" stop-opacity=".34"/><stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient>
- <filter id="blur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="9"/></filter>
- <filter id="shine" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-</defs>
-<rect x="8" y="8" width="240" height="240" rx="66" fill="url(#bg)" stroke="#b9a4ff" stroke-opacity=".28" stroke-width="2"/>
-<circle cx="128" cy="128" r="100" fill="url(#glow)"/>
-<path d="M37 157C58 80 178 47 220 104c31 42-30 97-98 108-38 6-77-7-85-32" fill="none" stroke="url(#orbit)" stroke-width="9" stroke-linecap="round" opacity=".72" filter="url(#blur)"/>
-<path d="M37 157C58 80 178 47 220 104c31 42-30 97-98 108-38 6-77-7-85-32" fill="none" stroke="url(#orbit)" stroke-width="4.5" stroke-linecap="round" filter="url(#shine)"/>
-<path d="M67 190V68c0-11 14-16 21-7l81 100V68" fill="none" stroke="#6d5be8" stroke-width="29" stroke-linecap="round" stroke-linejoin="round" opacity=".34" filter="url(#blur)"/>
-<path d="M67 190V68c0-11 14-16 21-7l81 100V68" fill="none" stroke="url(#n)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" filter="url(#shine)"/>
-<path d="M67 68l81 100" stroke="#fff" stroke-opacity=".42" stroke-width="3" stroke-linecap="round"/>
-<path d="M203 40l5 12 12 5-12 5-5 12-5-12-12-5 12-5z" fill="#e9d5ff" filter="url(#shine)"/>
-<circle cx="45" cy="92" r="4" fill="#a78bfa"/><circle cx="213" cy="190" r="3" fill="#67e8f9"/>
+<title>EYRION AI</title><desc>Mor ve mavi kristal çizgilerinden oluşan EYRION işareti</desc>
+<defs><linearGradient id="field" x1="26" y1="18" x2="232" y2="240" gradientUnits="userSpaceOnUse"><stop stop-color="#1d1940"/><stop offset="1" stop-color="#10172d"/></linearGradient><linearGradient id="crystal" x1="58" y1="43" x2="198" y2="210" gradientUnits="userSpaceOnUse"><stop stop-color="#c1b2ff"/><stop offset=".48" stop-color="#8274ed"/><stop offset="1" stop-color="#66b9ed"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="62" fill="url(#field)" stroke="#a99aff" stroke-opacity=".3" stroke-width="2"/>
+<path d="M128 36 188 72 207 139 171 196 112 220 57 184 47 112 77 61Z" fill="url(#crystal)"/>
+<path d="m128 36 11 81 49-45m-49 45 68 22-36 57-32-79Zm0 0-82 72 55 36 27-108Zm0 0-51-56-30 51 81 5Z" fill="#fff" fill-opacity=".22"/>
+<path d="M91 143c11-15 23-15 34 0s23 15 35 0" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+<path d="m204 39 5 12 12 5-12 5-5 12-5-12-12-5 12-5z" fill="#c9c0ff"/>
 </svg>

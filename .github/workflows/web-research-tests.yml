@@ -1,4 +1,4 @@
-name: NOVA Web Research Tests
+name: EYRION Web Research Tests
 
 on:
   pull_request:
