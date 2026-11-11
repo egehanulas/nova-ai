@@ -16,10 +16,13 @@ test("backend package and lockfile versions stay synchronized", () => {
 });
 
 test("NOVA Desktop has an independent valid prerelease version", () => {
-  assert.match(desktop.version, /^\d+\.\d+\.\d+-alpha\.\d+$/);
+  assert.match(desktop.version, /^\d+\.\d+\.\d+-beta\.\d+$/);
   assert.equal(desktop.version.split("-")[0], backend.version.split("-")[0]);
 });
 
-test("alpha release uses an explicit prerelease version", () => {
-  assert.match(backend.version, /^\d+\.\d+\.\d+-alpha\.\d+$/);
+test("beta release uses a synchronized explicit prerelease version", () => {
+  assert.match(backend.version, /^\d+\.\d+\.\d+-beta\.\d+$/);
+  const desktopLock = JSON.parse(fs.readFileSync(path.join(root, "desktop", "package-lock.json"), "utf8"));
+  assert.equal(desktopLock.version, desktop.version);
+  assert.equal(desktopLock.packages[""].version, desktop.version);
 });

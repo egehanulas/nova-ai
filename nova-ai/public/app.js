@@ -326,7 +326,7 @@
   }
 
   const THEME_STORAGE_KEY = "nova-ai-theme";
-  const VALID_THEMES = new Set(["original", "dark", "aurora"]);
+  const VALID_THEMES = new Set(["original", "dark", "aurora", "ocean", "forest", "sunset", "paper", "copper", "mono"]);
 
   function applyTheme(theme, announce = false) {
     const selected = VALID_THEMES.has(theme) ? theme : "original";
@@ -340,7 +340,7 @@
     });
     const status = $("#themeStatus");
     if (status && announce) {
-      const labels = { original: "EYRION Original", dark: "Dark", aurora: "Aurora" };
+      const labels = { original: "EYRION Original", dark: "Dark", aurora: "Aurora", ocean: "Okyanus", forest: "Orman", sunset: "Gün Batımı", paper: "Kâğıt", copper: "Bakır", mono: "Monokrom" };
       status.textContent = labels[selected] + " teması uygulandı ve kaydedildi.";
     }
   }
@@ -434,7 +434,7 @@
   if (window.novaDesktop?.isDesktop && window.novaDesktop.getAppInfo) {
     window.novaDesktop.getAppInfo().then((info) => {
       if (installedVersionEl) installedVersionEl.textContent = info.version || "Bilinmiyor";
-      if (versionChannelEl) versionChannelEl.textContent = String(info.version || "").includes("alpha") ? "Alpha" : "Güncel";
+      if (versionChannelEl) versionChannelEl.textContent = String(info.version || "").includes("beta") ? "Beta" : String(info.version || "").includes("alpha") ? "Alpha" : "Güncel";
       if (versionDescriptionEl) versionDescriptionEl.textContent = "Windows masaüstü uygulamasının kurulu sürümü.";
       setUpdateStatus("Güncelleme denetimine hazır.");
     }).catch(() => {

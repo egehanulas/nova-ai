@@ -26,6 +26,31 @@
   window.addEventListener("nova:companion-state", (event) => setState(event.detail?.state, event.detail?.message));
 
   const panel = document.getElementById("activityPanel");
+  const streakView = document.getElementById("discoveryStreak");
+  const totalView = document.getElementById("discoveryTotal");
+  const badgesView = document.getElementById("discoveryBadges");
+  const recommendationView = document.getElementById("discoveryRecommendation");
+  const historyView = document.getElementById("discoveryHistory");
+  const activityNames = { riddle: "Bilmece", quiz: "Bilgi turu", memory: "Hafıza", word: "Kelime zinciri", story: "Hikâye", guess: "Sayı tahmini", daily: "Günün keşfi" };
+  let recordAs = "";
+  function progressStorage() { try { return window.localStorage; } catch { return null; } }
+  function refreshProgress() {
+    const state = window.EyrionDiscoveryState?.read(progressStorage());
+    if (!state) return;
+    if (streakView) streakView.textContent = `${state.streak} günlük seri`;
+    if (totalView) totalView.textContent = String(state.total);
+    if (badgesView) badgesView.textContent = `${state.badges.length} rozet`;
+    if (historyView) historyView.textContent = state.history.length ? `Son: ${activityNames[state.history[0].id] || "Keşif"}` : "İlk etkinliğin seni bekliyor.";
+    const next = window.EyrionDiscoveryState.recommend(state);
+    if (recommendationView) recommendationView.textContent = next ? `Öneri: ${activityNames[next]}` : "Bir keşif seç.";
+  }
+  function completeActivity(message) {
+    if (recordAs) window.EyrionDiscoveryState?.record(progressStorage(), recordAs);
+    recordAs = "";
+    refreshProgress();
+    feedback(message, true);
+  }
+  refreshProgress();
   const riddles = [
     { q: "Ne kadar çok alırsan, o kadar çok geride bırakırsın. Nedir?", a: ["adım", "ayak izi"], h: "Yürürken oluşur." },
     { q: "Dili yok konuşur, kanadı yok uçar. Nedir?", a: ["mektup", "haber"], h: "Birinden diğerine ulaşır." },
@@ -49,42 +74,52 @@
   function feedback(text, good = false) { let line = panel.querySelector("[data-feedback]"); if (!line) { line = el("p", "", "activity-feedback"); line.dataset.feedback = "true"; panel.append(line); } line.textContent = text; line.dataset.good = String(good); }
   function input(placeholder) { const field = el("input"); field.type = "text"; field.placeholder = placeholder; field.setAttribute("aria-label", placeholder); panel.append(field); return field; }
   function startRiddle() {
-    const item = riddles[round++ % riddles.length]; openActivity("Bilmece", item.q);
+    recordAs ||= "riddle"; const item = riddles[round++ % riddles.length]; openActivity("Bilmece", item.q);
     const field = input("Cevabın");
-    panel.append(action("Yanıtla", () => { const answer = field.value.trim().toLocaleLowerCase("tr"); feedback(item.a.includes(answer) ? "Doğru bildin! Harika çözüm." : "Henüz değil. İstersen ipucunu kullan.", item.a.includes(answer)); }));
+    panel.append(action("Yanıtla", () => { const answer = field.value.trim().toLocaleLowerCase("tr"); if (item.a.includes(answer)) completeActivity("Doğru bildin! Harika çözüm. Etkinlik tamamlandı."); else feedback("Henüz değil. İstersen ipucunu kullan."); }));
     panel.append(action("İpucu", () => feedback(item.h), "activity-action secondary"));
     panel.append(action("Başka bilmece", startRiddle, "activity-action secondary"));
   }
   function startQuiz() {
-    round = 0; let score = 0;
+    recordAs ||= "quiz"; round = 0; let score = 0;
     const show = () => {
-      if (round >= quiz.length) { openActivity("Tur tamamlandı", `${quiz.length} soruda ${score} doğru. ${score === quiz.length ? "Kusursuz tur!" : "Yeniden deneyerek skorunu geliştirebilirsin."}`); panel.append(action("Yeniden oyna", startQuiz)); return; }
+      if (round >= quiz.length) { openActivity("Tur tamamlandı", `${quiz.length} soruda ${score} doğru. ${score === quiz.length ? "Kusursuz tur!" : "Yeniden deneyerek skorunu geliştirebilirsin."}`); completeActivity(`${quiz.length} soruluk bilgi turu tamamlandı · ${score}/${quiz.length} doğru.`); panel.append(action("Yeniden oyna", startQuiz)); return; }
       const item = quiz[round]; openActivity(`Bilgi turu · ${round + 1}/${quiz.length}`, item.q);
       item.choices.forEach((choice, i) => panel.append(action(choice, () => { if (i === item.answer) score++; round++; show(); }, "activity-action choice")));
       const footer = el("small", `Skor: ${score}`); footer.className = "activity-score"; panel.append(footer);
     }; show();
   }
   function startMemory() {
+    recordAs ||= "memory";
     const words = ["menekşe", "pusula", "martı", "anahtar", "bulut"];
     window.clearInterval(memoryTimer);
     openActivity("Hafıza oyunu", "Kelimeleri 8 saniye incele; sonra hatırladıklarını yaz.");
     const list = el("p", words.join(" · "), "memory-words"); panel.append(list);
     let remaining = 8; const timer = el("small", `Gizlenmesine ${remaining} saniye`); panel.append(timer);
     memoryTimer = window.setInterval(() => { remaining--; timer.textContent = remaining ? `Gizlenmesine ${remaining} saniye` : "Şimdi hatırladıklarını yaz."; if (!remaining) { window.clearInterval(memoryTimer); list.textContent = "Kelimeler gizlendi."; } }, 1000);
-    panel.append(action("Hazırım", () => { window.clearInterval(memoryTimer); list.textContent = "Kelimeler gizlendi."; timer.textContent = ""; const field = input("Kelimeleri virgülle ayır"); panel.append(action("Kontrol et", () => { const guess = new Set(field.value.toLocaleLowerCase("tr").split(/[;,]/).map(x => x.trim())); const score = words.filter(x => guess.has(x)).length; feedback(`${score}/${words.length} kelimeyi hatırladın. ${score >= 4 ? "Çok iyi!" : "Tekrar deneyebilirsin."}`, score >= 4); })); }, "activity-action secondary"));
+    panel.append(action("Hazırım", () => { window.clearInterval(memoryTimer); list.textContent = "Kelimeler gizlendi."; timer.textContent = ""; const field = input("Kelimeleri virgülle ayır"); panel.append(action("Kontrol et", () => { const guess = new Set(field.value.toLocaleLowerCase("tr").split(/[;,]/).map(x => x.trim())); const score = words.filter(x => guess.has(x)).length; completeActivity(`${score}/${words.length} kelimeyi hatırladın. Hafıza turu tamamlandı.`); })); }, "activity-action secondary"));
   }
   function startWord(lastWord = "") {
+    recordAs ||= "word";
     const starters = ["merak", "kitap", "deniz", "bulut", "ışık"];
     const previous = lastWord || starters[round++ % starters.length]; openActivity("Kelime zinciri", `${lastWord ? `Güzel! “${lastWord}” kabul edildi. ` : `Başlangıç kelimesi: ${previous}. `}Son harf “${previous.slice(-1)}”. Bu harfle başlayan bir Türkçe kelime yaz.`);
     const field = input("Yeni kelime");
-    panel.append(action("Kelimeyi gönder", () => { const value = field.value.trim().toLocaleLowerCase("tr"); if (value.length < 2 || value[0] !== previous.slice(-1)) { feedback(`Kelime “${previous.slice(-1)}” harfiyle başlamalı.`); return; } openActivity("Kelime zinciri", `“${value}” kabul edildi. Sıradaki kelime “${value.slice(-1)}” harfiyle başlamalı.`); panel.append(action("Devam et", () => startWord(value)), action("Baştan", () => startWord(""), "activity-action secondary")); }, "activity-action"));
+    panel.append(action("Kelimeyi gönder", () => { const value = field.value.trim().toLocaleLowerCase("tr"); if (value.length < 2 || value[0] !== previous.slice(-1)) { feedback(`Kelime “${previous.slice(-1)}” harfiyle başlamalı.`); return; } if ((window.wordChainLength = (window.wordChainLength || 0) + 1) >= 5) { window.wordChainLength = 0; completeActivity("Beş kelimelik zinciri tamamladın! Yeni bir tur başlatabilirsin."); panel.append(action("Yeni tur", () => startWord(""))); return; } openActivity("Kelime zinciri", `“${value}” kabul edildi (${window.wordChainLength}/5). Sıradaki kelime “${value.slice(-1)}” harfiyle başlamalı.`); panel.append(action("Devam et", () => startWord(value)), action("Baştan", () => { window.wordChainLength = 0; startWord(""); }, "activity-action secondary")); }, "activity-action"));
   }
   function startStory() {
+    recordAs ||= "story";
     openActivity("Sisli istasyon", "Son tren kalkmış. Peronda üzerinde kendi adın yazan bir zarf buluyorsun. Ne yaparsın?");
     panel.append(action("Zarfı aç", () => { openActivity("Bir not", "Notta yalnızca şu yazıyor: ‘Saat kulesine gel. Yanında kimseyi getirme.’ Kuleye vardığında kapı aralık."); panel.append(action("İçeri gir", () => ending("Merdivenlerin sonunda istasyonun kayıp saatini buluyorsun. Zarf, sana ait eski bir bulmacanın ilk parçasıymış.")), action("Dışarıdan seslen", () => ending("İçeriden bir görevli çıkıyor. Saatin yıllardır durduğunu, onu ancak senin fark edebileceğini söylüyor."))); }), action("İstasyondan yardım iste", () => ending("Görevli zarfın içindeki haritayı görünce gülümsüyor. Kayıp saat için küçük bir araştırma başlıyor."), "activity-action secondary"));
   }
-  function ending(text) { openActivity("Hikâyenin sonu", text); panel.append(action("Yeni kararlar ver", startStory)); }
-  for (const button of document.querySelectorAll("[data-activity]")) button.addEventListener("click", () => ({ riddle: startRiddle, quiz: startQuiz, memory: startMemory, word: startWord, story: startStory }[button.dataset.activity] || (() => {}))());
+  function ending(text) { openActivity("Hikâyenin sonu", text); completeActivity("Hikâyeyi tamamladın. Yeni seçimlerle farklı bir son keşfedebilirsin."); panel.append(action("Yeni kararlar ver", startStory)); }
+  function startGuess() {
+    recordAs ||= "guess"; const target = Math.floor(Math.random() * 20) + 1; let attempts = 0;
+    openActivity("Sayı tahmini", "1 ile 20 arasında bir sayı tuttum. Altı denemede bulabilir misin?"); const field = input("1–20 arasında tahmin");
+    panel.append(action("Tahmin et", () => { const guess = Number(field.value); if (!Number.isInteger(guess) || guess < 1 || guess > 20) { feedback("1 ile 20 arasında tam sayı yaz."); return; } attempts++; if (guess === target) { completeActivity(`${attempts}. denemede buldun!`); return; } if (attempts >= 6) { completeActivity(`Tur tamamlandı. Tuttuğum sayı ${target} idi; yeni turda tekrar dene.`); return; } feedback(`${guess < target ? "Daha büyük" : "Daha küçük"}. Kalan deneme: ${6 - attempts}.`); field.value = ""; field.focus(); }));
+  }
+  const localActivities = { riddle: startRiddle, quiz: startQuiz, memory: startMemory, word: startWord, story: startStory, guess: startGuess };
+  for (const button of document.querySelectorAll("[data-activity]")) button.addEventListener("click", () => { recordAs = button.dataset.activity; localActivities[button.dataset.activity]?.(); });
+  document.querySelector('[data-activity="daily"]')?.addEventListener("click", () => { const id = window.EyrionDiscoveryState?.dailyChallenge() || "riddle"; recordAs = "daily"; localActivities[id]?.(); });
   for (const button of document.querySelectorAll("[data-companion-prompt]")) button.addEventListener("click", () => {
     const prompt = button.dataset.companionPrompt;
     if (!prompt || typeof window.NOVA?.sendMessage !== "function") { setState("error", "Sohbet başlatılamadı. Ana sohbeti açıp tekrar dene."); return; }

@@ -897,6 +897,12 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
   const versionMatch = String(releaseName || "").match(/\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?/);
   const nextVersion = versionMatch?.[0] || "Yeni sürüm";
   const releaseHighlights = {
+    "0.2.0-beta.1": [
+      "Altı yeni tema: Okyanus, Orman, Gün Batımı, Kâğıt, Bakır ve Monokrom",
+      "Günlük keşif serisi, rozetler, etkinlik geçmişi ve kişisel öneriler",
+      "Sayı tahmini oyunu ve günlük olarak değişen yerel keşif",
+      "EYRION sesinin doğal sesle yenileneceği bilgisi açıkça belirtildi"
+    ],
     "0.2.0-alpha.72": [
       "EYRION AI marka kimliği ve yenilenmiş güncelleme ekranı",
       "EYRION dijital karakteri için gerçek sohbet, ses ve görev durumları",

@@ -3372,7 +3372,7 @@ app.get("/health", (req, res) => {
     status: "ok",
     name: "EYRION AI",
     version: APP_VERSION,
-    releaseChannel: "alpha",
+    releaseChannel: "beta",
     timestamp: new Date().toISOString(),
     providers: {
       gemini: Boolean(GEMINI_API_KEY),
