@@ -43,6 +43,14 @@ Render'da servis kök dizini `nova-ai/`, build komutu `npm install`, start komut
 
 Kod sözdizimi kontrolü için `npm run check` çalıştır; `npm start` öncesinde de bu kontrol otomatik çalışır.
 
+## Mobil uygulama (Android / iOS)
+
+Mobil istemci `mobile/` altında bağımsız bir Expo + React Native + TypeScript paketidir; kök sunucu ve `desktop/` bağımlılıklarına ekleme yapmaz. Node.js 22+ ile `cd mobile`, `npm ci`, `.env.example` dosyasını `.env` olarak kopyala ve ardından `npx expo start` çalıştır. Android ve iOS için ortak dosya tabanlı navigasyon Expo Router kullanır.
+
+`EXPO_PUBLIC_EYRION_API_URL`, mevcut Express servisin HTTPS adresi; `EXPO_PUBLIC_SUPABASE_URL` ve `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, aynı Supabase projesinin URL ve publishable key değerleri olmalıdır. Bunlar istemciye gömülen herkese açık ayarlardır; service-role veya model sağlayıcı anahtarlarını mobil ortama koyma. Supabase Auth URL Configuration > Redirect URLs listesine `eyrionai://auth/callback` ekle. Oturum verisi iOS Keychain / Android Keystore destekli SecureStore'da parçalı tutulur.
+
+Mobil başlangıç kapsamı giriş, kayıt, ana ekran ve API istemci altyapısı ile boş sohbet görünümüdür. Gerçek AI sohbet akışı, geçmiş/hafıza ekranları, fotoğraf/dosya, ses ve keşif deneyimi henüz uygulanmadı. `npm run check` ve `npx expo export --platform all` tipleri/testleri ve Android+iOS paket üretimini kontrol eder; gerçek cihaz/emülatör testleri ayrıca yapılmalıdır. iOS Simulator derlemesi için macOS/Xcode veya EAS Build gerekir.
+
 ## Supabase
 
 - `supabase-schema.sql`: sohbet geçmişi tablosu ve RLS politikaları.

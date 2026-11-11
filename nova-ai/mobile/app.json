@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "EYRION AI",
+    "slug": "eyrion-ai-mobile",
+    "scheme": "eyrionai",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.eyrion.ai"
+    },
+    "android": {
+      "package": "com.eyrion.ai",
+      "intentFilters": [{ "action": "VIEW", "autoVerify": false, "data": [{ "scheme": "eyrionai", "host": "auth", "pathPrefix": "/callback" }], "category": ["BROWSABLE", "DEFAULT"] }],
+      "adaptiveIcon": {
+        "backgroundColor": "#10172D",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "experiments": { "typedRoutes": true },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ]
+  }
+}
