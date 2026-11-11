@@ -11,6 +11,40 @@
   overflow-y: auto;
 }
 .companion-view[hidden] { display: none; }
+.welcome-icon.companion-emblem {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  flex-basis: 110px;
+  min-width: 110px;
+  min-height: 110px;
+  overflow: visible;
+  border: 1px solid rgba(188, 174, 255, .38);
+  border-radius: 34px;
+  background: radial-gradient(circle at 50% 45%, rgba(140, 121, 255, .34), rgba(31, 31, 57, .9) 66%);
+  box-shadow: 0 0 0 9px rgba(153, 125, 255, .035), 0 0 60px rgba(143, 115, 255, .24), inset 0 1px rgba(255,255,255,.25);
+}
+.welcome-icon.companion-emblem .nova-avatar-image { opacity: 0; }
+.welcome-icon.companion-emblem::before {
+  position: absolute;
+  inset: 23px 28px;
+  content: "";
+  clip-path: polygon(50% 0, 100% 30%, 92% 78%, 54% 100%, 7% 76%, 0 28%);
+  background: linear-gradient(145deg, #c2b3ff, #7568f5 54%, #5de0d0);
+  filter: drop-shadow(0 0 12px rgba(169,154,255,.62));
+}
+.welcome-icon.companion-emblem::after {
+  position: absolute;
+  top: 52px;
+  left: 38px;
+  width: 34px;
+  height: 9px;
+  content: "";
+  border-top: 2px solid rgba(255,255,255,.9);
+  border-bottom: 2px solid rgba(255,255,255,.58);
+  border-radius: 50%;
+  filter: drop-shadow(0 0 6px rgba(255,255,255,.8));
+}
 .companion-heading, .companion-section-title { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .companion-heading h1, .companion-section-title h2 { margin: 7px 0 0; color: #f5f3ff; letter-spacing: -.035em; }
 .companion-heading h1 { font-size: clamp(26px, 3vw, 38px); }

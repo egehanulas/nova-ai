@@ -1254,8 +1254,10 @@
         "Aklındakileri anlat, birlikte düşünelim. Bir sorunun, fikrin " +
         "ya da sadece sohbet etme isteğin varsa buradayım.";
 
+      const companionEmblem = createNovaAvatar("welcome-icon");
+      companionEmblem.classList.add("companion-emblem");
       welcome.append(
-        createNovaAvatar("welcome-icon"),
+        companionEmblem,
         heading,
         description
       );
