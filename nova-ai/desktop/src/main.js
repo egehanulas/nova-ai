@@ -176,7 +176,7 @@ function createApplicationMenu() {
               type: "info",
               title: "EYRION AI Hakkında",
               message: "EYRION AI",
-              detail: `Sürüm: ${app.getVersion()}\nAlpha sürümü — geri bildirimlerin geliştirmeye yardımcı olur.`,
+              detail: `Sürüm: ${app.getVersion()}\nBeta sürümü — geri bildirimlerin geliştirmeye yardımcı olur.`,
               buttons: ["Tamam"]
             });
           }
