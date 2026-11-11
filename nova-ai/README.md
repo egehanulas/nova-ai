@@ -1,6 +1,6 @@
 # EYRION AI
 
-**Web/API sürümü:** 0.2.0-alpha.10 · **Windows masaüstü:** 0.2.0-alpha.71 · **Kanal:** Alfa
+**Web/API sürümü:** 0.2.0-beta.1 · **Windows masaüstü:** 0.2.0-beta.1 · **Kanal:** Beta
 
 EYRION AI; Türkçe sohbet, kalıcı kullanıcı hafızası, canlı web araştırması, yapılandırılmış hava durumu/futbol sorguları ve Unreal Engine 5.8 bilgi tabanı için geliştirilmiş kişisel asistandır.
 

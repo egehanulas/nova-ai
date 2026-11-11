@@ -1,15 +1,15 @@
 {
   "name": "nova-desktop",
-  "version": "0.2.0-alpha.72",
+  "version": "0.2.0-beta.1",
   "private": true,
-  "description": "EYRION AI Windows desktop — Alpha 72 with EYRION companion and discovery experiences",
+  "description": "EYRION AI Windows desktop — Beta 1 with expanded discovery and six new themes",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "test": "node --check ../public/desktop-command-routing.js && node --check src/main.js && node --check src/preload.cjs && node --check src/desktop-command.js && node --check src/computer-control.js && node --check src/screen-capture.js && node --test src/computer-control.test.js src/screen-capture.test.js src/desktop-assistant.test.js src/desktop-command.test.js ../public/desktop-command-routing.test.js"
+    "test": "node --check ../public/desktop-command-routing.js && node --check ../public/discovery-state.js && node --check src/main.js && node --check src/preload.cjs && node --check src/desktop-command.js && node --check src/computer-control.js && node --check src/screen-capture.js && node --test src/computer-control.test.js src/screen-capture.test.js src/desktop-assistant.test.js src/desktop-command.test.js ../public/desktop-command-routing.test.js"
   },
   "devDependencies": {
     "@electron-forge/cli": "^8.0.1",
@@ -17,5 +17,5 @@
     "electron": "^45.2.1"
   },
   "productName": "EYRION AI",
-  "releaseNotes": "EYRION AI Desktop Alpha 72: EYRION brand identity and companion discovery activities, alongside the existing voice, chat, and desktop task features."
+  "releaseNotes": "EYRION AI Beta 1: six new persistent themes, discovery streaks, badges, recommendations, daily challenge, and a new number game. Existing chat, voice, accounts, and desktop features remain available."
 }

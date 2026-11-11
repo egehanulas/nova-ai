@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/layout-fixes.css?v=alpha70-redesign">
   <link rel="stylesheet" href="/companion.css?v=eyrion-1">
+  <link rel="stylesheet" href="/beta-themes.css?v=beta1-1">
 
   <style>
     .auth-screen {
@@ -569,13 +570,16 @@
           <div class="companion-state-copy"><span class="companion-state-label" id="companionStateLabel">Buradayım</span><span class="companion-state-detail" id="companionStateDetail">Hazır olduğunda birlikte başlayabiliriz.</span></div>
         </div>
         <div class="companion-playground">
-          <div class="companion-section-title"><div><span class="settings-eyebrow">KEŞİF MENÜSÜ</span><h2>Bugün ne yapmak istersin?</h2></div><span class="companion-local-note">Oyunlar bu cihazda, keşifler sohbette</span></div>
+          <div class="companion-section-title"><div><span class="settings-eyebrow">KEŞİF MENÜSÜ</span><h2>Bugün ne yapmak istersin?</h2><p class="discovery-caption">(Yakında bir sürü seçenek ve tamamen sizin isteğinize bağlı özellikler olacak!)</p></div><span class="companion-local-note">Oyunlar bu cihazda, keşifler sohbette</span></div>
+          <section class="discovery-progress" aria-label="Keşif ilerlemen"><div><strong id="discoveryStreak">0 günlük seri</strong><span id="discoveryRecommendation">Sana göre bir keşif hazırlanıyor…</span></div><div><strong id="discoveryTotal">0</strong><span>tamamlanan etkinlik</span></div><div><strong id="discoveryBadges">0 rozet</strong><span id="discoveryHistory">İlk etkinliğin seni bekliyor.</span></div></section>
           <div class="companion-prompts">
             <button type="button" class="companion-prompt" data-activity="riddle"><span aria-hidden="true">◇</span><strong>Bilmeceler</strong><small>İpucuyla çöz</small></button>
             <button type="button" class="companion-prompt" data-activity="quiz"><span aria-hidden="true">✦</span><strong>Bilgi turu</strong><small>5 soruluk mini test</small></button>
             <button type="button" class="companion-prompt" data-activity="memory"><span aria-hidden="true">▦</span><strong>Hafıza oyunu</strong><small>Listeyi aklında tut</small></button>
             <button type="button" class="companion-prompt" data-activity="word"><span aria-hidden="true">Aa</span><strong>Kelime zinciri</strong><small>Son harfle yeni kelime</small></button>
             <button type="button" class="companion-prompt" data-activity="story"><span aria-hidden="true">↗</span><strong>Seçimli hikâye</strong><small>Kararların yön versin</small></button>
+            <button type="button" class="companion-prompt" data-activity="guess"><span aria-hidden="true">#</span><strong>Sayı tahmini</strong><small>6 denemede bul</small></button>
+            <button type="button" class="companion-prompt" data-activity="daily"><span aria-hidden="true">☼</span><strong>Günün keşfi</strong><small>Sana özel günlük oyun</small></button>
             <button type="button" class="companion-prompt" data-companion-prompt="Bana çözülebilir, kısa bir mantık bulmacası hazırla. Önce yalnızca soruyu sor; yanıtımdan sonra ipucu veya çözümü ver."><span aria-hidden="true">⌘</span><strong>Mantık bulmacası</strong><small>Adım adım düşün</small></button>
             <button type="button" class="companion-prompt" data-companion-prompt="Bana 5 soruluk genel kültür yarışması yap. Her seferinde bir soru sor, cevabımı bekle, puanımı takip et ve sonunda sonucumu özetle."><span aria-hidden="true">◎</span><strong>Genel kültür</strong><small>Sohbette 5 soru</small></button>
             <button type="button" class="companion-prompt" data-companion-prompt="Bugün için 3 kısa, güvenli ve yapılabilir günlük görev öner. Her görev farklı bir alanı (merak, hareket, yaratıcılık) desteklesin."><span aria-hidden="true">✓</span><strong>Günlük görev</strong><small>Bugüne küçük bir hedef</small></button>
@@ -608,7 +612,7 @@
         <section class="settings-section" aria-labelledby="themeTitle">
           <div class="settings-section-heading">
             <h2 id="themeTitle">Tema</h2>
-            <span>3 görünüm</span>
+            <span>9 görünüm</span>
           </div>
           <div class="theme-grid">
             <button class="theme-card" type="button" data-theme-choice="original" aria-pressed="false">
@@ -626,6 +630,12 @@
               <span class="theme-card-copy"><strong>Aurora</strong><small>Gece laciverti · turkuaz ve mor ışık</small></span>
               <span class="theme-check" aria-hidden="true">✓</span>
             </button>
+            <button class="theme-card" type="button" data-theme-choice="ocean" aria-pressed="false"><span class="theme-preview theme-preview-ocean"><i></i><i></i><i></i><b></b></span><span class="theme-card-copy"><strong>Okyanus</strong><small>Derin lacivert · mercan ışıkları</small></span><span class="theme-check" aria-hidden="true">✓</span></button>
+            <button class="theme-card" type="button" data-theme-choice="forest" aria-pressed="false"><span class="theme-preview theme-preview-forest"><i></i><i></i><i></i><b></b></span><span class="theme-card-copy"><strong>Orman</strong><small>Çam gölgesi · yeşil yosun</small></span><span class="theme-check" aria-hidden="true">✓</span></button>
+            <button class="theme-card" type="button" data-theme-choice="sunset" aria-pressed="false"><span class="theme-preview theme-preview-sunset"><i></i><i></i><i></i><b></b></span><span class="theme-card-copy"><strong>Gün Batımı</strong><small>Erik moru · sıcak amber</small></span><span class="theme-check" aria-hidden="true">✓</span></button>
+            <button class="theme-card" type="button" data-theme-choice="paper" aria-pressed="false"><span class="theme-preview theme-preview-paper"><i></i><i></i><i></i><b></b></span><span class="theme-card-copy"><strong>Kâğıt</strong><small>Açık keten · mürekkep laciverti</small></span><span class="theme-check" aria-hidden="true">✓</span></button>
+            <button class="theme-card" type="button" data-theme-choice="copper" aria-pressed="false"><span class="theme-preview theme-preview-copper"><i></i><i></i><i></i><b></b></span><span class="theme-card-copy"><strong>Bakır</strong><small>Grafit · işlenmiş bakır vurgular</small></span><span class="theme-check" aria-hidden="true">✓</span></button>
+            <button class="theme-card" type="button" data-theme-choice="mono" aria-pressed="false"><span class="theme-preview theme-preview-mono"><i></i><i></i><i></i><b></b></span><span class="theme-card-copy"><strong>Monokrom</strong><small>Arduvaz · temiz beyaz kontrast</small></span><span class="theme-check" aria-hidden="true">✓</span></button>
           </div>
           <p class="settings-hint" id="themeStatus" role="status" aria-live="polite">Tema seçimin otomatik kaydedilir.</p>
         </section>
@@ -685,7 +695,7 @@
                 <strong>Yüklü sürüm</strong>
                 <span id="installedAppVersion">Sürüm bilgisi alınıyor…</span>
               </div>
-              <span class="settings-version-status" id="appVersionChannel">Alpha</span>
+              <span class="settings-version-status" id="appVersionChannel">Beta</span>
             </div>
             <p class="settings-hint" id="appVersionDescription">Sürüm bilgisi kullandığın EYRION uygulamasından otomatik alınır.</p>
             <div class="voice-settings-actions" style="margin-top:16px">
@@ -738,6 +748,7 @@
         <div class="composer-shell">
           <div class="voice-panel">
             <div class="voice-controls" aria-label="Sesli sohbet kontrolleri">
+              <p class="beta-voice-note">Daha BETA'da: Ses tamamen doğal bir ses ile değişecek.</p>
               <button class="voice-button primary" id="voiceToggle" type="button" aria-pressed="false" aria-label="Sesli sohbeti başlat">
                 <span aria-hidden="true">🎙</span>
                 <span id="voiceToggleLabel">Sesli sohbeti başlat</span>
@@ -813,6 +824,7 @@
   <script src="/app.js?v=desktop-auto-43" defer></script>
   <script src="/desktop-voice.js?v=whisper-desktop-2" defer></script>
   <script src="/voice.js?v=desktop-aware-1" defer></script>
+  <script src="/discovery-state.js?v=beta1-1" defer></script>
   <script src="/companion.js?v=companion-1" defer></script>
 </body>
 </html>

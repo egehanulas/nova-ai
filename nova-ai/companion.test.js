@@ -37,6 +37,26 @@ test("EYRION discovery entries open functional local activities or real chat pro
   assert.match(html, /EYRION AI · BİRLİKTE KEŞFET/);
 });
 
+test("Beta 1 discovery adds a daily number game, local progress, and the requested captions", () => {
+  assert.match(html, /Yakında bir sürü seçenek ve tamamen sizin isteğinize bağlı özellikler olacak!/);
+  assert.match(html, /Daha BETA'da: Ses tamamen doğal bir ses ile değişecek\./);
+  assert.match(html, /data-activity="guess"/);
+  assert.match(html, /data-activity="daily"/);
+  assert.match(script, /function startGuess\(\)/);
+  assert.match(script, /window\.EyrionDiscoveryState\?\.dailyChallenge/);
+  assert.match(script, /window\.EyrionDiscoveryState\.recommend/);
+  assert.match(script, /window\.EyrionDiscoveryState\?\.record/);
+  for (const story of ["Sisli istasyon", "Fenerdeki ışık", "Bahçedeki kapı"]) assert.ok(script.includes(story));
+});
+
+test("Beta 1 preserves the three existing themes and adds exactly six selectable themes", () => {
+  const choices = [...html.matchAll(/data-theme-choice="([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(choices, ["original", "dark", "aurora", "ocean", "forest", "sunset", "paper", "copper", "mono"]);
+  assert.match(html, /9 görünüm/);
+  assert.match(fs.readFileSync(path.join(publicDir, "app.js"), "utf8"), /"original", "dark", "aurora", "ocean", "forest", "sunset", "paper", "copper", "mono"/);
+  assert.match(fs.readFileSync(path.join(publicDir, "app.js"), "utf8"), /nova-ai-theme/);
+});
+
 test("EYRION updater retains the Electron bridge contract and Squirrel compatibility identity", () => {
   const updateHtml = fs.readFileSync(path.join(__dirname, "desktop", "src", "update.html"), "utf8");
   const main = fs.readFileSync(path.join(__dirname, "desktop", "src", "main.js"), "utf8");
@@ -45,7 +65,7 @@ test("EYRION updater retains the Electron bridge contract and Squirrel compatibi
   for (const id of ["close", "later", "install", "current", "next", "count", "items"]) assert.match(updateHtml, new RegExp(`id="${id}"`));
   assert.match(updateHtml, /novaUpdate\?\.install\(\)/);
   assert.equal(pkg.productName, "EYRION AI");
-  assert.match(pkg.version, /alpha\.72$/);
+  assert.match(pkg.version, /beta\.1$/);
   assert.match(forge, /name: "nova_ai"/);
   assert.match(forge, /executableName: "NOVA AI"/);
   assert.match(main, /setAppUserModelId\("com\.squirrel\.nova_ai\.nova_ai"\)/);
