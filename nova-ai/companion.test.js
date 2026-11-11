@@ -9,6 +9,7 @@ const publicDir = path.join(__dirname, "public");
 const html = fs.readFileSync(path.join(publicDir, "index.html"), "utf8");
 const script = fs.readFileSync(path.join(publicDir, "companion.js"), "utf8");
 const styles = fs.readFileSync(path.join(publicDir, "companion.css"), "utf8");
+const server = fs.readFileSync(path.join(__dirname, "server.js"), "utf8");
 
 test("Companion replaces the NOVA Sim entry in the main application", () => {
   assert.match(html, /id="openCompanion"/);
@@ -34,4 +35,5 @@ test("simulation source is retained while the main application no longer loads i
   for (const file of ["sim.html", "sim.js", "sim3d.js"]) {
     assert.ok(fs.existsSync(path.join(publicDir, file)), `${file} should remain available for recovery`);
   }
+  assert.match(server, /app\.use\(\["\/sim\.html", "\/sim\.js", "\/sim3d\.js"\]/);
 });
