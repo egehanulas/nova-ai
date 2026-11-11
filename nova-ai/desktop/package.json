@@ -2,7 +2,7 @@
   "name": "nova-desktop",
   "version": "0.2.0-beta.1",
   "private": true,
-  "description": "EYRION AI Windows desktop — Beta 1 with expanded discovery and six new themes",
+  "description": "EYRION AI Windows desktop — Beta 1 release",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
