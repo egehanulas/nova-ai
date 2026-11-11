@@ -1,15 +1,142 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useNetInfo } from '@react-native-community/netinfo';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BottomNav } from '../../components/BottomNav';
 import { BrandMark } from '../../components/BrandMark';
+import { useAuth } from '../../lib/auth-context';
+import { chatService, learnFromMessage } from '../../lib/chat';
+import type { ChatMessage, Conversation } from '../../lib/chat-domain';
 import { colors } from '../../theme';
 
-export default function EmptyChatScreen() {
-  return <SafeAreaView style={styles.safe}><View style={styles.page}>
-    <View style={styles.header}><Pressable accessibilityLabel="Geri" onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable><View style={styles.titleWrap}><Text style={styles.title}>Yeni sohbet</Text><Text style={styles.status}>EYRION burada</Text></View><BrandMark size={38} /></View>
-    <View style={styles.center}><View style={styles.halo}><BrandMark size={78} /></View><Text style={styles.heading}>Her şey bir merakla başlar.</Text><Text style={styles.copy}>Bir fikir, bir soru ya da keşfetmek istediğin yeni bir konu…</Text><View style={styles.prompt}><Text style={styles.promptMark}>✦</Text><Text style={styles.promptText}>Sohbet bağlantısı sonraki aşamada etkinleştirilecek.</Text></View></View>
-    <View style={styles.composer}><TextInput editable={false} placeholder="Mesajını yaz…" placeholderTextColor="#6F718D" style={styles.input} /><View style={styles.send}><Text style={styles.sendText}>↑</Text></View></View>
-    <Text style={styles.disclaimer}>Yanıtlar yapay zekâ tarafından oluşturulur.</Text>
-  </View></SafeAreaView>;
+export default function ChatScreen() {
+  const { session, ready } = useAuth();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const netInfo = useNetInfo();
+  const [conversation, setConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [draft, setDraft] = useState('');
+  const [loading, setLoading] = useState(Boolean(id));
+  const [sending, setSending] = useState(false);
+  const [streaming, setStreaming] = useState('');
+  const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const listRef = useRef<FlatList<ChatMessage>>(null);
+  const sendingRef = useRef(false);
+  const controllerRef = useRef<AbortController | null>(null);
+  const userId = session?.user.id;
+
+  const loadConversation = useCallback(async () => {
+    if (!userId || !id) { setConversation(null); setMessages([]); setLoading(false); return; }
+    setLoading(true); setLoadError(''); setError('');
+    try {
+      const loaded = await chatService.loadConversation(userId, id);
+      if (!loaded) { setLoadError('Bu sohbet bulunamadı veya hesabına ait değil.'); setConversation(null); setMessages([]); }
+      else { setConversation(loaded); setMessages(loaded.messages); }
+    } catch { setLoadError('Sohbet yüklenemedi. Bağlantını kontrol edip tekrar dene.'); }
+    finally { setLoading(false); }
+  }, [userId, id]);
+  useFocusEffect(useCallback(() => { void loadConversation(); }, [loadConversation]));
+  useEffect(() => { if (ready && !session) router.replace('/login'); }, [ready, session]);
+  useEffect(() => { if (messages.length || streaming) listRef.current?.scrollToEnd({ animated: true }); }, [messages, streaming]);
+  useEffect(() => () => controllerRef.current?.abort(), []);
+
+  const stop = () => controllerRef.current?.abort();
+  const send = async () => {
+    const text = draft.trim();
+    if (!text || !userId || sendingRef.current) return;
+    if (netInfo.isConnected === false) { setError('Çevrimdışısın. Bağlantı geldiğinde mesajını yeniden gönderebilirsin.'); return; }
+    sendingRef.current = true; setSending(true); setDraft(''); setError(''); setStreaming('');
+    setMessages((old) => [...old, { role: 'user', content: text }]);
+    const controller = new AbortController(); controllerRef.current = controller;
+    let userTurnSaved = false;
+    try {
+      const saved = await chatService.send(userId, conversation, text, controller.signal, setStreaming, (prepared) => { userTurnSaved = true; setConversation(prepared); });
+      setConversation(saved); setMessages(saved.messages); setStreaming('');
+      await learnFromMessage(text);
+    } catch (caught) {
+      const aborted = caught instanceof Error && caught.name === 'AbortError';
+      setStreaming('');
+      setError(aborted ? 'Yanıt durduruldu. Mesajın sohbetinde kayıtlı.' : caught instanceof Error ? caught.message : 'Mesaj gönderilemedi.');
+      if (!userTurnSaved && !aborted) {
+        setDraft(text);
+        setMessages((old) => old.at(-1)?.role === 'user' && old.at(-1)?.content === text ? old.slice(0, -1) : old);
+      }
+      // The user turn is saved before contacting the model. Reload it so a network failure never hides it.
+      if (!aborted && conversation) {
+        try {
+          const latest = await chatService.loadConversation(userId, conversation.id);
+          if (latest) { setConversation(latest); setMessages(latest.messages); }
+        } catch { /* keep the local optimistic turn visible */ }
+      }
+    } finally { controllerRef.current = null; sendingRef.current = false; setSending(false); }
+  };
+
+  if (!ready || !session) return <View style={styles.center}><ActivityIndicator color={colors.purple} /></View>;
+  return <SafeAreaView style={styles.safe} edges={['top']}><KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 4 : 0}>
+    <View style={styles.header}><Pressable accessibilityLabel="Sohbet geçmişi" onPress={() => router.push('/history')} style={styles.headerButton}><Text style={styles.headerButtonText}>☰</Text></Pressable><View style={styles.heading}><Text numberOfLines={1} style={styles.title}>{conversation?.title ?? 'Yeni sohbet'}</Text><View style={styles.statusLine}><View style={[styles.dot, netInfo.isConnected === false && styles.offlineDot]} /><Text style={styles.status}>{netInfo.isConnected === false ? 'Çevrimdışı' : sending ? 'Yanıt hazırlanıyor' : 'EYRION yanında'}</Text></View></View><BrandMark size={36} /></View>
+    {netInfo.isConnected === false && <View style={styles.offline}><Text style={styles.offlineText}>İnternet bağlantısı yok. Önceki sohbetlerin görüntülenebilir.</Text></View>}
+    {loadError ? <View style={styles.loadError}><Text style={styles.errorTitle}>Sohbet açılamadı</Text><Text style={styles.errorText}>{loadError}</Text><Pressable onPress={() => void loadConversation()} style={styles.retry}><Text style={styles.retryText}>Tekrar dene</Text></Pressable></View> : loading ? <View style={styles.center}><ActivityIndicator color={colors.purple} /><Text style={styles.loadingText}>Sohbet yükleniyor…</Text></View> : <FlatList ref={listRef} data={messages} keyExtractor={(_, index) => `${conversation?.id ?? 'new'}-${index}`} contentContainerStyle={[styles.messageList, messages.length === 0 && styles.messageListEmpty]} keyboardShouldPersistTaps="handled"
+      ListEmptyComponent={<View style={styles.welcome}><View style={styles.halo}><BrandMark size={72} /></View><Text style={styles.welcomeTitle}>Her şey bir merakla başlar.</Text><Text style={styles.welcomeCopy}>Bir soru, fikir ya da keşfetmek istediğin bir konu…</Text><View style={styles.suggestion}><Text style={styles.suggestionGlyph}>✦</Text><Text style={styles.suggestionText}>Bugün aklında ne var?</Text></View></View>}
+      renderItem={({ item }) => <View style={[styles.messageRow, item.role === 'user' && styles.userRow]}>{item.role === 'assistant' && <View style={styles.miniBrand}><BrandMark size={25} /></View>}<View style={[styles.bubble, item.role === 'user' ? styles.userBubble : styles.assistantBubble]}>{item.role === 'assistant' ? <MarkdownText text={item.content} /> : <Text style={styles.userText}>{item.content}</Text>}</View></View>}
+      ListFooterComponent={sending ? <View style={styles.streamingRow}><View style={styles.miniBrand}><BrandMark size={25} /></View><View style={[styles.bubble, styles.assistantBubble]}>{streaming ? <MarkdownText text={streaming} /> : <View style={styles.thinking}><ActivityIndicator size="small" color={colors.purple} /><Text style={styles.thinkingText}>Düşünüyorum…</Text></View>}</View></View> : undefined} />}
+    {error ? <View style={styles.errorBanner}><Text style={styles.errorText}>{error}</Text></View> : null}
+    <View style={styles.composerWrap}><View style={styles.composer}><TextInput accessibilityLabel="Mesaj yaz" value={draft} onChangeText={setDraft} editable={!sending} multiline maxLength={12000} placeholder="EYRION'a bir şey sor…" placeholderTextColor="#747792" style={styles.input} onSubmitEditing={() => { if (Platform.OS === 'ios') void send(); }} returnKeyType="send" blurOnSubmit={false} />
+      <Pressable accessibilityLabel={sending ? 'Yanıtı durdur' : 'Mesajı gönder'} disabled={!sending && !draft.trim()} onPress={sending ? stop : () => void send()} style={[styles.sendButton, !sending && !draft.trim() && styles.sendDisabled, sending && styles.stopButton]}><Text style={styles.sendGlyph}>{sending ? '■' : '↑'}</Text></Pressable></View><Text style={styles.disclaimer}>Yanıtlar yapay zekâ tarafından oluşturulur.</Text></View>
+  </KeyboardAvoidingView><BottomNav active="chat" /></SafeAreaView>;
 }
-const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: colors.background }, page: { flex: 1, paddingHorizontal: 20, paddingBottom: 12 }, header: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 12, borderBottomColor: '#20233A', borderBottomWidth: 1 }, back: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, backText: { color: colors.text, fontSize: 28, lineHeight: 30 }, titleWrap: { flex: 1 }, title: { color: colors.text, fontSize: 15, fontWeight: '700' }, status: { color: colors.cyan, fontSize: 10, marginTop: 3 }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }, halo: { width: 128, height: 128, borderRadius: 64, alignItems: 'center', justifyContent: 'center', backgroundColor: '#141329', borderWidth: 1, borderColor: '#37304F', marginBottom: 27 }, heading: { color: colors.text, fontSize: 22, lineHeight: 30, textAlign: 'center', fontWeight: '700', letterSpacing: -0.4 }, copy: { color: colors.muted, fontSize: 13, lineHeight: 21, textAlign: 'center', marginTop: 9, maxWidth: 280 }, prompt: { borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 15, flexDirection: 'row', gap: 10, marginTop: 24, alignItems: 'center' }, promptMark: { color: colors.purple, fontSize: 16 }, promptText: { color: '#B0B0C7', fontSize: 11 }, composer: { minHeight: 56, borderRadius: 19, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', padding: 7, paddingLeft: 17 }, input: { flex: 1, color: colors.text, fontSize: 14 }, send: { width: 40, height: 40, borderRadius: 14, backgroundColor: '#3A345A', alignItems: 'center', justifyContent: 'center' }, sendText: { color: '#BEB4E8', fontSize: 23, fontWeight: '700' }, disclaimer: { color: '#676982', textAlign: 'center', fontSize: 9, paddingTop: 9 } });
+
+function inlineMarkdown(line: string) {
+  const matcher = /(\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|\*[^*]+\*|_[^_]+_|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
+  return line.split(matcher).filter(Boolean).map((part, index) => {
+    const link = part.match(/^\[([^\]]+)\]\([^)]+\)$/);
+    if (link) return <Text key={index} style={styles.mdLink}>{link[1]}</Text>;
+    if (part.startsWith('**') || part.startsWith('__')) return <Text key={index} style={styles.mdStrong}>{part.slice(2, -2)}</Text>;
+    if (part.startsWith('~~')) return <Text key={index} style={styles.mdStrike}>{part.slice(2, -2)}</Text>;
+    if (part.startsWith('`')) return <Text key={index} style={styles.mdCode}>{part.slice(1, -1)}</Text>;
+    if (part.startsWith('*') || part.startsWith('_')) return <Text key={index} style={styles.mdEm}>{part.slice(1, -1)}</Text>;
+    return part;
+  });
+}
+
+type MarkdownBlock = { type: 'code' | 'spacer' | 'heading' | 'list' | 'quote' | 'paragraph'; value: string; ordered?: boolean };
+
+function parseMarkdownBlocks(text: string): MarkdownBlock[] {
+  let insideCode = false;
+  let codeLines: string[] = [];
+  const blocks: MarkdownBlock[] = [];
+  for (const line of text.split('\n')) {
+    if (line.trimStart().startsWith('```')) {
+      insideCode = !insideCode;
+      if (!insideCode) {
+        blocks.push({ type: 'code', value: codeLines.join('\n') });
+        codeLines = [];
+      }
+      continue;
+    }
+    if (insideCode) { codeLines.push(line); continue; }
+    if (!line.trim()) { blocks.push({ type: 'spacer', value: '' }); continue; }
+    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) { blocks.push({ type: 'heading', value: heading[2] }); continue; }
+    const list = line.match(/^\s*(?:[-*+]\s+|(\d+)\.\s+)(.+)$/);
+    if (list) { blocks.push({ type: 'list', value: list[2], ordered: Boolean(list[1]) }); continue; }
+    if (line.startsWith('> ')) { blocks.push({ type: 'quote', value: line.slice(2) }); continue; }
+    blocks.push({ type: 'paragraph', value: line });
+  }
+  if (insideCode && codeLines.length) blocks.push({ type: 'code', value: codeLines.join('\n') });
+  return blocks;
+}
+
+function MarkdownText({ text }: { text: string }) {
+  return <View style={styles.mdBody}>{parseMarkdownBlocks(text).map((block, index) => {
+    if (block.type === 'code') return <Text key={index} style={styles.mdCodeBlock}>{block.value}</Text>;
+    if (block.type === 'spacer') return <Text key={index} style={styles.mdSpacer}> </Text>;
+    if (block.type === 'heading') return <Text key={index} style={[styles.mdText, styles.mdHeading]}>{inlineMarkdown(block.value)}</Text>;
+    if (block.type === 'list') return <Text key={index} style={styles.mdText}>{block.ordered ? '1. ' : '• '}{inlineMarkdown(block.value)}</Text>;
+    if (block.type === 'quote') return <Text key={index} style={[styles.mdText, styles.mdQuote]}>{inlineMarkdown(block.value)}</Text>;
+    return <Text key={index} style={styles.mdText}>{inlineMarkdown(block.value)}</Text>;
+  })}</View>;
+}
+
+const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: colors.background }, flex: { flex: 1 }, center: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', gap: 10 }, header: { minHeight: 62, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, gap: 12, borderBottomColor: '#20233A', borderBottomWidth: 1 }, headerButton: { width: 39, height: 39, borderRadius: 14, backgroundColor: colors.surface, borderColor: colors.line, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }, headerButtonText: { color: colors.lavender, fontSize: 19 }, heading: { flex: 1 }, title: { color: colors.text, fontSize: 14, fontWeight: '700' }, statusLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }, dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#65D3B2' }, offlineDot: { backgroundColor: '#F2B972' }, status: { color: colors.muted, fontSize: 10 }, offline: { backgroundColor: '#282218', borderBottomWidth: 1, borderColor: '#55452C', paddingHorizontal: 16, paddingVertical: 9 }, offlineText: { color: '#EACB95', fontSize: 11 }, messageList: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 18, gap: 15 }, messageListEmpty: { flexGrow: 1, justifyContent: 'center' }, welcome: { alignItems: 'center', paddingHorizontal: 24 }, halo: { width: 116, height: 116, borderRadius: 58, backgroundColor: '#151329', borderColor: '#383250', borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 24 }, welcomeTitle: { color: colors.text, fontSize: 21, fontWeight: '700', textAlign: 'center' }, welcomeCopy: { color: colors.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 8 }, suggestion: { flexDirection: 'row', gap: 9, alignItems: 'center', marginTop: 22, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 14, paddingVertical: 12 }, suggestionGlyph: { color: colors.purple, fontSize: 15 }, suggestionText: { color: '#BCBED4', fontSize: 11 }, messageRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-end', paddingRight: 34 }, userRow: { justifyContent: 'flex-end', paddingLeft: 34, paddingRight: 0 }, miniBrand: { width: 25, height: 25, marginBottom: 2 }, bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 11, maxWidth: '100%' }, assistantBubble: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderBottomLeftRadius: 6, flexShrink: 1 }, userBubble: { backgroundColor: '#30294B', borderWidth: 1, borderColor: '#544879', borderBottomRightRadius: 6 }, userText: { color: '#F2EEFF', fontSize: 14, lineHeight: 21 }, streamingRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingRight: 34 }, thinking: { flexDirection: 'row', gap: 9, alignItems: 'center', minHeight: 22 }, thinkingText: { color: colors.muted, fontSize: 12 }, loadingText: { color: colors.muted, fontSize: 12 }, composerWrap: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 7, borderTopWidth: 1, borderTopColor: '#20233A', backgroundColor: colors.background }, composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, borderRadius: 20, borderWidth: 1, borderColor: '#343751', backgroundColor: '#111426', paddingHorizontal: 13, paddingVertical: 8 }, input: { flex: 1, color: colors.text, fontSize: 14, lineHeight: 20, maxHeight: 120, paddingTop: 7, paddingBottom: 7 }, sendButton: { width: 37, height: 37, borderRadius: 13, backgroundColor: '#7966DF', alignItems: 'center', justifyContent: 'center' }, sendDisabled: { backgroundColor: '#302D48' }, stopButton: { backgroundColor: '#573445' }, sendGlyph: { color: '#FFF', fontSize: 20, fontWeight: '700' }, disclaimer: { color: '#676982', fontSize: 9, textAlign: 'center', marginTop: 7 }, errorBanner: { marginHorizontal: 14, marginBottom: 7, borderWidth: 1, borderColor: '#69404D', backgroundColor: '#2C1D27', borderRadius: 12, padding: 10 }, errorText: { color: '#EDB5C3', fontSize: 11, lineHeight: 17 }, loadError: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 26, gap: 10 }, errorTitle: { color: colors.text, fontSize: 18, fontWeight: '700' }, retry: { borderRadius: 12, backgroundColor: colors.raised, paddingHorizontal: 16, paddingVertical: 10 }, retryText: { color: colors.lavender, fontWeight: '700' }, mdBody: { gap: 2 }, mdText: { color: '#D7D8E8', fontSize: 14, lineHeight: 22 }, mdHeading: { color: '#F5F2FF', fontSize: 18, lineHeight: 25, fontWeight: '700', marginTop: 4 }, mdStrong: { color: '#FFFFFF', fontWeight: '700' }, mdStrike: { color: '#D7D8E8', textDecorationLine: 'line-through' }, mdCode: { color: '#D7C8FF', backgroundColor: '#24213A', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }, mdCodeBlock: { color: '#D7C8FF', backgroundColor: '#0A0C17', borderColor: '#292D49', borderWidth: 1, borderRadius: 10, padding: 10, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 12, lineHeight: 19, marginVertical: 5 }, mdEm: { color: '#C8B9FF', fontStyle: 'italic' }, mdLink: { color: colors.cyan, textDecorationLine: 'underline' }, mdQuote: { borderLeftWidth: 2, borderLeftColor: colors.purple, paddingLeft: 9, color: colors.muted }, mdSpacer: { height: 5 } });
