@@ -42,7 +42,7 @@ function normalizeFeedbackPayload(body = {}) {
 function buildFeedbackTicketCode(id) {
   const compact = String(id || "").replace(/[^a-z0-9]/gi, "").toUpperCase();
   if (compact.length < 10) throw new Error("Geçersiz bildirim kimliği.");
-  return "NOVA-" + compact.slice(0, 10);
+  return "EYRION-" + compact.slice(0, 10);
 }
 
 function buildFeedbackEmailText(report) {
@@ -53,7 +53,7 @@ function buildFeedbackEmailText(report) {
     general: "Genel geri bildirim"
   };
   const lines = [
-    "NOVA AI geri bildirim bildirimi",
+    "EYRION AI geri bildirim bildirimi",
     "Bildirim: " + report.ticketCode,
     "Tür: " + (typeLabels[report.feedbackType] || report.feedbackType),
     "Tarih: " + (report.createdAt || new Date().toISOString()),

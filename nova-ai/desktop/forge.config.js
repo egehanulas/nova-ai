@@ -11,7 +11,7 @@ export default {
       config: {
         name: "nova_ai",
         authors: "Ege",
-        description: "NOVA AI masaüstü asistanı"
+        description: "EYRION AI masaüstü asistanı"
       }
     }
   ]

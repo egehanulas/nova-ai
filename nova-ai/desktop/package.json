@@ -1,8 +1,8 @@
 {
   "name": "nova-desktop",
-  "version": "0.2.0-alpha.71",
+  "version": "0.2.0-alpha.72",
   "private": true,
-  "description": "NOVA AI Windows desktop — Alpha 71 with NOVA Companion and a refreshed experience",
+  "description": "EYRION AI Windows desktop — Alpha 72 with EYRION companion and discovery experiences",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
@@ -16,6 +16,6 @@
     "@electron-forge/maker-squirrel": "^8.0.1",
     "electron": "^45.2.1"
   },
-  "productName": "NOVA AI",
-  "releaseNotes": "NOVA AI Desktop Alpha 71: NOVA Companion, a lightweight interactive discovery space, improved voice and task status feedback, and a refreshed responsive interface. NOVA Sim is removed from the main app; its source files are retained."
+  "productName": "EYRION AI",
+  "releaseNotes": "EYRION AI Desktop Alpha 72: EYRION brand identity and companion discovery activities, alongside the existing voice, chat, and desktop task features."
 }

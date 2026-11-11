@@ -24,7 +24,7 @@
   const memoryButton = document.createElement("button");
   memoryButton.type = "button";
   memoryButton.className = "research-toggle nova-memory-button";
-  memoryButton.innerHTML = '<span class="research-icon" aria-hidden="true">✧</span><span class="research-copy"><span class="research-title">NOVA hafızası</span><span class="research-subtitle">Seni daha iyi tanısın</span></span><span class="research-indicator" aria-hidden="true">↗</span>';
+  memoryButton.innerHTML = '<span class="research-icon" aria-hidden="true">✧</span><span class="research-copy"><span class="research-title">EYRION hafızası</span><span class="research-subtitle">Seni daha iyi tanısın</span></span><span class="research-indicator" aria-hidden="true">↗</span>';
   $("#openImageGallery")?.parentElement?.insertBefore(memoryButton, $("#openImageGallery"));
 
   const scrim = $("#scrim");
@@ -45,7 +45,7 @@
   const profileName = $("#profileName");
 
   if (!form || !prompt || !messagesEl) {
-    console.error("NOVA AI: Sohbet arayüzü bulunamadı.");
+    console.error("EYRION AI: Sohbet arayüzü bulunamadı.");
     return;
   }
 
@@ -72,8 +72,8 @@
       }));
       if (progressHideTimer) clearTimeout(progressHideTimer);
       const labels = {
-        started: "NOVA görevi başlattı",
-        planning: "NOVA planlıyor",
+        started: "EYRION görevi başlattı",
+        planning: "EYRION planlıyor",
         running: "Görev yürütülüyor",
         retrying: "Güvenli yeniden deneme",
         waiting: "Görev beklemede",
@@ -82,7 +82,7 @@
         failed: "Görev durduruldu"
       };
       const step = Number.isFinite(progress.step) && progress.step > 0 ? " · Adım " + progress.step : "";
-      progressPanel.textContent = (labels[progress.phase] || "NOVA görev durumu") + step + "\n" + String(progress.message || "");
+      progressPanel.textContent = (labels[progress.phase] || "EYRION görev durumu") + step + "\n" + String(progress.message || "");
       progressPanel.style.display = "block";
       progressPanel.style.borderColor = progress.phase === "failed" ? "rgba(255,120,120,.55)" : "rgba(150,160,220,.35)";
       progressHideTimer = setTimeout(() => { progressPanel.style.display = "none"; }, ["completed", "cancelled", "failed"].includes(progress.phase) ? 6000 : progress.phase === "waiting" ? 18000 : 90000);
@@ -340,7 +340,7 @@
     });
     const status = $("#themeStatus");
     if (status && announce) {
-      const labels = { original: "NOVA Original", dark: "Dark", aurora: "Aurora" };
+      const labels = { original: "EYRION Original", dark: "Dark", aurora: "Aurora" };
       status.textContent = labels[selected] + " teması uygulandı ve kaydedildi.";
     }
   }
@@ -449,10 +449,10 @@
     const applyUpdateStatus = (status) => {
       if (status === "checking") setUpdateStatus("Güncellemeler denetleniyor…", true);
       else if (status === "available") setUpdateStatus("Yeni sürüm bulundu. Arka planda indiriliyor…", true);
-      else if (status === "not-available") setUpdateStatus("Harika! NOVA zaten güncel.", false);
+      else if (status === "not-available") setUpdateStatus("Harika! EYRION zaten güncel.", false);
       else if (status === "downloaded") setUpdateStatus("Güncelleme hazır. Yenilikler penceresi açıldı.", false);
-      else if (status === "retrying") setUpdateStatus("Bağlantı kurulamadı. NOVA otomatik olarak yeniden deneyecek.", false);
-      else if (status === "error") setUpdateStatus("Denetim başarısız oldu. NOVA yeniden deneyecek; istersen elle tekrar deneyebilirsin.", false);
+      else if (status === "retrying") setUpdateStatus("Bağlantı kurulamadı. EYRION otomatik olarak yeniden deneyecek.", false);
+      else if (status === "error") setUpdateStatus("Denetim başarısız oldu. EYRION yeniden deneyecek; istersen elle tekrar deneyebilirsin.", false);
     };
     let receivedLiveUpdateStatus = false;
     window.novaUpdate?.onStatus((status) => {
@@ -632,8 +632,8 @@
 
     if (profileName) {
       profileName.textContent = currentUser
-        ? currentUser.user_metadata?.name || "NOVA AI"
-        : "NOVA AI";
+        ? currentUser.user_metadata?.name || "EYRION AI"
+        : "EYRION AI";
     }
 
     if (profileEmail) {
@@ -653,13 +653,13 @@
     if (authTitle) {
       authTitle.textContent = isLogin
         ? "Tekrar hoş geldin"
-        : "NOVA AI'ye katıl";
+        : "EYRION AI'ye katıl";
     }
 
     if (authDescription) {
       authDescription.textContent = isLogin
         ? "Hesabına giriş yap ve sohbetlerine devam et."
-        : "Yeni hesabını oluştur ve NOVA AI ile tanış.";
+        : "Yeni hesabını oluştur ve EYRION AI ile tanış.";
     }
 
     if (authSubmit) {
@@ -735,7 +735,7 @@
         await initializeApp();
       }
     } catch (error) {
-      console.error("NOVA AI hesap hatası:", error);
+      console.error("EYRION AI hesap hatası:", error);
 
       if (authMessage) {
         authMessage.textContent =
@@ -1247,7 +1247,7 @@
       welcome.className = "welcome";
 
       const heading = document.createElement("h1");
-      heading.textContent = "Selam, ben NOVA.";
+      heading.textContent = "Selam, ben EYRION.";
 
       const description = document.createElement("p");
       description.textContent =
@@ -1293,14 +1293,14 @@
 
       const name = document.createElement("div");
       name.className = "message-name";
-      name.textContent = isUser ? "Sen" : "NOVA AI";
+      name.textContent = isUser ? "Sen" : "EYRION AI";
 
       const content = document.createElement("div");
       content.className = "message-content";
       if (item.type === "image" && item.imagePath) {
         content.textContent = item.content || "Oluşturulan resim";
         const savedImage = document.createElement("img");
-        savedImage.alt = item.content || "NOVA AI tarafından oluşturulan resim";
+        savedImage.alt = item.content || "EYRION AI tarafından oluşturulan resim";
         savedImage.style.cssText = "display:block;max-width:min(100%,640px);max-height:480px;object-fit:contain;margin-top:10px;border-radius:14px";
         const download = document.createElement("a");
         download.textContent = "Resmi indir";
@@ -1458,7 +1458,7 @@
 
     const name = document.createElement("div");
     name.className = "message-name";
-    name.textContent = "NOVA AI";
+    name.textContent = "EYRION AI";
 
     const content = document.createElement("div");
     content.className = "message-content typing";
@@ -1586,7 +1586,7 @@
     }
 
     if (!fullAnswer.trim()) {
-      throw new Error("NOVA AI boş yanıt döndürdü.");
+      throw new Error("EYRION AI boş yanıt döndürdü.");
     }
 
     return {
@@ -1751,7 +1751,7 @@
         });
         if (memoryResult.saved) showMemorySavedNotice();
       } catch (memoryError) {
-        console.warn("[NOVA AI] Otomatik hafıza kaydı atlandı:", memoryError.message);
+        console.warn("[EYRION AI] Otomatik hafıza kaydı atlandı:", memoryError.message);
       }
 
       // Sesli sohbet, akış yanıtı tamamlandıktan sonra yanıtı seslendirir.
@@ -1763,7 +1763,7 @@
       }
 
       console.info(
-        "[NOVA AI] Yanıt tamamlandı.",
+        "[EYRION AI] Yanıt tamamlandı.",
         result.provider || "",
         result.model || ""
       );
@@ -1772,7 +1772,7 @@
         chatInterruptRequested = false;
         return;
       }
-      console.error("NOVA AI mesaj hatası:", error);
+      console.error("EYRION AI mesaj hatası:", error);
 
       // Sesli komut başarısız olursa mikrofonun waitingForReply durumunda kilitlenmesini önle.
       window.NOVAVoice?.replyFailed?.("Yanıt alınamadı. Tekrar konuşabilirsin.");
@@ -1788,7 +1788,7 @@
         : error?.message ||
           "Şu anda hizmetimize ulaşılamıyor. Lütfen biraz sonra tekrar dene.";
 
-      alert("NOVA AI: " + message);
+      alert("EYRION AI: " + message);
     } finally {
       // loading bir HTML öğesi değil, { wrapper, content } nesnesi.
       if (loading?.wrapper instanceof Element) {
@@ -1836,7 +1836,7 @@
       selectedTextFile = { name: file.name, content };
       updateTextFileStatus();
     } catch (error) {
-      console.error("NOVA AI dosya okuma hatası:", error);
+      console.error("EYRION AI dosya okuma hatası:", error);
       alert(error.message || "Dosya okunamadı. Lütfen tekrar dene.");
       textFileInput.value = "";
     } finally {
@@ -1934,7 +1934,7 @@
     }
   });
 
-  // NOVA AI Image Studio: custom prompt dialog, aspect presets and private gallery.
+  // EYRION AI Image Studio: custom prompt dialog, aspect presets and private gallery.
   const imageGenerateButton=$("#imageGenerate"), imageStatus=$("#imageStatus"), galleryButton=$("#openImageGallery");
   let imageBusy = false;
   function closeStudio(overlay){if(!overlay)return;document.removeEventListener("keydown",overlay._esc);overlay.remove();}
@@ -1942,7 +1942,7 @@
     const overlay=document.createElement("div");overlay.className="image-studio-overlay";
     const panel=document.createElement("section");panel.className="image-studio-panel";panel.setAttribute("role","dialog");panel.setAttribute("aria-modal","true");panel.setAttribute("aria-label",title);
     const head=document.createElement("div");head.className="image-studio-heading";const copy=document.createElement("div");
-    const eyebrow=document.createElement("div");eyebrow.className="image-studio-eyebrow";eyebrow.textContent="NOVA AI · IMAGE STUDIO";
+    const eyebrow=document.createElement("div");eyebrow.className="image-studio-eyebrow";eyebrow.textContent="EYRION AI · IMAGE STUDIO";
     const h=document.createElement("h2");h.textContent=title;const p=document.createElement("p");p.textContent=subtitle;copy.append(eyebrow,h,p);
     const x=document.createElement("button");x.type="button";x.className="image-studio-close";x.textContent="×";x.setAttribute("aria-label","Kapat");x.onclick=()=>onClose?onClose():closeStudio(overlay);
     head.append(copy,x);panel.append(head,content);overlay.append(panel);overlay.onclick=e=>{if(e.target===overlay)(onClose?onClose():closeStudio(overlay));};
@@ -1958,7 +1958,7 @@
     [{v:"square",t:"Kare",d:"1024 × 1024"},{v:"portrait",t:"Dikey",d:"768 × 1024"},{v:"landscape",t:"Yatay",d:"1024 × 768"}].forEach((f,i)=>{const l=document.createElement("label");l.className="image-format";const r=document.createElement("input");r.type="radio";r.name="ratio";r.value=f.v;r.checked=i===0;const span=document.createElement("span"),b=document.createElement("strong"),sm=document.createElement("small");b.textContent=f.t;sm.textContent=f.d;span.append(b,sm);l.append(r,span);formats.append(l);});
     const note=document.createElement("p");note.className="image-studio-note";note.textContent="Üretilen görsel sohbet geçmişine kaydedilir. Üretim süresi servis yoğunluğuna bağlı olabilir.";
     const actions=document.createElement("div");actions.className="image-studio-actions";const cancel=document.createElement("button");cancel.type="button";cancel.className="image-studio-secondary";cancel.textContent="Vazgeç";const go=document.createElement("button");go.type="submit";go.className="image-studio-primary";go.textContent="✦ Görsel oluştur";actions.append(cancel,go);formEl.append(label,input,fmtLabel,formats,note,actions);
-    let overlay;const close=()=>closeStudio(overlay);cancel.onclick=close;overlay=studio({title:"Hayalindeki görseli oluştur",subtitle:"Fikrini anlat, kompozisyonu NOVA AI hazırlasın.",content:formEl,onClose:close});input.focus();
+    let overlay;const close=()=>closeStudio(overlay);cancel.onclick=close;overlay=studio({title:"Hayalindeki görseli oluştur",subtitle:"Fikrini anlat, kompozisyonu EYRION AI hazırlasın.",content:formEl,onClose:close});input.focus();
     formEl.addEventListener("submit",async e=>{e.preventDefault();const text=input.value.trim();if(!text){input.focus();return;}const ratio=formEl.querySelector('input[name="ratio"]:checked')?.value||"square";close();await generateImage(text,ratio);});
   }
   function createImageActivity() {
@@ -1971,7 +1971,7 @@
     main.className = "message-main";
     const name = document.createElement("div");
     name.className = "message-name";
-    name.textContent = "NOVA AI";
+    name.textContent = "EYRION AI";
 
     const content = document.createElement("div");
     content.className = "message-content nova-activity-content";
@@ -2049,7 +2049,7 @@
       preview(result.image,mime,imagePrompt);
       if(imageStatus)imageStatus.textContent="Görsel hazır ve sohbet geçmişine kaydedildi.";
     }catch(error){
-      console.error("NOVA AI görsel hatası:",error);
+      console.error("EYRION AI görsel hatası:",error);
       activity.fail(error.message||"Görsel oluşturulamadı.");
       if(imageStatus)imageStatus.textContent=error.message||"Görsel oluşturulamadı.";
     }finally{
@@ -2070,9 +2070,9 @@
       const imgs=[];(data||[]).forEach(row=>(Array.isArray(row.messages)?row.messages:[]).forEach(m=>{if(m?.type==="image"&&m.imagePath)imgs.push({...m,createdAt:row.updated_at});}));imgs.sort((a,b)=>(Date.parse(b.createdAt)||0)-(Date.parse(a.createdAt)||0));content.replaceChildren();
       if(!imgs.length){const empty=document.createElement("div");empty.className="image-gallery-empty";empty.textContent="Henüz kayıtlı görsel yok. İlk görselini oluşturduğunda burada görünecek.";content.append(empty);return;}
       const grid=document.createElement("div");grid.className="image-gallery-grid";content.append(grid);
-      for(const item of imgs){const card=document.createElement("article");card.className="image-gallery-card";const img=document.createElement("img");img.className="image-gallery-thumb";img.alt=item.content||"NOVA AI görseli";img.loading="lazy";
-        const meta=document.createElement("div");meta.className="image-gallery-meta";const caption=document.createElement("p");caption.className="image-gallery-caption";caption.textContent=item.content||"NOVA AI görseli";const links=document.createElement("div");links.className="image-gallery-links";
-        const open=document.createElement("a");open.href="#";open.textContent="Büyüt";open.onclick=e=>{e.preventDefault();if(img.src)previewSigned(img.src,item.content||"NOVA AI görseli");};
+      for(const item of imgs){const card=document.createElement("article");card.className="image-gallery-card";const img=document.createElement("img");img.className="image-gallery-thumb";img.alt=item.content||"EYRION AI görseli";img.loading="lazy";
+        const meta=document.createElement("div");meta.className="image-gallery-meta";const caption=document.createElement("p");caption.className="image-gallery-caption";caption.textContent=item.content||"EYRION AI görseli";const links=document.createElement("div");links.className="image-gallery-links";
+        const open=document.createElement("a");open.href="#";open.textContent="Büyüt";open.onclick=e=>{e.preventDefault();if(img.src)previewSigned(img.src,item.content||"EYRION AI görseli");};
         const dl=document.createElement("a");dl.href="#";dl.textContent="İndir";dl.download="nova-ai-resim.png";links.append(open,dl);meta.append(caption,links);card.append(img,meta);grid.append(card);
         try{const {data:signed,error:err}=await supabase.storage.from("nova-ai-images").createSignedUrl(item.imagePath,3600);if(err||!signed?.signedUrl)throw err||Error("URL unavailable");img.src=signed.signedUrl;dl.href=signed.signedUrl;dl.download="nova-ai-resim."+(item.mimeType?.includes("jpeg")?"jpg":item.mimeType?.includes("webp")?"webp":"png");}catch{caption.textContent="Görsel açılamadı";open.remove();dl.remove();}
       }
@@ -2095,7 +2095,7 @@
       desktopCommandButton.setAttribute("aria-pressed", String(desktopCommandMode));
       prompt.placeholder = desktopCommandMode
         ? "Bilgisayarına ne yaptırmak istersin? Örn. Steam'i aç"
-        : "NOVA AI'ye ne sormak istersin?";
+        : "EYRION AI'ye ne sormak istersin?";
       if (imageStatus) imageStatus.textContent = desktopCommandMode
         ? "Bilgisayar komut modu açık · Mesajını normal sohbet alanına yaz."
         : "";
@@ -2108,7 +2108,7 @@
   async function runDesktopCommand(rawCommand) {
     const api = window.novaDesktop?.assistant;
     if (!api?.executeCommand) {
-      throw new Error("NOVA bilgisayar komut motoru yüklenemedi. Uygulamayı yeniden başlatıp tekrar dene.");
+      throw new Error("EYRION bilgisayar komut motoru yüklenemedi. Uygulamayı yeniden başlatıp tekrar dene.");
     }
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;
@@ -2143,7 +2143,7 @@
     const content = document.createElement("div");
     const intro = document.createElement("p");
     intro.className = "image-studio-note";
-    intro.textContent = "NOVA, sohbetlerinde paylaştığın kalıcı ve işe yarar bilgileri seçerek hatırlar. Hassas bilgileri otomatik kaydetmez. Buradaki kayıtları istediğin zaman düzenleyebilir veya silebilirsin.";
+    intro.textContent = "EYRION, sohbetlerinde paylaştığın kalıcı ve işe yarar bilgileri seçerek hatırlar. Hassas bilgileri otomatik kaydetmez. Buradaki kayıtları istediğin zaman düzenleyebilir veya silebilirsin.";
     const status = document.createElement("p");
     status.className = "image-studio-note";
     status.setAttribute("role", "status");
@@ -2156,8 +2156,8 @@
     let overlay;
     const close = () => closeStudio(overlay);
     overlay = studio({
-      title: "NOVA hafızası",
-      subtitle: "NOVA öğrenir, kontrol sende kalır.",
+      title: "EYRION hafızası",
+      subtitle: "EYRION öğrenir, kontrol sende kalır.",
       content,
       onClose: close
     });
@@ -2183,7 +2183,7 @@
         card.className = "nova-memory-card";
         const meta = document.createElement("small");
         meta.textContent = (memory.category || "Genel") + " · " +
-          (memory.source === "nova" ? "NOVA öğrendi" : "Sen ekledin");
+          (memory.source === "nova" ? "EYRION öğrendi" : "Sen ekledin");
         const text = document.createElement("p");
         text.textContent = memory.content;
         const actions = document.createElement("div");
@@ -2247,7 +2247,7 @@
         remove.onclick = async () => {
           const approved = await showNovaDialog({
             title: "Hafıza kaydı silinsin mi?",
-            message: "Bu bilgi NOVA'nın hafızasından kalıcı olarak silinecek.",
+            message: "Bu bilgi EYRION'un hafızasından kalıcı olarak silinecek.",
             confirmText: "Kaydı sil",
             cancelText: "Vazgeç",
             danger: true

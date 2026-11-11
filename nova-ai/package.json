@@ -1,7 +1,7 @@
 {
   "name": "nova-ai",
   "version": "0.2.0-alpha.10",
-  "description": "NOVA AI Türkçe sohbet sitesi",
+  "description": "EYRION AI Türkçe sohbet sitesi",
   "main": "server.js",
   "scripts": {
     "start": "npm run check && node server.js",

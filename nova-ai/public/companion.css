@@ -87,6 +87,28 @@
 .companion-prompt > span { grid-row: span 2; display: grid; width: 34px; height: 34px; place-items: center; border-radius: 11px; color: #c4b8ff; background: rgba(159, 139, 255, .13); font-size: 18px; }
 .companion-prompt strong { font-size: 13px; }
 .companion-prompt small { align-self: start; color: #9999ad; font-size: 11px; }
+.companion-view { --companion-lilac: #a99aff; }
+.companion-stage { background: linear-gradient(115deg, rgba(28, 29, 49, .95), rgba(16, 20, 36, .94)); border-color: rgba(165, 160, 220, .2); box-shadow: inset 0 1px rgba(255,255,255,.04); }
+.companion-art { isolation: isolate; }
+.companion-core { animation-duration: 7s; }
+.companion-stage[data-state="listening"] .companion-orbit { border-color: rgba(117, 204, 224, .44); }
+.companion-stage[data-state="exploring"] .companion-core { animation-duration: 3.8s; }
+.companion-stage[data-state="error"] .companion-orbit { border-color: rgba(238, 133, 154, .35); }
+.companion-prompts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.activity-panel { margin-top: 18px; padding: 20px; border: 1px solid rgba(165, 160, 220, .22); border-radius: 18px; background: rgba(20, 23, 39, .94); }
+.activity-panel[hidden] { display: none; }
+.activity-panel h3 { margin: 0 0 8px; color: #f5f3ff; font-size: 18px; }
+.activity-panel > p:not(.activity-feedback):not(.memory-words) { margin: 0 0 15px; color: #c1bfd2; line-height: 1.6; }
+.activity-panel input { display: block; width: min(100%, 440px); min-height: 42px; margin: 12px 0; padding: 10px 12px; border: 1px solid rgba(165,160,220,.27); border-radius: 10px; outline: none; background: rgba(5,8,17,.72); color: #f4f2ff; }
+.activity-panel input:focus-visible { border-color: #a99aff; box-shadow: 0 0 0 3px rgba(169,154,255,.14); }
+.activity-action { min-height: 39px; margin: 4px 7px 4px 0; padding: 0 14px; border: 1px solid rgba(165,160,220,.26); border-radius: 10px; background: #353052; color: #f4f2ff; cursor: pointer; }
+.activity-action:hover { background: #49416d; }
+.activity-action:focus-visible { outline: 2px solid #a99aff; outline-offset: 2px; }
+.activity-action.secondary { background: transparent; color: #c5c2d5; }
+.activity-feedback { color: #c5c2d5; line-height: 1.5; }
+.activity-feedback[data-good="true"] { color: #8ee0bb; }
+.activity-score { display: block; margin-top: 8px; color: #aaa6c0; }
+.memory-words { color: #d8d3ff; font-size: 18px; font-weight: 650; letter-spacing: .04em; }
 @keyframes companion-float { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-7px) rotate(2deg); } }
 @keyframes companion-orbit { to { transform: rotate(388deg); } }
 @keyframes companion-pulse { 0%,100% { opacity: .45; transform: scale(.85); } 50% { opacity: .95; transform: scale(1.12); } }
@@ -97,12 +119,15 @@
   .companion-art { width: 165px; height: 165px; }
   .companion-core { width: 122px; }
   .companion-state-copy { align-items: center; padding-bottom: 12px; }
-  .companion-prompts { grid-template-columns: 1fr; gap: 9px; }
+  .companion-prompts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
   .companion-section-title { align-items: flex-end; }
   .companion-local-note { max-width: 120px; text-align: right; }
+  .companion-prompt { grid-template-columns: 30px 1fr; min-height: 74px; padding: 10px; }
+  .companion-prompt > span { width: 28px; height: 28px; }
   .companion-heading { align-items: flex-start; }
   .companion-heading .settings-back { white-space: nowrap; }
 }
+@media (max-width: 420px) { .companion-prompts { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) {
   .companion-core, .companion-orbit, .companion-pulse, .companion-signal { animation: none !important; }
   .companion-prompt { transition: none; }

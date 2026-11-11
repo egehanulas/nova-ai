@@ -2,7 +2,7 @@
 "use strict";
 
 /*
- * NOVA AI — Ücretsiz tarayıcı sesli sohbeti
+ * EYRION AI — Ücretsiz tarayıcı sesli sohbeti
  * Türkçe konuşma tanıma ve tarayıcı seslendirmesi.
  * ElevenLabs veya /api/tts kullanılmaz.
  */
@@ -18,13 +18,13 @@
   const form = $("form");
 
   if (!toggleButton || !stopButton || !statusLabel || !input || !form) {
-    console.warn("NOVA Voice: Sesli sohbet arayüzü bulunamadı.");
+    console.warn("EYRION Voice: Sesli sohbet arayüzü bulunamadı.");
     return;
   }
 
   // Electron uses its own on-device Whisper engine; keep browser STT unchanged.
   if (window.novaDesktop?.isDesktop) {
-    console.info("NOVA Voice: Desktop Whisper engine is active.");
+    console.info("EYRION Voice: Desktop Whisper engine is active.");
     return;
   }
 
@@ -49,7 +49,7 @@
     statusLabel.dataset.state = state;
     const companionState = state === "listening" ? "listening"
       : state === "error" ? "error"
-        : state === "speaking" && /^NOVA( AI)?( konuşuyor| yanıtını|['’]nın sesi)/i.test(message) ? "speaking"
+        : state === "speaking" && /^EYRION( AI)?( konuşuyor| yanıtını|['’](nın|nun|nin|nün|ın|un|in|ün) sesi)/i.test(message) ? "speaking"
           : "idle";
     window.dispatchEvent(new CustomEvent("nova:companion-state", { detail: { state: companionState } }));
   }
@@ -194,7 +194,7 @@
     try {
       recognition.stop();
     } catch (error) {
-      console.debug("NOVA Voice: Dinleme durdurulamadı.", error);
+      console.debug("EYRION Voice: Dinleme durdurulamadı.", error);
     }
   }
 
@@ -222,7 +222,7 @@
       recognition.start();
     } catch (error) {
       if (error.name !== "InvalidStateError") {
-        console.warn("NOVA Voice: Mikrofon başlatılamadı.", error);
+        console.warn("EYRION Voice: Mikrofon başlatılamadı.", error);
         setVoiceStatus("Mikrofon başlatılamadı. Tekrar dene.", "error");
       }
     }
@@ -290,7 +290,7 @@
       }
     };
 
-    setVoiceStatus("NOVA'nın sesi hazırlanıyor…", "speaking");
+    setVoiceStatus("EYRION'un sesi hazırlanıyor…", "speaking");
 
     try {
       speechChunks.forEach((chunk, index) => {
@@ -303,7 +303,7 @@
 
         utterance.onstart = () => {
           if (currentRequest === speechRequest && voiceEnabled && index === 0) {
-            setVoiceStatus("NOVA konuşuyor…", "speaking");
+            setVoiceStatus("EYRION konuşuyor…", "speaking");
           }
         };
         utterance.onend = () => {
@@ -313,7 +313,7 @@
         };
         utterance.onerror = (event) => {
           if (currentRequest !== speechRequest) return;
-          console.warn("NOVA Voice: Ses parçası okunamadı.", event.error);
+          console.warn("EYRION Voice: Ses parçası okunamadı.", event.error);
           completedChunks += 1;
           finishSpeech();
         };
@@ -321,7 +321,7 @@
       });
     } catch (error) {
       speaking = false;
-      console.error("NOVA Voice: Ses başlatılamadı.", error);
+      console.error("EYRION Voice: Ses başlatılamadı.", error);
       setVoiceStatus("Ses başlatılamadı.", "error");
       scheduleRecognitionRestart(800);
     }
@@ -336,7 +336,7 @@
     if (resumeListening) stopRecognition();
     stopSpeech();
     speaking = true;
-    const preview = new SpeechSynthesisUtterance("Merhaba, ben NOVA. Bugün sana nasıl yardımcı olabilirim?");
+    const preview = new SpeechSynthesisUtterance("Merhaba, ben EYRION. Bugün sana nasıl yardımcı olabilirim?");
     preview.lang = "tr-TR";
     preview.rate = getSpeechRate();
     preview.pitch = 1;
@@ -352,7 +352,7 @@
       if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Ses denemesi başarısız oldu.";
       if (resumeListening) scheduleRecognitionRestart(700);
     };
-    if (voiceSettingsStatus) voiceSettingsStatus.textContent = "NOVA'nın sesi deneniyor…";
+    if (voiceSettingsStatus) voiceSettingsStatus.textContent = "EYRION'un sesi deneniyor…";
     synth.speak(preview);
   });
 
@@ -400,7 +400,7 @@
       input.dispatchEvent(new Event("input", { bubbles: true }));
 
       waitingForReply = true;
-      setVoiceStatus("Söylediklerin NOVA'ya gönderiliyor…", "speaking");
+      setVoiceStatus("Söylediklerin EYRION'a gönderiliyor…", "speaking");
       stopRecognition();
 
       if (typeof form.requestSubmit === "function") {
@@ -416,7 +416,7 @@
     };
 
     recognition.onerror = (event) => {
-      console.warn("NOVA Voice: Konuşma tanıma hatası.", event.error);
+      console.warn("EYRION Voice: Konuşma tanıma hatası.", event.error);
 
       if (!voiceEnabled) return;
 
@@ -479,7 +479,7 @@
 
     if (!navigator.mediaDevices?.getUserMedia) {
       setVoiceStatus(
-        "Mikrofon erişimi bu ortamda desteklenmiyor. Uygulamayı güncel Chrome, Edge veya NOVA masaüstü sürümünde aç.",
+        "Mikrofon erişimi bu ortamda desteklenmiyor. Uygulamayı güncel Chrome, Edge veya EYRION masaüstü sürümünde aç.",
         "error"
       );
       return;
@@ -505,13 +505,13 @@
       });
       microphoneStream.getTracks().forEach((track) => track.stop());
     } catch (error) {
-      console.warn("NOVA Voice: Mikrofon erişimi alınamadı.", error);
+      console.warn("EYRION Voice: Mikrofon erişimi alınamadı.", error);
       voiceEnabled = false;
       updateButtons();
 
       if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
         setVoiceStatus(
-          "Mikrofon izni verilmedi. İlk kullanımda çıkan tarayıcı/Windows izin penceresinde NOVA'ya izin ver.",
+          "Mikrofon izni verilmedi. İlk kullanımda çıkan tarayıcı/Windows izin penceresinde EYRION'a izin ver.",
           "error"
         );
       } else if (error?.name === "NotFoundError" || error?.name === "OverconstrainedError") {
@@ -630,13 +630,13 @@
       } else {
         waitingForReply = false;
         setVoiceStatus(
-          data?.error || "NOVA yanıt veremedi. Tekrar konuşabilirsin.",
+          data?.error || "EYRION yanıt veremedi. Tekrar konuşabilirsin.",
           "error"
         );
         scheduleRecognitionRestart(900);
       }
     } catch (error) {
-      console.warn("NOVA Voice: Yanıt işlenemedi.", error);
+      console.warn("EYRION Voice: Yanıt işlenemedi.", error);
       waitingForReply = false;
       speaking = false;
       setVoiceStatus("Yanıt okunamadı. Tekrar deneyebilirsin.", "error");
@@ -688,7 +688,7 @@
       }
     } catch (error) {
       const message = error?.name === "NotAllowedError" || error?.name === "SecurityError"
-        ? "Mikrofon izni reddedildi. Tarayıcı site izinlerinden NOVA'ya izin ver."
+        ? "Mikrofon izni reddedildi. Tarayıcı site izinlerinden EYRION'a izin ver."
         : error?.name === "NotFoundError"
           ? "Kullanılabilir mikrofon bulunamadı."
           : "Mikrofon açılamadı. Bağlantıyı ve Windows mikrofon gizlilik ayarlarını kontrol et.";
@@ -777,7 +777,7 @@
 
     waitingForReply = false;
     speaking = false;
-    setVoiceStatus(message || "NOVA yanıt veremedi. Tekrar konuşabilirsin.", "error");
+    setVoiceStatus(message || "EYRION yanıt veremedi. Tekrar konuşabilirsin.", "error");
     scheduleRecognitionRestart(900);
   }
 
@@ -791,5 +791,5 @@
     }
   });
 
-  console.info("NOVA Voice: Ücretsiz tarayıcı sesi yüklendi.");
+  console.info("EYRION Voice: Ücretsiz tarayıcı sesi yüklendi.");
 })();

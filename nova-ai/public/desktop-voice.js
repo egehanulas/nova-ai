@@ -1,7 +1,7 @@
 "use strict";
 
 /*
- * NOVA AI — Yerel Türkçe sesli sohbet
+ * EYRION AI — Yerel Türkçe sesli sohbet
  * Konuşma tanıma tarayıcı/masaüstü cihazında Whisper ile çalışır.
  * Mikrofon sesi bir STT sunucusuna gönderilmez.
  */
@@ -17,7 +17,7 @@
   const form = $("form");
 
   if (!toggleButton || !stopButton || !statusLabel || !input || !form) {
-    console.warn("NOVA Voice: Sesli sohbet arayüzü bulunamadı.");
+    console.warn("EYRION Voice: Sesli sohbet arayüzü bulunamadı.");
     return;
   }
 
@@ -79,7 +79,7 @@
     statusLabel.dataset.state = state;
     const companionState = state === "listening" ? "listening"
       : state === "error" ? "error"
-        : state === "speaking" && /^NOVA( AI)?( konuşuyor| yanıtını|['’]nın sesi)/i.test(message) ? "speaking"
+        : state === "speaking" && /^EYRION( AI)?( konuşuyor| yanıtını|['’](nın|nun|nin|nün|ın|un|in|ün) sesi)/i.test(message) ? "speaking"
           : "idle";
     window.dispatchEvent(new CustomEvent("nova:companion-state", { detail: { state: companionState } }));
   }
@@ -225,7 +225,7 @@
           if (speechServiceStatus) speechServiceStatus.textContent = "Yerel Türkçe konuşma modeli hazır · GPU";
           return gpuPipeline;
         } catch (gpuError) {
-          console.warn("NOVA Voice: WebGPU kullanılamadı, WASM deneniyor.", gpuError);
+          console.warn("EYRION Voice: WebGPU kullanılamadı, WASM deneniyor.", gpuError);
         }
       }
 
@@ -319,18 +319,18 @@
       utterance.volume = 1;
       if (selectedVoice) utterance.voice = selectedVoice;
       utterance.onstart = () => {
-        if (requestId === speechRequest && voiceEnabled) setVoiceStatus("NOVA konuşuyor… Sözünü kesebilirsin.", "speaking");
+        if (requestId === speechRequest && voiceEnabled) setVoiceStatus("EYRION konuşuyor… Sözünü kesebilirsin.", "speaking");
       };
       utterance.onend = speakNext;
       utterance.onerror = (event) => {
         if (requestId !== speechRequest) return;
-        console.warn("NOVA Voice: Ses parçası okunamadı.", event.error);
+        console.warn("EYRION Voice: Ses parçası okunamadı.", event.error);
         speakNext();
       };
       synth.speak(utterance);
     };
 
-    setVoiceStatus("NOVA yanıtını seslendiriyor…", "speaking");
+    setVoiceStatus("EYRION yanıtını seslendiriyor…", "speaking");
     speakNext();
   }
 
@@ -372,7 +372,7 @@
     input.value = text;
     input.dispatchEvent(new Event("input", { bubbles: true }));
     waitingForReply = true;
-    setVoiceStatus("Söylediklerin NOVA'ya gönderiliyor…", "speaking");
+    setVoiceStatus("Söylediklerin EYRION'a gönderiliyor…", "speaking");
     if (typeof form.requestSubmit === "function") form.requestSubmit();
     else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   }
@@ -410,7 +410,7 @@
         setVoiceStatus("Konuşmanı net duyamadım. Seni dinliyorum…", "listening");
       }
     } catch (error) {
-      console.error("NOVA Voice: Yerel konuşma tanıma başarısız.", error);
+      console.error("EYRION Voice: Yerel konuşma tanıma başarısız.", error);
       setVoiceStatus("Yerel konuşma tanıma başlatılamadı. Model bağlantısını ve cihaz uyumluluğunu kontrol et.", "error");
       if (speechServiceStatus) speechServiceStatus.textContent = error?.message || "Model yüklenemedi.";
     } finally {
@@ -562,12 +562,12 @@
       if (!voiceEnabled || currentSession !== sessionId) return;
       setVoiceStatus("Seni dinliyorum…", "listening");
     } catch (error) {
-      console.error("NOVA Voice: Başlatma başarısız.", error);
+      console.error("EYRION Voice: Başlatma başarısız.", error);
       voiceEnabled = false;
       stopAudioResources();
       updateButtons();
       const message = error?.name === "NotAllowedError" || error?.name === "SecurityError"
-        ? "Mikrofon izni verilmedi. Tarayıcı veya Windows ayarlarından NOVA'ya izin ver."
+        ? "Mikrofon izni verilmedi. Tarayıcı veya Windows ayarlarından EYRION'a izin ver."
         : error?.name === "NotFoundError"
           ? "Kullanılabilir mikrofon bulunamadı."
           : "Sesli sohbet başlatılamadı: " + (error?.message || "bilinmeyen hata");
@@ -640,7 +640,7 @@
       if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Bu cihazda seslendirme desteklenmiyor.";
       return;
     }
-    const preview = new SpeechSynthesisUtterance("Merhaba, ben NOVA. Bugün sana nasıl yardımcı olabilirim?");
+    const preview = new SpeechSynthesisUtterance("Merhaba, ben EYRION. Bugün sana nasıl yardımcı olabilirim?");
     preview.lang = "tr-TR";
     preview.rate = getSpeechRate();
     selectedVoice = chooseTurkishVoice();
@@ -651,7 +651,7 @@
     preview.onerror = () => {
       if (voiceSettingsStatus) voiceSettingsStatus.textContent = "Ses denemesi başarısız oldu.";
     };
-    if (voiceSettingsStatus) voiceSettingsStatus.textContent = "NOVA'nın sesi deneniyor…";
+    if (voiceSettingsStatus) voiceSettingsStatus.textContent = "EYRION'un sesi deneniyor…";
     synth.cancel();
     synth.speak(preview);
   });
@@ -705,7 +705,7 @@
     replyFailed(message) {
       waitingForReply = false;
       speaking = false;
-      if (voiceEnabled) setVoiceStatus(message || "NOVA yanıt veremedi. Tekrar konuşabilirsin.", "error");
+      if (voiceEnabled) setVoiceStatus(message || "EYRION yanıt veremedi. Tekrar konuşabilirsin.", "error");
     },
     get active() {
       return voiceEnabled;
@@ -713,5 +713,5 @@
   });
 
   updateButtons();
-  console.info("NOVA Voice: Yerel Whisper sesli sohbeti yüklendi.");
+  console.info("EYRION Voice: Yerel Whisper sesli sohbeti yüklendi.");
 })();

@@ -42,7 +42,7 @@ test("includes only bounded, redacted diagnostics when explicitly selected", () 
 });
 
 test("creates a stable ticket code from a UUID", () => {
-  assert.equal(buildFeedbackTicketCode("12345678-abcd-4def-9876-123456789abc"), "NOVA-12345678AB");
+  assert.equal(buildFeedbackTicketCode("12345678-abcd-4def-9876-123456789abc"), "EYRION-12345678AB");
 });
 
 test("email content omits diagnostics unless consent is recorded", () => {
