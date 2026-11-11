@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { fetch as expoFetch } from 'expo/fetch';
 
 export class ApiError extends Error {
   status: number;
@@ -20,7 +21,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   if (!headers.has('Accept')) headers.set('Accept', 'application/json');
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   headers.set('Authorization', `Bearer ${data.session.access_token}`);
-  const response = await fetch(`${apiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`, {
+  const response = await expoFetch(`${apiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`, {
     ...init,
     headers,
   });
@@ -29,6 +30,23 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
     throw new ApiError(typeof body?.error === 'string' ? body.error : 'Sunucu isteği tamamlanamadı.', response.status);
   }
   return body as T;
+}
+
+export async function apiStreamRequest(path: string, body: unknown, signal: AbortSignal): Promise<Response> {
+  if (!apiBaseUrl) throw new Error('EXPO_PUBLIC_EYRION_API_URL yapılandırılmamış.');
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  if (!data.session?.access_token) throw new Error('Bu işlem için oturum açmalısınız.');
+  const response = await expoFetch(`${apiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`, {
+    method: 'POST', signal,
+    headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new ApiError(typeof payload?.error === 'string' ? payload.error : 'Sunucu isteği tamamlanamadı.', response.status);
+  }
+  return response;
 }
 
 export const isApiConfigured = Boolean(apiBaseUrl);
