@@ -5,13 +5,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthField } from '../../components/AuthField';
 import { BrandMark } from '../../components/BrandMark';
 import { PrimaryButton } from '../../components/PrimaryButton';
+import { ConfigurationNotice } from '../../components/ConfigurationNotice';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { formatConfigurationIssues, supabaseConfigurationIssues } from '../../lib/app-config';
 import { colors } from '../../theme';
 
 export default function RegisterScreen() {
   const [name, setName] = useState(''); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [busy, setBusy] = useState(false);
   const submit = async () => {
-    if (!isSupabaseConfigured) { Alert.alert('Kurulum tamamlanmadı', 'mobile/.env dosyasına Supabase URL ve publishable key değerlerini ekleyin.'); return; }
+    if (!isSupabaseConfigured) { Alert.alert('Kurulum tamamlanmadı', formatConfigurationIssues(supabaseConfigurationIssues)); return; }
     if (!email.trim() || password.length < 8) { Alert.alert('Bilgileri kontrol et', 'E-posta girin; şifre en az 8 karakter olmalı.'); return; }
     setBusy(true);
     try {
@@ -28,7 +30,7 @@ export default function RegisterScreen() {
   return <SafeAreaView style={styles.safe}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
     <View style={styles.brand}><BrandMark size={54} /><Text style={styles.wordmark}>EYRION AI</Text><Text style={styles.tagline}>Kendi keşif yolculuğunu başlat.</Text></View>
     <Text style={styles.eyebrow}>YENİ BİR BAŞLANGIÇ</Text><Text style={styles.title}>Hesabını oluştur.</Text><Text style={styles.subtitle}>Mevcut EYRION hesabın varsa giriş ekranını kullan.</Text>
-    {!isSupabaseConfigured && <Text style={styles.config}>Bu uygulama henüz Supabase bağlantı bilgileriyle yapılandırılmadı.</Text>}
+    <ConfigurationNotice scope="supabase" />
     <View style={styles.fields}><AuthField label="Ad (isteğe bağlı)" value={name} onChangeText={setName} placeholder="Nasıl hitap edelim?" autoComplete="name" /><AuthField label="E-posta" value={email} onChangeText={setEmail} placeholder="ornek@email.com" keyboardType="email-address" autoComplete="email" textContentType="emailAddress" /><AuthField label="Şifre" value={password} onChangeText={setPassword} placeholder="En az 8 karakter" secureTextEntry autoComplete="new-password" textContentType="newPassword" /></View>
     <PrimaryButton title="Hesap oluştur  →" onPress={() => void submit()} busy={busy} />
     <View style={styles.footer}><Text style={styles.footerText}>Zaten hesabın var mı?</Text><Link href="/login" style={styles.link}> Giriş yap</Link></View>

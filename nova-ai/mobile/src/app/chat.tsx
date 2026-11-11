@@ -5,9 +5,11 @@ import { useNetInfo } from '@react-native-community/netinfo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav } from '../../components/BottomNav';
 import { BrandMark } from '../../components/BrandMark';
+import { ConfigurationNotice } from '../../components/ConfigurationNotice';
 import { useAuth } from '../../lib/auth-context';
 import { chatService, learnFromMessage } from '../../lib/chat';
 import { AssistantSaveError, type ChatMessage, type Conversation } from '../../lib/chat-domain';
+import { apiConfigurationIssues, formatConfigurationIssues, isApiConfigured } from '../../lib/app-config';
 import { colors } from '../../theme';
 
 export default function ChatScreen() {
@@ -74,6 +76,7 @@ export default function ChatScreen() {
   const send = async () => {
     const text = draft.trim();
     if (!text || !userId || sendingRef.current) return;
+    if (!isApiConfigured) { setError(formatConfigurationIssues(apiConfigurationIssues)); return; }
     if (netInfo.isConnected === false) { setError('Çevrimdışısın. Bağlantı geldiğinde mesajını yeniden gönderebilirsin.'); return; }
     sendingRef.current = true; setSending(true); setDraft(''); setError(''); setStreaming('');
     setMessages((old) => [...old, { role: 'user', content: text }]);
@@ -121,6 +124,7 @@ export default function ChatScreen() {
   if (!ready || !session) return <View style={styles.center}><ActivityIndicator color={colors.purple} /></View>;
   return <SafeAreaView style={styles.safe} edges={['top']}><KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 4 : 0}>
     <View style={styles.header}><Pressable accessibilityLabel="Sohbet geçmişi" onPress={() => router.push('/history')} style={styles.headerButton}><Text style={styles.headerButtonText}>☰</Text></Pressable><View style={styles.heading}><Text numberOfLines={1} style={styles.title}>{conversation?.title ?? 'Yeni sohbet'}</Text><View style={styles.statusLine}><View style={[styles.dot, netInfo.isConnected === false && styles.offlineDot]} /><Text style={styles.status}>{netInfo.isConnected === false ? 'Çevrimdışı' : sending ? 'Yanıt hazırlanıyor' : 'EYRION yanında'}</Text></View></View><BrandMark size={36} /></View>
+    <ConfigurationNotice scope="api" />
     {netInfo.isConnected === false && <View style={styles.offline}><Text style={styles.offlineText}>İnternet bağlantısı yok. Önceki sohbetlerin görüntülenebilir.</Text></View>}
     {loadError ? <View style={styles.loadError}><Text style={styles.errorTitle}>Sohbet açılamadı</Text><Text style={styles.errorText}>{loadError}</Text><Pressable onPress={() => void loadConversation()} style={styles.retry}><Text style={styles.retryText}>Tekrar dene</Text></Pressable></View> : loading ? <View style={styles.center}><ActivityIndicator color={colors.purple} /><Text style={styles.loadingText}>Sohbet yükleniyor…</Text></View> : <FlatList ref={listRef} data={messages} keyExtractor={(_, index) => `${conversation?.id ?? 'new'}-${index}`} contentContainerStyle={[styles.messageList, messages.length === 0 && styles.messageListEmpty]} keyboardShouldPersistTaps="handled"
       ListEmptyComponent={<View style={styles.welcome}><View style={styles.halo}><BrandMark size={72} /></View><Text style={styles.welcomeTitle}>Her şey bir merakla başlar.</Text><Text style={styles.welcomeCopy}>Bir soru, fikir ya da keşfetmek istediğin bir konu…</Text><View style={styles.suggestion}><Text style={styles.suggestionGlyph}>✦</Text><Text style={styles.suggestionText}>Bugün aklında ne var?</Text></View></View>}
