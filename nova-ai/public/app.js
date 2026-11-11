@@ -15,6 +15,7 @@
   const textFileStatus = $("#textFileStatus");
   const menuButton = $("#menu");
   const settingsView = $("#settingsView");
+  const companionView = $("#companionView");
   const settingsButton = $("#openSettings");
   const settingsBackButton = $("#settingsBack");
   const topTitleSection = $("#topTitleSection");
@@ -66,6 +67,9 @@
     let progressHideTimer;
     window.novaDesktop.assistant.onTaskProgress((progress) => {
       if (!progress || typeof progress !== "object") return;
+      window.dispatchEvent(new CustomEvent("nova:companion-state", {
+        detail: { state: ["completed", "cancelled"].includes(progress.phase) ? "success" : progress.phase === "failed" ? "error" : "working", message: progress.message || "" }
+      }));
       if (progressHideTimer) clearTimeout(progressHideTimer);
       const labels = {
         started: "NOVA görevi başlattı",
@@ -344,6 +348,7 @@
   function openSettings() {
     if (!settingsView) return;
     closeMenu();
+    if (companionView) companionView.hidden = true;
     settingsView.hidden = false;
     if (messagesView) messagesView.hidden = true;
     if (composerArea) composerArea.hidden = true;
@@ -353,6 +358,24 @@
 
   function closeSettings() {
     if (settingsView) settingsView.hidden = true;
+    if (messagesView) messagesView.hidden = false;
+    if (composerArea) composerArea.hidden = false;
+    if (topTitleSection) topTitleSection.textContent = "Sohbet";
+  }
+
+  function openCompanion() {
+    if (!companionView) return;
+    closeMenu();
+    if (settingsView) settingsView.hidden = true;
+    companionView.hidden = false;
+    if (messagesView) messagesView.hidden = true;
+    if (composerArea) composerArea.hidden = true;
+    if (topTitleSection) topTitleSection.textContent = "Companion";
+  }
+
+  function closeCompanion() {
+    if (!companionView) return;
+    companionView.hidden = true;
     if (messagesView) messagesView.hidden = false;
     if (composerArea) composerArea.hidden = false;
     if (topTitleSection) topTitleSection.textContent = "Sohbet";
@@ -584,6 +607,8 @@
   });
 
   settingsButton?.addEventListener("click", openSettings);
+  $("#openCompanion")?.addEventListener("click", openCompanion);
+  $("#companionBack")?.addEventListener("click", closeCompanion);
   settingsBackButton?.addEventListener("click", closeSettings);
   document.querySelectorAll("[data-theme-choice]").forEach((button) => {
     button.addEventListener("click", () => applyTheme(button.dataset.themeChoice, true));
@@ -1229,8 +1254,10 @@
         "Aklındakileri anlat, birlikte düşünelim. Bir sorunun, fikrin " +
         "ya da sadece sohbet etme isteğin varsa buradayım.";
 
+      const companionEmblem = createNovaAvatar("welcome-icon");
+      companionEmblem.classList.add("companion-emblem");
       welcome.append(
-        createNovaAvatar("welcome-icon"),
+        companionEmblem,
         heading,
         description
       );
@@ -1587,6 +1614,7 @@
 
     if ((!text && !attachment) || busy || imageBusy || !currentUser) return;
     if (window.novaDesktop?.isDesktop && (desktopCommandMode || isLikelyDesktopCommand(text))) {
+      window.dispatchEvent(new CustomEvent("nova:companion-state", { detail: { state: "working", message: "Bilgisayar görevi yürütülüyor." } }));
       setBusy(true);
       try {
         await addMessage("user", text);
@@ -1596,8 +1624,10 @@
         if (count) count.textContent = "0/4000";
         const result = await runDesktopCommand(text);
         await addMessage("assistant", result);
+        window.dispatchEvent(new CustomEvent("nova:companion-state", { detail: { state: "success", message: "Görev tamamlandı." } }));
       } catch (error) {
         await addMessage("assistant", error?.message || "Komut çalıştırılamadı.");
+        window.dispatchEvent(new CustomEvent("nova:companion-state", { detail: { state: "error", message: "Görev tamamlanamadı." } }));
       } finally {
         setBusy(false);
       }
@@ -1609,6 +1639,7 @@
     }
 
     setBusy(true);
+    window.dispatchEvent(new CustomEvent("nova:companion-state", { detail: { state: "thinking", message: researchMode ? "Kaynakları inceliyorum." : "Yanıtını hazırlıyorum." } }));
 
     let loading = null;
     let streamedAnswer = "";
@@ -1725,7 +1756,10 @@
 
       // Sesli sohbet, akış yanıtı tamamlandıktan sonra yanıtı seslendirir.
       if (window.NOVAVoice?.active) {
+        window.dispatchEvent(new CustomEvent("nova:companion-state", { detail: { state: "speaking", message: "Yanıtımı seslendiriyorum." } }));
         window.NOVAVoice.speak(result.answer);
+      } else {
+        window.dispatchEvent(new CustomEvent("nova:companion-state", { detail: { state: "success", message: "Yanıt hazır." } }));
       }
 
       console.info(
@@ -1742,6 +1776,7 @@
 
       // Sesli komut başarısız olursa mikrofonun waitingForReply durumunda kilitlenmesini önle.
       window.NOVAVoice?.replyFailed?.("Yanıt alınamadı. Tekrar konuşabilirsin.");
+      window.dispatchEvent(new CustomEvent("nova:companion-state", { detail: { state: "error", message: "Yanıt oluşturulamadı." } }));
 
       if (loading?.wrapper instanceof Element) {
         loading.wrapper.remove();

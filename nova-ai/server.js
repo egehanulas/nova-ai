@@ -192,6 +192,10 @@ app.get("/config.js", (req, res) => {
   }) + ");");
 });
 
+// Keep the retired NOVA Sim sources recoverable in Git while making its old
+// standalone UI unavailable from the public application.
+app.use(["/sim.html", "/sim.js", "/sim3d.js"], (_req, res) => res.sendStatus(404));
+
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use(

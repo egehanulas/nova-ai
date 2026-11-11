@@ -899,6 +899,12 @@ function showUpdateWindow(releaseName = "", releaseNotes = "") {
   const versionMatch = String(releaseName || "").match(/\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?/);
   const nextVersion = versionMatch?.[0] || "Yeni sürüm";
   const releaseHighlights = {
+    "0.2.0-alpha.71": [
+      "Yeni, özgün NOVA Companion görsel kimliği ve etkileşim alanı",
+      "Sesli sohbet ve masaüstü görevlerinde Companion durum göstergesi",
+      "Mobil ve dar ekranlarda daha düzenli Companion yerleşimi",
+      "NOVA Sim ana uygulama menüsünden kaldırıldı; kaynak dosyaları korundu"
+    ],
     "0.2.0-alpha.7": [
       "NOVA'ya özel, animasyonlu güncelleme penceresi",
       "Her sürümde yenilikleri ve iyileştirmeleri gösteren sürüm notları",
