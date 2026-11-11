@@ -1,5 +1,5 @@
 import { apiRequest, apiStreamRequest } from './api';
-import { createChatService, readChatStream, type ChatMessage, type ChatStore, type Conversation } from './chat-domain';
+import { createChatService, learnBestEffort, readChatStream, type ChatMessage, type ChatStore, type Conversation } from './chat-domain';
 import { supabase } from './supabase';
 
 const columns = 'id,user_id,title,messages,created_at,updated_at';
@@ -44,9 +44,5 @@ async function requestAnswer(messages: ChatMessage[], signal: AbortSignal, onChu
 export const chatService = createChatService(store, requestAnswer);
 
 export async function learnFromMessage(message: string) {
-  try {
-    await apiRequest<{ saved?: boolean }>('/api/memories/learn', { method: 'POST', body: JSON.stringify({ message }) });
-  } catch {
-    // The existing API intentionally treats learning as best-effort; a memory failure must not fail a saved chat.
-  }
+  await learnBestEffort(() => apiRequest<{ saved?: boolean }>('/api/memories/learn', { method: 'POST', body: JSON.stringify({ message }) }));
 }

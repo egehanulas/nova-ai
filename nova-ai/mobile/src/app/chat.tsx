@@ -7,7 +7,7 @@ import { BottomNav } from '../../components/BottomNav';
 import { BrandMark } from '../../components/BrandMark';
 import { useAuth } from '../../lib/auth-context';
 import { chatService, learnFromMessage } from '../../lib/chat';
-import type { ChatMessage, Conversation } from '../../lib/chat-domain';
+import { AssistantSaveError, type ChatMessage, type Conversation } from '../../lib/chat-domain';
 import { colors } from '../../theme';
 
 export default function ChatScreen() {
@@ -25,24 +25,52 @@ export default function ChatScreen() {
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const sendingRef = useRef(false);
   const controllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(false);
+  const conversationRef = useRef<Conversation | null>(null);
+  const preparedRef = useRef<Conversation | null>(null);
   const userId = session?.user.id;
 
   const loadConversation = useCallback(async () => {
-    if (!userId || !id) { setConversation(null); setMessages([]); setLoading(false); return; }
+    if (!userId || !id) { conversationRef.current = null; preparedRef.current = null; setConversation(null); setMessages([]); setLoading(false); return; }
     setLoading(true); setLoadError(''); setError('');
     try {
       const loaded = await chatService.loadConversation(userId, id);
-      if (!loaded) { setLoadError('Bu sohbet bulunamadı veya hesabına ait değil.'); setConversation(null); setMessages([]); }
-      else { setConversation(loaded); setMessages(loaded.messages); }
+      if (!loaded) { conversationRef.current = null; setLoadError('Bu sohbet bulunamadı veya hesabına ait değil.'); setConversation(null); setMessages([]); }
+      else {
+        conversationRef.current = loaded;
+        setConversation(loaded);
+        setMessages(loaded.messages);
+        const pending = chatService.isPending(loaded.id);
+        setSending(pending);
+        if (!pending && loaded.messages.at(-1)?.role === 'user') setError('Bu sohbette son yanıt tamamlanmamış. Yeni mesaj göndererek devam edebilirsin.');
+      }
     } catch { setLoadError('Sohbet yüklenemedi. Bağlantını kontrol edip tekrar dene.'); }
     finally { setLoading(false); }
   }, [userId, id]);
   useFocusEffect(useCallback(() => { void loadConversation(); }, [loadConversation]));
   useEffect(() => { if (ready && !session) router.replace('/login'); }, [ready, session]);
   useEffect(() => { if (messages.length || streaming) listRef.current?.scrollToEnd({ animated: true }); }, [messages, streaming]);
-  useEffect(() => () => controllerRef.current?.abort(), []);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+  useEffect(() => {
+    const subscription = chatService.subscribe((update) => {
+      const targetId = conversationRef.current?.id ?? id;
+      if (update.userId !== userId || update.conversation.id !== targetId) return;
+      conversationRef.current = update.conversation;
+      setConversation(update.conversation);
+      setMessages(update.conversation.messages);
+      setSending(update.status === 'pending');
+      if (update.status === 'answer-save-failed') setError('EYRION yanıtı oluşturdu ancak sohbet kaydedilemedi. Kullanıcı mesajın ve önceki sohbet geçmişin korundu.');
+      else if (update.status === 'interrupted') setError('Yanıt durduruldu. Mesajın sohbetinde kayıtlı.');
+      else if (update.status === 'pending' || update.status === 'complete') setError('');
+      setStreaming('');
+    });
+    return () => subscription.remove();
+  }, [id, userId]);
 
-  const stop = () => controllerRef.current?.abort();
+  const stop = () => {
+    if (controllerRef.current) controllerRef.current.abort();
+    else if (conversationRef.current?.id ?? id) chatService.cancel((conversationRef.current?.id ?? id) as string);
+  };
   const send = async () => {
     const text = draft.trim();
     if (!text || !userId || sendingRef.current) return;
@@ -52,25 +80,42 @@ export default function ChatScreen() {
     const controller = new AbortController(); controllerRef.current = controller;
     let userTurnSaved = false;
     try {
-      const saved = await chatService.send(userId, conversation, text, controller.signal, setStreaming, (prepared) => { userTurnSaved = true; setConversation(prepared); });
-      setConversation(saved); setMessages(saved.messages); setStreaming('');
-      await learnFromMessage(text);
+      const saved = await chatService.send(userId, conversationRef.current ?? conversation, text, controller.signal, (answer) => { if (mountedRef.current) setStreaming(answer); }, (prepared) => {
+        userTurnSaved = true;
+        preparedRef.current = prepared;
+        conversationRef.current = prepared;
+        if (mountedRef.current) setConversation(prepared);
+      });
+      conversationRef.current = saved;
+      if (mountedRef.current) { setConversation(saved); setMessages(saved.messages); setStreaming(''); }
+      void learnFromMessage(text);
     } catch (caught) {
       const aborted = caught instanceof Error && caught.name === 'AbortError';
-      setStreaming('');
-      setError(aborted ? 'Yanıt durduruldu. Mesajın sohbetinde kayıtlı.' : caught instanceof Error ? caught.message : 'Mesaj gönderilemedi.');
-      if (!userTurnSaved && !aborted) {
-        setDraft(text);
-        setMessages((old) => old.at(-1)?.role === 'user' && old.at(-1)?.content === text ? old.slice(0, -1) : old);
+      const assistantSaveFailed = caught instanceof AssistantSaveError;
+      if (mountedRef.current) {
+        setStreaming('');
+        setError(assistantSaveFailed ? caught.message : aborted ? 'Yanıt durduruldu. Mesajın sohbetinde kayıtlı.' : caught instanceof Error ? caught.message : 'Mesaj gönderilemedi.');
       }
-      // The user turn is saved before contacting the model. Reload it so a network failure never hides it.
-      if (!aborted && conversation) {
+      if (!userTurnSaved && !aborted) {
+        if (mountedRef.current) {
+          setDraft(text);
+          setMessages((old) => old.at(-1)?.role === 'user' && old.at(-1)?.content === text ? old.slice(0, -1) : old);
+        }
+      }
+      // Reload after success, cancellation, or a failed answer save so persisted turns stay authoritative.
+      const savedConversation = caught instanceof AssistantSaveError ? caught.conversation : preparedRef.current ?? conversationRef.current ?? conversation;
+      if (userTurnSaved && savedConversation) {
         try {
-          const latest = await chatService.loadConversation(userId, conversation.id);
-          if (latest) { setConversation(latest); setMessages(latest.messages); }
+          const latest = await chatService.loadConversation(userId, savedConversation.id);
+          const consistent = latest ?? savedConversation;
+          conversationRef.current = consistent;
+          if (mountedRef.current) { setConversation(consistent); setMessages(consistent.messages); }
         } catch { /* keep the local optimistic turn visible */ }
       }
-    } finally { controllerRef.current = null; sendingRef.current = false; setSending(false); }
+    } finally {
+      controllerRef.current = null; sendingRef.current = false;
+      if (mountedRef.current) setSending(chatService.isPending(conversationRef.current?.id ?? id ?? ''));
+    }
   };
 
   if (!ready || !session) return <View style={styles.center}><ActivityIndicator color={colors.purple} /></View>;
