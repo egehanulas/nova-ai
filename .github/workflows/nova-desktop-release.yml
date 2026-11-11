@@ -56,7 +56,27 @@ jobs:
           } else {
             throw "Unsupported desktop release ref: $ref"
           }
-          if ($tag -notmatch '^desktop-v[0-9]+[.][0-9]+[.][0-9]+-alpha[.][0-9]+$') {
+          if ($tag -notmatch '^desktop-v[0-9]+[.][0-9]+[.][0-9]+-(alpha|beta)[.][0-9]+
+            throw "Invalid desktop release tag (expected alpha.N or beta.N): $tag"
+          }
+          "tag_name=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Build Squirrel.Windows update packages
+        run: npm run make -- --platform=win32 --arch=x64
+
+      - name: Publish Windows installer and update feed
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.tag_name }}
+          target_commitish: ${{ github.sha }}
+          name: EYRION AI Desktop ${{ steps.release.outputs.tag_name }}
+          generate_release_notes: true
+          overwrite_files: true
+          files: |
+            nova-ai/desktop/out/make/squirrel.windows/x64/*.exe
+            nova-ai/desktop/out/make/squirrel.windows/x64/*.nupkg
+            nova-ai/desktop/out/make/squirrel.windows/x64/RELEASES
+) {
             throw "Invalid desktop release tag: $tag"
           }
           "tag_name=$tag" >> $env:GITHUB_OUTPUT
