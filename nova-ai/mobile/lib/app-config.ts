@@ -38,7 +38,7 @@ function parseHttpsUrl(value: string | undefined, field: ConfigField, label: str
   }
 
   const host = parsed.hostname.toLowerCase();
-  const looksLikeTemplate = /your-|replace.?me|example|\\.invalid$/.test(`${raw} ${host}`.toLowerCase());
+  const looksLikeTemplate = /your-|replace.?me|example|\.invalid$/.test(`${raw} ${host}`.toLowerCase());
   if (looksLikeTemplate) {
     return { url: null, issue: { field, scope: field === 'EXPO_PUBLIC_EYRION_API_URL' ? 'api' as const : 'supabase' as const, message: `${field} hâlâ örnek değer içeriyor. .env.example içindeki adresler çalışmaz; gerçek proje adresinizle değiştirin.` } };
   }
