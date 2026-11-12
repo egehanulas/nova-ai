@@ -1,5 +1,5 @@
 import { apiRequest, apiStreamRequest } from './api';
-import { createChatService, learnBestEffort, readChatStream, type ChatMessage, type ChatStore, type Conversation } from './chat-domain';
+import { createChatService, learnBestEffort, readChatStream, type ChatMessage, type ChatStore, type ChatRequestOptions, type Conversation } from './chat-domain';
 import { supabase } from './supabase';
 
 const columns = 'id,user_id,title,messages,created_at,updated_at';
@@ -24,19 +24,47 @@ const store: ChatStore = {
     if (error) throw error;
     if (!data) throw new Error('Sohbet kaydı bulunamadı veya erişim izni yok.');
   },
+  async delete(userId, id) {
+    const { data, error } = await supabase.from('conversations').delete().eq('id', id).eq('user_id', userId).select('id').maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('Sohbet bulunamadı veya silme izni yok.');
+  },
 };
 
 function normalizeConversation(row: Record<string, unknown>): Conversation {
   const messages = Array.isArray(row.messages) ? row.messages.flatMap((entry): ChatMessage[] => {
     if (!entry || typeof entry !== 'object') return [];
     const message = entry as Record<string, unknown>;
-    return (message.role === 'user' || message.role === 'assistant') && typeof message.content === 'string' ? [{ role: message.role, content: message.content }] : [];
+    return (message.role === 'user' || message.role === 'assistant') && typeof message.content === 'string' ? [{ role: message.role, content: message.content, ...(message.mode === 'research' ? { mode: 'research' as const } : {}) }] : [];
   }) : [];
   return { id: String(row.id), user_id: String(row.user_id), title: typeof row.title === 'string' ? row.title : 'Yeni sohbet', messages,
     created_at: String(row.created_at), updated_at: String(row.updated_at) };
 }
 
-async function requestAnswer(messages: ChatMessage[], signal: AbortSignal, onChunk: (answer: string) => void) {
+function appendSources(answer: string, sources: unknown) {
+  if (!Array.isArray(sources)) return answer;
+  const valid = sources.flatMap((source) => {
+    if (!source || typeof source !== 'object') return [];
+    const item = source as Record<string, unknown>;
+    if (typeof item.url !== 'string' || typeof item.title !== 'string') return [];
+    try {
+      const url = new URL(item.url);
+      return url.protocol === 'https:' ? [`- [${item.title.replace(/[\[\]]/g, '')}](${url.toString()})`] : [];
+    } catch { return []; }
+  }).slice(0, 8);
+  return valid.length ? `${answer.trim()}\n\n**Kaynaklar**\n${valid.join('\n')}` : answer;
+}
+
+async function requestAnswer(messages: ChatMessage[], signal: AbortSignal, onChunk: (answer: string) => void, options: ChatRequestOptions) {
+  if (options.mode === 'research') {
+    const result = await apiRequest<{ answer?: unknown; sources?: unknown }>('/api/research', {
+      method: 'POST', signal, body: JSON.stringify({ messages }),
+    });
+    if (typeof result.answer !== 'string' || !result.answer.trim()) throw new Error('Araştırmadan tamamlanmış bir yanıt alınamadı.');
+    const answer = appendSources(result.answer, result.sources);
+    onChunk(answer);
+    return { answer, truncated: false };
+  }
   const response = await apiStreamRequest('/api/chat/stream', { messages }, signal);
   return readChatStream(response, onChunk);
 }

@@ -12,6 +12,7 @@ function makeStore(initial: Conversation[] = []) {
     async get(userId, id) { const row = rows.get(id); return row?.user_id === userId ? row : null; },
     async create(userId) { const row = { ...makeConversation(), id: `c${++next}`, user_id: userId }; rows.set(row.id, row); return row; },
     async save(userId, row) { if (row.user_id !== userId) throw new Error('RLS'); rows.set(row.id, row); },
+    async delete(userId, id) { if (rows.get(id)?.user_id !== userId) throw new Error('RLS'); rows.delete(id); },
   };
   return { rows, store };
 }
@@ -34,6 +35,27 @@ test('loads only the requested user history and hides foreign conversations', as
   const service = createChatService(store, async () => ({ answer: 'ok', truncated: false }));
   assert.deepEqual(await service.loadHistory('u1'), [first]);
   assert.equal(await service.loadConversation('u1', 'c2'), null);
+});
+
+test('renames a chat with a bounded title and refuses to mutate another user\'s row', async () => {
+  const initial = makeConversation();
+  const { rows, store } = makeStore([initial]);
+  const service = createChatService(store, async () => ({ answer: 'ok', truncated: false }));
+  const renamed = await service.renameConversation('u1', initial.id, '  Yeni   başlık  ');
+  assert.equal(renamed.title, 'Yeni başlık');
+  await assert.rejects(service.renameConversation('other', initial.id, 'Yetkisiz'), /bulunamadı|hesabına ait değil/i);
+  assert.equal(rows.get(initial.id)?.title, 'Yeni başlık');
+});
+
+test('deletes only the selected user-owned conversation', async () => {
+  const initial = makeConversation();
+  const foreign = { ...makeConversation(), id: 'c2', user_id: 'other' };
+  const { rows, store } = makeStore([initial, foreign]);
+  const service = createChatService(store, async () => ({ answer: 'ok', truncated: false }));
+  await service.deleteConversation('u1', initial.id);
+  await assert.rejects(service.deleteConversation('u1', foreign.id), /bulunamadı|hesabına ait değil/i);
+  assert.equal(rows.has(initial.id), false);
+  assert.equal(rows.has(foreign.id), true);
 });
 
 test('keeps the saved user turn when the model request fails', async () => {
@@ -99,6 +121,23 @@ test('cancel marks the request interrupted while preserving its saved user turn'
   await assert.rejects(request, { name: 'AbortError' });
   assert.deepEqual(rows.get(initial.id)?.messages, [{ role: 'user', content: 'Kaydedilecek soru' }]);
   assert.deepEqual(updates, ['pending', 'interrupted']);
+});
+
+test('retries the last saved user turn without duplicating it and preserves research mode', async () => {
+  const initial = makeConversation([{ role: 'user', content: 'Güncel kaynakları bul', mode: 'research' }]);
+  const { rows, store } = makeStore([initial]);
+  let requestOptions: { mode: string } | undefined;
+  const service = createChatService(store, async (_messages, _signal, _onChunk, options) => {
+    requestOptions = options;
+    return { answer: 'Kaynaklı yanıt', truncated: false };
+  });
+  const saved = await service.retryLast('u1', initial.id, new AbortController().signal, () => {});
+  assert.equal(requestOptions?.mode, 'research');
+  assert.deepEqual(saved.messages, [
+    { role: 'user', content: 'Güncel kaynakları bul', mode: 'research' },
+    { role: 'assistant', content: 'Kaynaklı yanıt' },
+  ]);
+  assert.equal(rows.get(initial.id)?.messages.length, 2);
 });
 
 test('a pending reply survives leaving chat and notifies the history listener when saved', async () => {

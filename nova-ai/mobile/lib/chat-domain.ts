@@ -1,4 +1,6 @@
-export type ChatMessage = { role: 'user' | 'assistant'; content: string };
+export type ChatMode = 'chat' | 'research';
+export type ChatMessage = { role: 'user' | 'assistant'; content: string; mode?: ChatMode };
+export type ChatRequestOptions = { mode: ChatMode };
 export type Conversation = { id: string; user_id: string; title: string; messages: ChatMessage[]; created_at: string; updated_at: string };
 export type StreamResult = { answer: string; truncated: boolean };
 export type ChatUpdate = { userId: string; conversation: Conversation; status: 'pending' | 'complete' | 'interrupted' | 'answer-save-failed' };
@@ -35,7 +37,7 @@ export function normalizeMessagesForBackend(messages: ChatMessage[]): ChatMessag
     selected.push({ role: message.role, content });
     totalChars += content.length;
   }
-  return selected.reverse();
+  return selected.reverse().map(({ role, content }) => ({ role, content }));
 }
 
 export async function learnBestEffort(learn: () => Promise<unknown>): Promise<void> {
@@ -110,8 +112,9 @@ export type ChatStore = {
   get(userId: string, id: string): Promise<Conversation | null>;
   create(userId: string): Promise<Conversation>;
   save(userId: string, conversation: Conversation): Promise<void>;
+  delete(userId: string, id: string): Promise<void>;
 };
-export type ChatTransport = (messages: ChatMessage[], signal: AbortSignal, onChunk: (answer: string) => void) => Promise<StreamResult>;
+export type ChatTransport = (messages: ChatMessage[], signal: AbortSignal, onChunk: (answer: string) => void, options: ChatRequestOptions) => Promise<StreamResult>;
 
 export function createChatService(store: ChatStore, transport: ChatTransport) {
   const queues = new Map<string, Promise<void>>();
@@ -128,13 +131,31 @@ export function createChatService(store: ChatStore, transport: ChatTransport) {
   return {
     loadHistory: (userId: string) => store.list(userId),
     loadConversation: (userId: string, id: string) => store.get(userId, id),
+    async renameConversation(userId: string, id: string, title: string) {
+      const nextTitle = title.replace(/\s+/g, ' ').trim().slice(0, 80);
+      if (!nextTitle) throw new Error('Sohbet başlığı boş olamaz.');
+      return withConversationLock(`${userId}:${id}`, async () => {
+        const latest = await store.get(userId, id);
+        if (!latest) throw new Error('Sohbet bulunamadı veya hesabına ait değil.');
+        const renamed = { ...latest, title: nextTitle, updated_at: new Date().toISOString() };
+        await store.save(userId, renamed);
+        notify({ userId, conversation: renamed, status: 'complete' });
+        return renamed;
+      });
+    },
+    async deleteConversation(userId: string, id: string) {
+      return withConversationLock(`${userId}:${id}`, async () => {
+        if (!await store.get(userId, id)) throw new Error('Sohbet bulunamadı veya hesabına ait değil.');
+        await store.delete(userId, id);
+      });
+    },
     subscribe(listener: (update: ChatUpdate) => void) {
       listeners.add(listener);
       return { remove: () => { listeners.delete(listener); } };
     },
     isPending: (conversationId: string) => active.has(conversationId),
     cancel: (conversationId: string) => active.get(conversationId)?.abort(),
-    async send(userId: string, current: Conversation | null, text: string, signal: AbortSignal, onChunk: (answer: string) => void, onPrepared?: (conversation: Conversation) => void) {
+    async send(userId: string, current: Conversation | null, text: string, signal: AbortSignal, onChunk: (answer: string) => void, onPrepared?: (conversation: Conversation) => void, mode: ChatMode = 'chat') {
       const content = text.trim();
       if (!content) throw new Error('Mesaj boş olamaz.');
       const base = current ?? await store.create(userId);
@@ -146,7 +167,8 @@ export function createChatService(store: ChatStore, transport: ChatTransport) {
         if (signal.aborted) abortFromCaller();
         else signal.addEventListener('abort', abortFromCaller, { once: true });
         active.set(base.id, controller);
-        const messages = [...latest.messages, { role: 'user' as const, content }];
+        const userMessage: ChatMessage = { role: 'user', content, ...(mode === 'research' ? { mode } : {}) };
+        const messages = [...latest.messages, userMessage];
         const pending = { ...latest, title: latest.messages.length ? latest.title : conversationTitle(content), messages, updated_at: new Date().toISOString() };
         let userTurnSaved = false;
         try {
@@ -154,7 +176,7 @@ export function createChatService(store: ChatStore, transport: ChatTransport) {
           userTurnSaved = true;
           onPrepared?.(pending);
           notify({ userId, conversation: pending, status: 'pending' });
-          const result = await transport(normalizeMessagesForBackend(messages), controller.signal, onChunk);
+          const result = await transport(normalizeMessagesForBackend(messages), controller.signal, onChunk, { mode });
           const complete = { ...pending, messages: [...messages, { role: 'assistant' as const, content: result.answer }], updated_at: new Date().toISOString() };
           try { await store.save(userId, complete); }
           catch { notify({ userId, conversation: pending, status: 'answer-save-failed' }); throw new AssistantSaveError(pending); }
@@ -166,6 +188,34 @@ export function createChatService(store: ChatStore, transport: ChatTransport) {
         } finally {
           signal.removeEventListener('abort', abortFromCaller);
           active.delete(base.id);
+        }
+      });
+    },
+    async retryLast(userId: string, id: string, signal: AbortSignal, onChunk: (answer: string) => void) {
+      return withConversationLock(`${userId}:${id}`, async () => {
+        const latest = await store.get(userId, id);
+        const last = latest?.messages.at(-1);
+        if (!latest || last?.role !== 'user') throw new Error('Yeniden denenecek tamamlanmamış bir yanıt bulunamadı.');
+        const mode = last.mode ?? 'chat';
+        const controller = new AbortController();
+        const abortFromCaller = () => controller.abort(signal.reason);
+        if (signal.aborted) abortFromCaller();
+        else signal.addEventListener('abort', abortFromCaller, { once: true });
+        active.set(id, controller);
+        notify({ userId, conversation: latest, status: 'pending' });
+        try {
+          const result = await transport(normalizeMessagesForBackend(latest.messages), controller.signal, onChunk, { mode });
+          const complete = { ...latest, messages: [...latest.messages, { role: 'assistant' as const, content: result.answer }], updated_at: new Date().toISOString() };
+          try { await store.save(userId, complete); }
+          catch { notify({ userId, conversation: latest, status: 'answer-save-failed' }); throw new AssistantSaveError(latest); }
+          notify({ userId, conversation: complete, status: 'complete' });
+          return complete;
+        } catch (error) {
+          if (!(error instanceof AssistantSaveError)) notify({ userId, conversation: latest, status: 'interrupted' });
+          throw error;
+        } finally {
+          signal.removeEventListener('abort', abortFromCaller);
+          active.delete(id);
         }
       });
     },
