@@ -148,6 +148,8 @@ export default function ChatScreen() {
       controllerRef.current = null; sendingRef.current = false;
       if (mountedRef.current) setSending(chatService.isPending(conversationRef.current?.id ?? ''));
       if (conversationRef.current && userId) void chatService.loadConversation(userId, conversationRef.current.id).then((latest) => { if (latest && mountedRef.current) { conversationRef.current = latest; setConversation(latest); setMessages(latest.messages); } }).catch(() => undefined);
+      const last = conversationRef.current?.messages.at(-1);
+      if (preferences.speakResponses && last?.role === 'assistant') speak(last.content);
     }
   };
 
