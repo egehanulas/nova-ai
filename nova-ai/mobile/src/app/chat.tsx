@@ -38,8 +38,7 @@ export default function ChatScreen() {
   const userId = session?.user.id;
 
   useEffect(() => {
-    if (preferences.researchByDefault && !conversationRef.current?.messages.length) setMode('research');
-    else if (!preferences.researchByDefault && !conversationRef.current?.messages.length) setMode('chat');
+    if (!conversationRef.current?.messages.length) setMode(preferences.researchByDefault ? 'research' : 'chat');
   }, [preferences.researchByDefault]);
 
   const loadConversation = useCallback(async () => {
@@ -103,6 +102,8 @@ export default function ChatScreen() {
       conversationRef.current = saved;
       if (mountedRef.current) { setConversation(saved); setMessages(saved.messages); setStreaming(''); }
       if (preferences.autoLearnMemories) void learnFromMessage(text);
+      const assistantReply = saved.messages.at(-1);
+      if (preferences.speakResponses && assistantReply?.role === 'assistant') speak(assistantReply.content);
     } catch (caught) {
       const aborted = caught instanceof Error && caught.name === 'AbortError';
       const assistantSaveFailed = caught instanceof AssistantSaveError;
@@ -151,7 +152,7 @@ export default function ChatScreen() {
   };
 
   const speak = (text: string) => {
-    if (speaking) { void Speech.stop(); setSpeaking(false); return; }
+    void Speech.stop();
     setSpeaking(true);
     Speech.speak(text, { language: 'tr-TR', onDone: () => setSpeaking(false), onStopped: () => setSpeaking(false), onError: () => { setSpeaking(false); Alert.alert('Ses başlatılamadı', 'Cihazında Türkçe ses bulunamayabilir.'); } });
   };
