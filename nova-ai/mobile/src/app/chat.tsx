@@ -12,6 +12,7 @@ import { chatService, learnFromMessage } from '../../lib/chat';
 import { AssistantSaveError, type ChatMessage, type ChatMode, type Conversation } from '../../lib/chat-domain';
 import { apiConfigurationIssues, formatConfigurationIssues, isApiConfigured } from '../../lib/app-config';
 import { usePreferences } from '../../lib/preferences-context';
+import { friendlyChatError } from '../../lib/chat-errors';
 import { colors } from '../../theme';
 
 export default function ChatScreen() {
@@ -109,7 +110,7 @@ export default function ChatScreen() {
       const assistantSaveFailed = caught instanceof AssistantSaveError;
       if (mountedRef.current) {
         setStreaming('');
-        setError(assistantSaveFailed ? caught.message : aborted ? 'Yanıt durduruldu. Mesajın sohbetinde kayıtlı.' : caught instanceof Error ? caught.message : 'Mesaj gönderilemedi.');
+        setError(assistantSaveFailed ? caught.message : aborted && userTurnSaved ? 'Yanıt durduruldu. Mesajın sohbetinde kayıtlı; yeniden deneyebilirsin.' : friendlyChatError(caught, userTurnSaved));
       }
       if (!userTurnSaved && !aborted) {
         if (mountedRef.current) {
@@ -142,7 +143,7 @@ export default function ChatScreen() {
       conversationRef.current = saved;
       if (mountedRef.current) { setConversation(saved); setMessages(saved.messages); setStreaming(''); }
     } catch (caught) {
-      if (mountedRef.current) setError(caught instanceof Error ? caught.message : 'Yanıt yeniden alınamadı.');
+      if (mountedRef.current) setError(friendlyChatError(caught, true));
       if (caught instanceof AssistantSaveError && mountedRef.current) { setConversation(caught.conversation); setMessages(caught.conversation.messages); }
     } finally {
       controllerRef.current = null; sendingRef.current = false;

@@ -57,15 +57,16 @@ function appendSources(answer: string, sources: unknown) {
 
 async function requestAnswer(messages: ChatMessage[], signal: AbortSignal, onChunk: (answer: string) => void, options: ChatRequestOptions) {
   if (options.mode === 'research') {
-    const result = await apiRequest<{ answer?: unknown; sources?: unknown }>('/api/research', {
-      method: 'POST', signal, body: JSON.stringify({ messages }),
+    const result = await apiRequest<{ answer?: unknown; sources?: unknown; partial?: unknown }>('/api/research', {
+      method: 'POST', signal, body: JSON.stringify({ messages, contextTruncated: options.contextTruncated }),
     });
+    if (result.partial === true) throw Object.assign(new Error('Araştırma yanıtı kaynak alıntılarıyla sınırlı kaldı.'), { code: 'AI_INCOMPLETE' });
     if (typeof result.answer !== 'string' || !result.answer.trim()) throw new Error('Araştırmadan tamamlanmış bir yanıt alınamadı.');
     const answer = appendSources(result.answer, result.sources);
     onChunk(answer);
     return { answer, truncated: false };
   }
-  const response = await apiStreamRequest('/api/chat/stream', { messages }, signal);
+  const response = await apiStreamRequest('/api/chat/stream', { messages, contextTruncated: options.contextTruncated }, signal);
   return readChatStream(response, onChunk);
 }
 

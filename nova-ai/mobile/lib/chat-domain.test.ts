@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { AssistantSaveError, createChatService, learnBestEffort, normalizeMessagesForBackend, parseSseEvent, readChatStream, type ChatMessage, type ChatStore, type Conversation } from './chat-domain';
+import { AssistantSaveError, createChatService, didContextGetTrimmed, learnBestEffort, normalizeMessagesForBackend, parseSseEvent, readChatStream, type ChatMessage, type ChatStore, type Conversation } from './chat-domain';
 
 const makeConversation = (messages: ChatMessage[] = []): Conversation => ({ id: 'c1', user_id: 'u1', title: 'Yeni sohbet', messages, created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z' });
 
@@ -165,14 +165,24 @@ test('a pending reply survives leaving chat and notifies the history listener wh
 
 test('keeps mobile request batches inside the backend message and character limits', () => {
   const fourteen = Array.from({ length: 14 }, (_, index) => ({ role: index % 2 ? 'assistant' as const : 'user' as const, content: `m${index}` }));
-  const lastTen = normalizeMessagesForBackend(fourteen);
-  assert.equal(lastTen.length, 10);
-  assert.equal(lastTen[0].content, 'm4');
+  const lastFourteen = normalizeMessagesForBackend(fourteen);
+  assert.equal(lastFourteen.length, 14);
+  assert.equal(lastFourteen[0].content, 'm0');
+  assert.equal(didContextGetTrimmed(fourteen), false);
+  assert.equal(didContextGetTrimmed([...fourteen, { role: 'user', content: 'm14' }]), true);
   const long = Array.from({ length: 10 }, (_, index) => ({ role: index % 2 ? 'assistant' as const : 'user' as const, content: `${index}`.repeat(8000) }));
   const bounded = normalizeMessagesForBackend(long);
   assert.ok(bounded.length <= 10);
   assert.ok(bounded.every((message) => message.content.length <= 8000));
   assert.ok(bounded.reduce((sum, message) => sum + message.content.length, 0) <= 20000);
+});
+
+test('does not persist a model answer that hit its output token limit', async () => {
+  const { rows, store } = makeStore();
+  const service = createChatService(store, async (_messages, _signal, onChunk) => { onChunk('Yarım yanıt'); return { answer: 'Yarım yanıt', truncated: true }; });
+  await assert.rejects(service.send('u1', null, 'Uzun bir konu', new AbortController().signal, () => {}), { code: 'AI_OUTPUT_LIMIT' });
+  const saved = [...rows.values()][0];
+  assert.deepEqual(saved.messages, [{ role: 'user', content: 'Uzun bir konu' }]);
 });
 
 test('memory learning failures are swallowed after a successful chat', async () => {
@@ -191,8 +201,8 @@ test('parses SSE chunks and emits Turkish text progressively', async () => {
 test('reports SSE server errors and interrupted streams', async () => {
   await assert.rejects(readChatStream(new Response('data: {"type":"error","error":"Model unavailable"}\n\n'), () => {}), /Model unavailable/);
   await assert.rejects(readChatStream(new Response('data: {"type":"chunk","text":"partial"}\n\n'), () => {}), /beklenmedik/);
-  await assert.rejects(readChatStream(new Response('data: {"type":"done"'), () => {}), /tamamlanmamış/);
-  await assert.rejects(readChatStream(new Response('data: {"type":"chunk","text":"ok"}\n\ndata: {"type":"chunk","text":"unfinished"\n\ndata: {"type":"done"}\n\n'), () => {}), /geçersiz bir yanıt olayı/);
+  await assert.rejects(readChatStream(new Response('data: {"type":"done"'), () => {}), { code: 'AI_INCOMPLETE' });
+  await assert.rejects(readChatStream(new Response('data: {"type":"chunk","text":"ok"}\n\ndata: {"type":"chunk","text":"unfinished"\n\ndata: {"type":"done"}\n\n'), () => {}), { code: 'AI_INCOMPLETE' });
 });
 
 test('decodes UTF-8 split inside a character and buffers JSON split across network chunks', async () => {
@@ -209,5 +219,5 @@ test('propagates stream cancellation and abrupt connection failure', async () =>
   const cancelled = new Response(new ReadableStream<Uint8Array>({ start(controller) { controller.error(new DOMException('Request aborted', 'AbortError')); } }));
   await assert.rejects(readChatStream(cancelled, () => {}), { name: 'AbortError' });
   const disconnected = new Response(new ReadableStream<Uint8Array>({ start(controller) { controller.error(new Error('connection reset')); } }));
-  await assert.rejects(readChatStream(disconnected, () => {}), /connection reset/);
+  await assert.rejects(readChatStream(disconnected, () => {}), { code: 'NETWORK' });
 });

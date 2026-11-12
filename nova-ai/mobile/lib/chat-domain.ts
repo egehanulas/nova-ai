@@ -1,6 +1,6 @@
 export type ChatMode = 'chat' | 'research';
 export type ChatMessage = { role: 'user' | 'assistant'; content: string; mode?: ChatMode };
-export type ChatRequestOptions = { mode: ChatMode };
+export type ChatRequestOptions = { mode: ChatMode; contextTruncated: boolean };
 export type Conversation = { id: string; user_id: string; title: string; messages: ChatMessage[]; created_at: string; updated_at: string };
 export type StreamResult = { answer: string; truncated: boolean };
 export type ChatUpdate = { userId: string; conversation: Conversation; status: 'pending' | 'complete' | 'interrupted' | 'answer-save-failed' };
@@ -23,7 +23,7 @@ export function conversationTitle(text: string): string {
 export function normalizeMessagesForBackend(messages: ChatMessage[]): ChatMessage[] {
   const valid = messages
     .filter((message) => message && typeof message.content === 'string' && (message.role === 'user' || message.role === 'assistant'))
-    .slice(-10);
+    .slice(-14);
   const selected: ChatMessage[] = [];
   let totalChars = 0;
   for (let index = valid.length - 1; index >= 0; index -= 1) {
@@ -38,6 +38,14 @@ export function normalizeMessagesForBackend(messages: ChatMessage[]): ChatMessag
     totalChars += content.length;
   }
   return selected.reverse().map(({ role, content }) => ({ role, content }));
+}
+
+export function didContextGetTrimmed(messages: ChatMessage[]): boolean {
+  const valid = messages.filter((message) => message && typeof message.content === 'string' && (message.role === 'user' || message.role === 'assistant'));
+  if (valid.length > 14) return true;
+  const latest = valid.slice(-14);
+  if (latest.some((message) => message.content.length > 8000)) return true;
+  return latest.reduce((total, message) => total + Math.min(message.content.length, 8000), 0) > 20000;
 }
 
 export async function learnBestEffort(learn: () => Promise<unknown>): Promise<void> {
@@ -55,8 +63,11 @@ export function parseSseEvent(eventText: string): Record<string, unknown> | null
 
 export async function readChatStream(response: Response, onChunk: (answer: string) => void): Promise<StreamResult> {
   if (!response.ok) {
-    const payload = await response.json().catch(() => ({})) as { error?: unknown };
-    throw new Error(typeof payload.error === 'string' ? payload.error : `Sunucu hatası (${response.status}).`);
+    const payload = await response.json().catch(() => ({})) as { error?: unknown; code?: unknown };
+    throw Object.assign(new Error(typeof payload.error === 'string' ? payload.error : 'AI request failed.'), {
+      code: typeof payload.code === 'string' ? payload.code : response.status === 429 ? 'AI_RATE_LIMIT' : response.status === 504 ? 'AI_TIMEOUT' : 'AI_UNAVAILABLE',
+      status: response.status,
+    });
   }
   const reader = response.body?.getReader();
   if (!reader) {
@@ -73,11 +84,11 @@ export async function readChatStream(response: Response, onChunk: (answer: strin
   let answer = '';
   let doneEvent = false;
   let truncated = false;
-  let streamError: string | null = null;
+  let streamError: Error | null = null;
   const handle = (raw: string) => {
     const event = parseSseEvent(raw);
     if (!event) {
-      if (raw.split(/\r?\n/).some((line) => line.startsWith('data:'))) streamError = 'Sunucudan tamamlanmamış veya geçersiz bir yanıt olayı alındı.';
+      if (raw.split(/\r?\n/).some((line) => line.startsWith('data:'))) streamError = Object.assign(new Error('Yanıt akışında geçersiz bir veri olayı alındı.'), { code: 'AI_INCOMPLETE' });
       return;
     }
     if (event.type === 'chunk' && typeof event.text === 'string') {
@@ -86,7 +97,7 @@ export async function readChatStream(response: Response, onChunk: (answer: strin
     } else if (event.type === 'done') {
       doneEvent = true;
       truncated = Boolean(event.truncated);
-    } else if (event.type === 'error') streamError = typeof event.error === 'string' ? event.error : 'Yanıt akışı sırasında hata oluştu.';
+    } else if (event.type === 'error') streamError = Object.assign(new Error(typeof event.error === 'string' ? event.error : 'Yanıt akışı sırasında hata oluştu.'), { code: typeof event.code === 'string' ? event.code : 'AI_UNAVAILABLE' });
   };
   try {
     while (true) {
@@ -98,12 +109,19 @@ export async function readChatStream(response: Response, onChunk: (answer: strin
       if (part.done || streamError) break;
     }
     if (buffer.trim()) handle(buffer);
+  } catch (error) {
+    if (error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError') throw error;
+    const message = error instanceof Error ? error.message : '';
+    if (error instanceof TypeError || /network|connection|socket|fetch/i.test(message)) {
+      throw Object.assign(new Error('The chat stream connection was interrupted.'), { code: 'NETWORK' });
+    }
+    throw error;
   } finally {
     if (streamError) await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
-  if (streamError) throw new Error(streamError);
-  if (!doneEvent || !answer.trim()) throw new Error(answer ? 'Yanıt akışı beklenmedik şekilde kesildi.' : 'Sunucudan tamamlanmış bir yanıt alınamadı.');
+  if (streamError) throw streamError;
+  if (!doneEvent || !answer.trim()) throw Object.assign(new Error(answer ? 'Yanıt akışı beklenmedik şekilde kesildi.' : 'Sunucudan tamamlanmış bir yanıt alınamadı.'), { code: answer ? 'AI_INCOMPLETE' : 'AI_EMPTY', partial: Boolean(answer) });
   return { answer, truncated };
 }
 
@@ -176,7 +194,8 @@ export function createChatService(store: ChatStore, transport: ChatTransport) {
           userTurnSaved = true;
           onPrepared?.(pending);
           notify({ userId, conversation: pending, status: 'pending' });
-          const result = await transport(normalizeMessagesForBackend(messages), controller.signal, onChunk, { mode });
+          const result = await transport(normalizeMessagesForBackend(messages), controller.signal, onChunk, { mode, contextTruncated: didContextGetTrimmed(messages) });
+          if (result.truncated) throw Object.assign(new Error('The model reached its output limit.'), { code: 'AI_OUTPUT_LIMIT', partial: true });
           const complete = { ...pending, messages: [...messages, { role: 'assistant' as const, content: result.answer }], updated_at: new Date().toISOString() };
           try { await store.save(userId, complete); }
           catch { notify({ userId, conversation: pending, status: 'answer-save-failed' }); throw new AssistantSaveError(pending); }
@@ -204,7 +223,8 @@ export function createChatService(store: ChatStore, transport: ChatTransport) {
         active.set(id, controller);
         notify({ userId, conversation: latest, status: 'pending' });
         try {
-          const result = await transport(normalizeMessagesForBackend(latest.messages), controller.signal, onChunk, { mode });
+          const result = await transport(normalizeMessagesForBackend(latest.messages), controller.signal, onChunk, { mode, contextTruncated: didContextGetTrimmed(latest.messages) });
+          if (result.truncated) throw Object.assign(new Error('The model reached its output limit.'), { code: 'AI_OUTPUT_LIMIT', partial: true });
           const complete = { ...latest, messages: [...latest.messages, { role: 'assistant' as const, content: result.answer }], updated_at: new Date().toISOString() };
           try { await store.save(userId, complete); }
           catch { notify({ userId, conversation: latest, status: 'answer-save-failed' }); throw new AssistantSaveError(latest); }
