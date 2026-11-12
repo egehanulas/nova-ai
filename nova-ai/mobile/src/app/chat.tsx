@@ -39,10 +39,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (preferences.researchByDefault && !conversationRef.current?.messages.length) setMode('research');
-  }, [preferences.researchByDefault]);
-
-  useEffect(() => {
-    if (preferences.researchByDefault && !conversationRef.current?.messages.length) setMode('research');
+    else if (!preferences.researchByDefault && !conversationRef.current?.messages.length) setMode('chat');
   }, [preferences.researchByDefault]);
 
   const loadConversation = useCallback(async () => {
