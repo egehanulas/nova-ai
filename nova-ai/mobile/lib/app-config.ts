@@ -45,7 +45,7 @@ function parseHttpsUrl(value: string | undefined, field: ConfigField, label: str
   if (parsed.protocol !== 'https:' || !host || parsed.username || parsed.password || parsed.search || parsed.hash) {
     return { url: null, issue: { field, scope: field === 'EXPO_PUBLIC_EYRION_API_URL' ? 'api' as const : 'supabase' as const, message: `${field} HTTPS adresi olmalı; kullanıcı bilgisi, sorgu veya # parçası içermemeli.` } };
   }
-  return { url: parsed.toString().replace(/\\/+$/, ''), issue: null };
+  return { url: parsed.toString().replace(/\/+$/, ''), issue: null };
 }
 
 export function readMobileConfiguration(env: MobileEnvironment): MobileConfiguration {
@@ -81,5 +81,5 @@ export const supabaseConfigurationIssues = mobileConfiguration.issues.filter((is
 export const apiConfigurationIssues = mobileConfiguration.issues.filter((issue) => issue.scope === 'api');
 
 export function formatConfigurationIssues(issues: ConfigIssue[]) {
-  return issues.map((issue) => `${issue.field}: ${issue.message}`).join('\\n');
+  return issues.map((issue) => `${issue.field}: ${issue.message}`).join('\n');
 }
