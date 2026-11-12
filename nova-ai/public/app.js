@@ -1395,8 +1395,9 @@
   }
 
   // Mesaj ekle ve kaydet
-  async function addMessage(role, content) {
-    const conversation = await ensureConversation();
+  async function addMessage(role, content, metadata = {}, targetConversationId = currentId) {
+    const conversation = conversations.find((item) => item.id === targetConversationId) ||
+      (targetConversationId === currentId ? await ensureConversation() : null);
 
     if (!conversation) {
       throw new Error(
@@ -1404,7 +1405,9 @@
       );
     }
 
-    conversation.messages.push({ role, content });
+    const previous = { length: conversation.messages.length, title: conversation.title, updatedAt: conversation.updatedAt };
+    const message = { role, content, ...(metadata.mode === "research" ? { mode: "research" } : {}) };
+    conversation.messages.push(message);
     conversation.updatedAt = Date.now();
 
     if (
@@ -1426,7 +1429,16 @@
       }
     }
 
-    await save(conversation);
+    try {
+      await save(conversation);
+    } catch (error) {
+      if (conversation.messages.at(-1) === message) conversation.messages.splice(previous.length);
+      conversation.title = previous.title;
+      conversation.updatedAt = previous.updatedAt;
+      renderMessages();
+      renderHistory();
+      throw error;
+    }
 
     sortConversations();
     renderMessages();
@@ -1489,14 +1501,55 @@
     }
   }
 
+  function friendlyAiError(error, saved) {
+    if (!saved) return "Mesajın sohbete kaydedilemedi. Bağlantını kontrol et; mesajı yeniden gönderdiğinde tekrar kaydedilecek.";
+    if (error?.status === 401 || error?.status === 403) return "Oturumunun süresi dolmuş. Sohbet mesajın kaydedildi; yanıtı yeniden denemeden önce tekrar giriş yap.";
+    const code = String(error?.code || "").toUpperCase();
+    const messages = {
+      AI_RATE_LIMIT: "Yapay zekâ hizmeti şu anda yoğun. Mesajın kaydedildi; biraz sonra yeniden deneyebilirsin.",
+      AI_TIMEOUT: "Yanıt hazırlama süresi doldu. Mesajın kaydedildi; yeniden deneyebilirsin.",
+      AI_INCOMPLETE: "Yanıt akışı tamamlanmadan kesildi. Eksik yanıt kaydedilmedi; mesajın duruyor, yeniden deneyebilirsin.",
+      AI_OUTPUT_LIMIT: "Yanıt uzunluk sınırına ulaştığı için tamamlanamadı. Eksik yanıt kaydedilmedi; konuyu bölerek yeniden sorabilirsin.",
+      AI_CONFIGURATION: "Yanıt hizmeti şu anda hazır değil. Biraz sonra yeniden deneyebilirsin.",
+      AI_AUTH: "Oturumunun süresi dolmuş. Sohbet mesajın kaydedildi; yanıtı yeniden denemeden önce tekrar giriş yap.",
+      NETWORK: "İnternet bağlantısı kurulamadı. Bağlantını kontrol et; kaydedilen mesajını yeniden deneyebilirsin.",
+      AI_EMPTY: "Bu kez tamamlanmış bir yanıt oluşturulamadı. Mesajın kaydedildi; yeniden deneyebilirsin.",
+      AI_UNAVAILABLE: "Şu anda yanıtımı hazırlarken bir sorun oluştu. Mesajın kaydedildi. Daha sonra yeniden deneyebilirsin."
+    };
+    if (messages[code]) return messages[code];
+    if (error?.name === "TypeError" && /fetch|network/i.test(String(error.message))) return "İnternet bağlantısı kurulamadı. Bağlantını kontrol et; kaydedilen mesajını yeniden deneyebilirsin.";
+    return messages.AI_UNAVAILABLE;
+  }
+
+  let chatFailureNotice = null;
+  function showChatFailure(message, canRetry, conversationId = currentId) {
+    chatFailureNotice?.remove();
+    const panel = document.createElement("div");
+    panel.className = "nova-chat-failure";
+    panel.setAttribute("role", "alert");
+    Object.assign(panel.style, { display: "flex", flexDirection: "column", gap: "10px", margin: "8px 12px", padding: "13px 15px", border: "1px solid #654455", borderRadius: "14px", background: "#271d2a", color: "#f2dce5", fontSize: "13px", lineHeight: "1.55" });
+    const copy = document.createElement("div");
+    copy.textContent = message;
+    panel.appendChild(copy);
+    if (canRetry) {
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.textContent = "Aynı mesajı yeniden dene";
+      Object.assign(retry.style, { alignSelf: "flex-start", border: "1px solid #8165c9", borderRadius: "10px", padding: "8px 12px", background: "#3a2c59", color: "#fff", cursor: "pointer" });
+      retry.addEventListener("click", () => { panel.remove(); chatFailureNotice = null; void sendMessage("", { retryExisting: true, conversationId }); }, { once: true });
+      panel.appendChild(retry);
+    }
+    messagesEl.appendChild(panel);
+    chatFailureNotice = panel;
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
   // Yanıt akışını oku
   async function readStreamingResponse(response, onChunk) {
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
 
-      throw new Error(
-        data.error || `Sunucu hatası (${response.status}).`
-      );
+      throw Object.assign(new Error(data.error || "AI request failed."), { code: data.code || (response.status === 429 ? "AI_RATE_LIMIT" : response.status === 504 ? "AI_TIMEOUT" : "AI_UNAVAILABLE"), status: response.status });
     }
 
     if (!response.body) {
@@ -1541,6 +1594,7 @@
         streamError = new Error(
           event.error || "Yanıt akışı sırasında hata oluştu."
         );
+        streamError.code = event.code || "AI_UNAVAILABLE";
         streamError.partial = Boolean(event.partial);
       }
     }
@@ -1569,6 +1623,13 @@
       if (!streamError && buffer.trim()) {
         handleEvent(buffer);
       }
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+      const message = String(error?.message || "");
+      if (error instanceof TypeError || /network|connection|socket|fetch/i.test(message)) {
+        throw Object.assign(new Error("The chat stream connection was interrupted."), { code: "NETWORK" });
+      }
+      throw error;
     } finally {
       reader.releaseLock();
     }
@@ -1578,15 +1639,15 @@
     }
 
     if (!finished) {
-      throw new Error(
+      throw Object.assign(new Error(
         fullAnswer
           ? "Yanıt akışı beklenmedik şekilde kesildi."
           : "Sunucudan tamamlanmış bir yanıt alınamadı."
-      );
+      ), { code: fullAnswer ? "AI_INCOMPLETE" : "AI_EMPTY", partial: Boolean(fullAnswer) });
     }
 
     if (!fullAnswer.trim()) {
-      throw new Error("EYRION AI boş yanıt döndürdü.");
+      throw Object.assign(new Error("AI returned an empty answer."), { code: "AI_EMPTY" });
     }
 
     return {
@@ -1608,12 +1669,15 @@
   }
 
   // Mesaj gönderme — metin dosyası bağlamı destekli.
-  async function sendMessage(rawText) {
-    const text = String(rawText || "").trim();
+  async function sendMessage(rawText, { retryExisting = false, conversationId = currentId } = {}) {
+    let text = String(rawText || "").trim();
     const attachment = selectedTextFile;
+    const retryConversation = retryExisting ? conversations.find((item) => item.id === conversationId) : null;
+    const retryMessage = retryConversation?.messages?.at(-1);
+    if (retryExisting && retryMessage?.role === "user") text = String(retryMessage.content || "").trim();
 
-    if ((!text && !attachment) || busy || imageBusy || !currentUser) return;
-    if (window.novaDesktop?.isDesktop && (desktopCommandMode || isLikelyDesktopCommand(text))) {
+    if ((!text && !attachment) || busy || imageBusy || !currentUser || retryExisting && retryMessage?.role !== "user") return;
+    if (!retryExisting && window.novaDesktop?.isDesktop && (desktopCommandMode || isLikelyDesktopCommand(text))) {
       window.dispatchEvent(new CustomEvent("nova:companion-state", { detail: { state: "working", message: "Bilgisayar görevi yürütülüyor." } }));
       setBusy(true);
       try {
@@ -1633,28 +1697,37 @@
       }
       return;
     }
-    if (attachment && researchMode) {
+    if (!retryExisting && attachment && researchMode) {
       alert("Dosya analizi için Araştır modunu kapatıp normal sohbette gönder.");
       return;
     }
 
     setBusy(true);
-    window.dispatchEvent(new CustomEvent("nova:companion-state", { detail: { state: "thinking", message: researchMode ? "Kaynakları inceliyorum." : "Yanıtını hazırlıyorum." } }));
+    const turnResearchMode = retryExisting ? retryMessage?.mode === "research" : researchMode;
+    window.dispatchEvent(new CustomEvent("nova:companion-state", { detail: { state: "thinking", message: turnResearchMode ? "Kaynakları inceliyorum." : "Yanıtını hazırlıyorum." } }));
 
     let loading = null;
     let streamedAnswer = "";
+    let userTurnPersisted = retryExisting;
+    let turnConversation = retryConversation;
 
     try {
-      const conversation = await ensureConversation();
+      const conversation = retryConversation || await ensureConversation();
+      turnConversation = conversation;
 
       const visibleUserMessage = [
         text || "Eklediğim metin dosyasını incele.",
         attachment ? "📎 Dosya: " + attachment.name : ""
       ].filter(Boolean).join("\n\n");
-      await addMessage("user", visibleUserMessage);
+      if (!retryExisting) {
+        await addMessage("user", visibleUserMessage, { mode: turnResearchMode ? "research" : "chat" });
+        userTurnPersisted = true;
+      }
 
-      prompt.value = "";
-      prompt.style.height = "";
+      if (!retryExisting) {
+        prompt.value = "";
+        prompt.style.height = "";
+      }
 
       const count = $("#characterCount");
 
@@ -1674,14 +1747,17 @@
       const token = sessionData.session?.access_token;
 
       if (!token) {
-        throw new Error(
-          "Oturum süren dolmuş. Yeniden giriş yap."
-        );
+        throw Object.assign(new Error("Session expired."), { code: "AI_AUTH", status: 401 });
       }
 
-      const endpoint = researchMode
+      const endpoint = turnResearchMode
         ? "/api/research/stream"
         : "/api/chat/stream";
+
+      const requestMessages = conversation.messages.slice(-14);
+      const contextTruncated = conversation.messages.length > 14 ||
+        requestMessages.some((message) => String(message.content || "").length > 8000) ||
+        requestMessages.reduce((total, message) => total + Math.min(String(message.content || "").length, 8000), 0) > 20000;
 
       const requestController = new AbortController();
       activeChatController = requestController;
@@ -1702,7 +1778,8 @@
           },
           body: JSON.stringify({
             // Sunucu da sınır uyguluyor; burada gereksiz eski geçmişi göndermiyoruz.
-            messages: conversation.messages.slice(-14),
+            messages: requestMessages,
+            contextTruncated,
             ...(attachment
               ? { attachments: [{ name: attachment.name, content: attachment.content }] }
               : {})
@@ -1714,18 +1791,17 @@
           (_chunk, fullAnswer) => {
             streamedAnswer = fullAnswer;
 
-            if (loading?.content) {
+            if (currentId === conversation.id && loading?.content) {
               loading.content.classList.remove("typing");
               loading.content.textContent = fullAnswer;
+              messagesEl.scrollTop = messagesEl.scrollHeight;
             }
-
-            messagesEl.scrollTop = messagesEl.scrollHeight;
           }
         );
       } catch (error) {
         if (error?.name === "AbortError") {
           if (chatInterruptRequested) throw error;
-          throw new Error("Yanıt 100 saniyede tamamlanmadı. Daha kısa bir istekle tekrar dene.");
+          throw Object.assign(new Error("Request timed out."), { code: "AI_TIMEOUT" });
         }
         throw error;
       } finally {
@@ -1733,10 +1809,8 @@
         if (activeChatController === requestController) activeChatController = null;
       }
 
-      const savedAnswer = result.truncated
-        ? result.answer + "\n\nNot: Yanıt modelin çıktı sınırına ulaştı. Yeni mesajını yazabilirsin; gönderme alanı yanıt tamamlanınca yeniden etkinleşir."
-        : result.answer;
-      await addMessage("assistant", savedAnswer);
+      if (result.truncated) throw Object.assign(new Error("AI output reached the model's length limit."), { code: "AI_OUTPUT_LIMIT", partial: true });
+      await addMessage("assistant", result.answer, {}, conversation.id);
       if (attachment && selectedTextFile === attachment) {
         selectedTextFile = null;
         if (textFileInput) textFileInput.value = "";
@@ -1770,9 +1844,10 @@
     } catch (error) {
       if (error?.name === "AbortError" && chatInterruptRequested) {
         chatInterruptRequested = false;
+      showChatFailure("Yanıt durduruldu. Mesajın kaydedildi; istediğinde aynı mesajı yeniden deneyebilirsin.", userTurnPersisted && !attachment, turnConversation?.id);
         return;
       }
-      console.error("EYRION AI mesaj hatası:", error);
+      console.warn("[EYRION AI] Sohbet isteği başarısız oldu.", { code: error?.code || "unknown", status: Number.isInteger(error?.status) ? error.status : undefined });
 
       // Sesli komut başarısız olursa mikrofonun waitingForReply durumunda kilitlenmesini önle.
       window.NOVAVoice?.replyFailed?.("Yanıt alınamadı. Tekrar konuşabilirsin.");
@@ -1782,13 +1857,15 @@
         loading.wrapper.remove();
       }
 
-      const message = streamedAnswer
-        ? (error?.message || "Yanıt akışı kesildi.") +
-          " Kısmi yanıt kaydedilmedi; aynı isteği daha kısa bir bölümle tekrar deneyebilirsin."
-        : error?.message ||
-          "Şu anda hizmetimize ulaşılamıyor. Lütfen biraz sonra tekrar dene.";
-
-      alert("EYRION AI: " + message);
+      if (!userTurnPersisted && turnConversation && currentId === turnConversation.id) {
+        prompt.value = text;
+        renderMessages();
+        renderHistory();
+      }
+      if (streamedAnswer && !error?.code) error.code = "AI_INCOMPLETE";
+      const authFailure = error?.status === 401 || error?.status === 403 || error?.code === "AI_AUTH";
+      const retryableFailure = error?.code !== "AI_OUTPUT_LIMIT" && !authFailure;
+      showChatFailure(friendlyAiError(error, userTurnPersisted), userTurnPersisted && !attachment && retryableFailure, turnConversation?.id);
     } finally {
       // loading bir HTML öğesi değil, { wrapper, content } nesnesi.
       if (loading?.wrapper instanceof Element) {
