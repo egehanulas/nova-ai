@@ -11,6 +11,9 @@ const { normalizeDesktopIntent, enforceNoSend, enforceMessageSend } = require(".
 const { buildScreenTextFallbackPrompt, buildTextOnlyDesktopFallbackInstruction } = require("./desktop-ai-fallback");
 const { buildGroqVisionRequest } = require("./groq-vision");
 const { runWithRateLimitRetry } = require("./provider-retry");
+const { classifyAiError, getAiErrorMessage, createProviderExhaustedError, safeProviderDiagnostic } = require("./ai-errors");
+const { assertProviderStreamComplete, assertNonStreamingComplete } = require("./ai-stream-completion");
+const { runProviderFallback } = require("./ai-provider-fallback");
 const { buildFeedbackEmailText, buildFeedbackTicketCode, normalizeFeedbackPayload } = require("./feedback");
 const { isFeedbackAdmin, normalizeFeedbackStatus } = require("./feedback-admin");
 
@@ -64,7 +67,7 @@ const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID;
 
 const MAX_MESSAGE_LENGTH = 8000;
-const MAX_MESSAGES = 10;
+const MAX_MESSAGES = 14;
 const MAX_CONVERSATION_CHARS = 20000;
 const MAX_TEXT_ATTACHMENT_CHARS = 40000;
 const MAX_TTS_LENGTH = 5000;
@@ -400,7 +403,8 @@ function createAbortController(timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new AbortController();
 
   const timer = setTimeout(() => {
-    controller.abort(new Error("İstek zaman aşımına uğradı."));
+    const error = Object.assign(new Error("Request timed out."), { code: "AI_TIMEOUT", status: 504 });
+    controller.abort(error);
   }, timeoutMs);
 
   timer.unref?.();
@@ -489,6 +493,31 @@ function getLatestUserMessage(messages) {
   return "";
 }
 
+function researchQueryFromContext(messages) {
+  const latest = getLatestUserMessage(messages).trim();
+  const refersToPriorContext = latest.length <= 180 &&
+    /\b(bu|bunu|bunun|buna|onun|peki|aynı|oradaki|söz konusu|az önceki|önceki|devam|fiyatı|adı ne|ne zaman)\b/i.test(latest);
+  if (!refersToPriorContext) return latest.slice(0, 700);
+  const priorQuestions = (Array.isArray(messages) ? messages : [])
+    .filter((message) => message?.role === "user" && typeof message.content === "string")
+    .slice(-3, -1)
+    .map((message) => message.content.trim().slice(0, 260))
+    .filter(Boolean);
+  return [...priorQuestions, latest].join("\n").slice(-1000);
+}
+
+function didContextGetTrimmed(messages) {
+  if (!Array.isArray(messages)) return false;
+  const valid = messages.filter((message) => message && typeof message.content === "string" && ["user", "assistant"].includes(message.role));
+  if (valid.length > MAX_MESSAGES) return true;
+  let chars = 0;
+  for (const message of valid) {
+    if (message.content.length > MAX_MESSAGE_LENGTH) return true;
+    chars += message.content.length;
+  }
+  return chars > MAX_CONVERSATION_CHARS;
+}
+
 function isBlueprintQuestion(messages = []) {
   const safeMessages = normalizeMessages(messages);
   const latestUserMessage = getLatestUserMessage(safeMessages)
@@ -532,7 +561,7 @@ function getGenerationSettings(messages = [], extraInstruction = "") {
   return {
     temperature: (blueprintMode || researchMode) ? 0.2 : 0.4,
     // Comprehensive research needs enough room to answer every requested item.
-    maxOutputTokens: briefRequest ? 300 : (blueprintMode ? 1400 : (researchMode ? 1400 : (isComplexQuestion(latestQuestion) ? 1000 : 650))),
+    maxOutputTokens: briefRequest ? 300 : (blueprintMode ? 1400 : (researchMode ? 1400 : (isComplexQuestion(latestQuestion) ? 1200 : 900))),
   };
 }
 
@@ -552,7 +581,8 @@ function createProviderAbortSignal(parentSignal, timeoutMs = PROVIDER_TIMEOUT_MS
   }
 
   const timer = setTimeout(() => {
-    controller.abort(new Error("Sağlayıcı yanıt süresi doldu."));
+    const error = Object.assign(new Error("Provider request timed out."), { code: "AI_TIMEOUT", status: 504 });
+    controller.abort(error);
   }, timeoutMs);
 
   timer.unref?.();
@@ -709,6 +739,9 @@ async function readProviderError(response, providerName) {
     (providerName + " HTTP " + response.status);
 
   const error = makeHttpError(String(message).slice(0, 1000), response.status || 502);
+  error.provider = providerName;
+  if (response.status === 429) error.code = "AI_RATE_LIMIT";
+  else if (response.status === 504) error.code = "AI_TIMEOUT";
   const retryAfterHeader = Number(response.headers.get("retry-after"));
   const retryMatch = String(message).match(/try again in ([0-9.]+)s/i);
 
@@ -785,20 +818,7 @@ async function runProviderWithRetry(provider, signal, onText) {
 }
 
 function getUserFacingProviderError(error) {
-  const message = String(error && error.message || "").toLowerCase();
-  if (error && error.status === 429 || /rate limit|too many requests|tpm limit/.test(message)) {
-    return "Yapay zekâ sağlayıcısının geçici istek sınırına ulaşıldı. EYRION bekleyip yeniden denedi; lütfen biraz sonra tekrar dene.";
-  }
-  if (/token sınırında kesildi|max_tokens|maximum context length/.test(message)) {
-    return "Yanıt sağlayıcının çıktı sınırına ulaştığı için tamamlanamadı. Daha kısa bir bölüm isteyerek devam edebilirsin.";
-  }
-  if (/prepayment credits are depleted|insufficient quota|billing|credits depleted/.test(message)) {
-    return "Bir yapay zekâ sağlayıcısının kullanım kredisi veya kotası dolu. EYRION diğer sağlayıcıları denedi ancak yanıt tamamlanamadı.";
-  }
-  if (error && (error.status === 504 || error.name === "AbortError")) {
-    return "Yanıt oluşturma zaman aşımına uğradı. Daha kısa bir istekle tekrar deneyebilirsin.";
-  }
-  return "Şu anda kullanılabilir yapay zekâ sağlayıcılarından yanıt alınamadı. Biraz sonra tekrar dene.";
+  return getAiErrorMessage(error);
 }
 
 function asyncRoute(handler) {
@@ -963,7 +983,7 @@ async function callGemini(messages, extraInstruction = "") {
     "https://generativelanguage.googleapis.com/v1beta/models/" +
     `${encodeURIComponent(GEMINI_MODEL)}:generateContent`;
 
-  const { controller, clear } = createAbortController();
+  const { controller, clear } = createAbortController(PROVIDER_TIMEOUT_MS);
 
   try {
     const response = await fetch(url, {
@@ -1000,6 +1020,8 @@ async function callGemini(messages, extraInstruction = "") {
       .map((part) => part.text || "")
       .join("");
 
+    assertNonStreamingComplete({ provider: "gemini", finishReason: data?.candidates?.[0]?.finishReason, answer: rawAnswer });
+
     const answer = cleanModelAnswer(rawAnswer);
 
     if (!answer) {
@@ -1030,7 +1052,7 @@ async function callOpenRouter(messages, extraInstruction = "") {
     extraInstruction
   );
 
-  const { controller, clear } = createAbortController();
+  const { controller, clear } = createAbortController(PROVIDER_TIMEOUT_MS);
   const generation = getGenerationSettings(conversation, extraInstruction);
 
   try {
@@ -1073,6 +1095,8 @@ async function callOpenRouter(messages, extraInstruction = "") {
         ? rawContent.filter((part) => typeof part?.text === "string").map((part) => part.text).join("\n")
         : "";
 
+    assertNonStreamingComplete({ provider: "openai", finishReason: data?.choices?.[0]?.finish_reason, answer: rawAnswer });
+
     if (!rawAnswer.trim()) {
       throw new Error(typeof message?.refusal === "string" && message.refusal.trim()
         ? "OpenRouter yanıtı güvenlik nedeniyle reddetti."
@@ -1110,7 +1134,7 @@ async function callGroqOnce(messages, extraInstruction = "") {
   );
 
   const isDesktopPlanner = /NOVA WINDOWS MASAÜSTÜ KONTROL PLANLAYICISI/.test(extraInstruction);
-  const { controller, clear } = createAbortController(isDesktopPlanner ? 35000 : REQUEST_TIMEOUT_MS);
+  const { controller, clear } = createAbortController(isDesktopPlanner ? 35000 : PROVIDER_TIMEOUT_MS);
   const generation = getGenerationSettings(conversation, extraInstruction);
 
   try {
@@ -1189,6 +1213,8 @@ async function callGroqOnce(messages, extraInstruction = "") {
 
     const data = await response.json();
     const rawAnswer = data?.choices?.[0]?.message?.content;
+
+    assertNonStreamingComplete({ provider: "openai", finishReason: data?.choices?.[0]?.finish_reason, answer: rawAnswer });
 
     if (typeof rawAnswer !== "string" || !rawAnswer.trim()) {
       throw new Error("Groq boş yanıt döndürdü.");
@@ -1287,35 +1313,11 @@ async function generateAnswer(messages, extraInstruction = "") {
     },
   ];
 
-  const failures = [];
-
-  for (const provider of providers) {
-    if (!provider.enabled) continue;
-
-    try {
-      return await provider.run();
-    } catch (error) {
-      failures.push({
-        provider: provider.name,
-        status: error.status || null,
-        message: error.message,
-      });
-
-      console.error(
-        `[EYRION AI] ${provider.name} hatası:`,
-        error.message
-      );
-    }
-  }
-
-  const error = new Error(
-    failures.length
-      ? "Kullanılabilir yapay zekâ sağlayıcılarından yanıt alınamadı."
-      : "Sunucuda hiçbir yapay zekâ API anahtarı tanımlanmamış."
-  );
-
-  error.failures = failures;
-  throw error;
+  return runProviderFallback(providers, {
+    onFailure(provider, error) {
+      console.error("[EYRION AI] Sağlayıcı isteği başarısız:", safeProviderDiagnostic(provider, error));
+    },
+  });
 }
 
 // --------------------------------------------------
@@ -1448,6 +1450,7 @@ async function streamOpenAIProvider({
   let answer = "";
   let finishReason = null;
   let truncated = false;
+  let doneMarker = false;
 
   const cleaner = createStreamingTextCleaner(onText);
 
@@ -1459,7 +1462,7 @@ async function streamOpenAIProvider({
     const dataText = trimmed.slice(5).trim();
 
     if (!dataText) return false;
-    if (dataText === "[DONE]") return true;
+    if (dataText === "[DONE]") { doneMarker = true; return true; }
 
     let data;
 
@@ -1515,6 +1518,7 @@ async function streamOpenAIProvider({
         if (await processLine(line)) {
           cleaner.finish();
           await reader.cancel().catch(() => {});
+          truncated = assertProviderStreamComplete({ provider: "openai", finishReason, doneMarker, answer });
 
           return {
             answer: cleanModelAnswer(answer),
@@ -1536,9 +1540,7 @@ async function streamOpenAIProvider({
     reader.releaseLock();
   }
 
-  if (!answer.trim()) {
-    throw new Error(`${providerName} boş yanıt döndürdü.`);
-  }
+  truncated = assertProviderStreamComplete({ provider: "openai", finishReason, doneMarker, answer });
 
   return {
     answer: cleanModelAnswer(answer),
@@ -1678,9 +1680,7 @@ async function streamGemini({
     reader.releaseLock();
   }
 
-  if (!answer.trim()) {
-    throw new Error("Gemini boş yanıt döndürdü.");
-  }
+  truncated = assertProviderStreamComplete({ provider: "gemini", finishReason, answer });
 
   return {
     answer: cleanModelAnswer(answer),
@@ -2642,7 +2642,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
       }
 
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      const timeout = setTimeout(() => controller.abort(Object.assign(new Error("Request timed out."), { code: "AI_TIMEOUT", status: 504 })), REQUEST_TIMEOUT_MS);
       timeout.unref?.();
       let clientDisconnected = false;
       res.on("close", () => {
@@ -2663,6 +2663,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
       }
       const isResearchRoute = route === "/api/research/stream";
       const latestQuestion = getLatestUserMessage(messages);
+      const researchQuestion = researchQueryFromContext(messages);
       const agentPlan = buildAgentPlan(latestQuestion, isResearchRoute);
       const agentTool = agentPlan.length > 1
         ? "multi_step"
@@ -2740,7 +2741,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
                   stepNote += " Maç henüz bitmedi; skor canlı skor olarak belirtilmeli, kesin sonuç gibi sunulmamalı.";
                 }
               } else if (step.tool === "web_search") {
-                let searchQuery = step.query || latestQuestion;
+                let searchQuery = step.query || (isResearchRoute ? researchQuestion : latestQuestion);
                 if (step.dependsOn === "football_opponent") {
                   searchQuery = buildOpponentResearchQuery(latestQuestion, collectedResults);
                   if (!searchQuery) {
@@ -2811,19 +2812,19 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
         }
       }
 
+      const contextWasTrimmed = req.body?.contextTruncated === true || didContextGetTrimmed(req.body?.messages);
       const effectiveInstruction = [
         extraInstruction,
+        contextWasTrimmed ? "BAĞLAM SINIRI: Konuşmanın yalnızca yakın bölümü modele iletildi. Gönderilmeyen eski mesajları hatırladığını iddia etme. Kullanıcının atıfta bulunduğu bilgi bu bağlamda yoksa kısa bir netleştirme sorusu sor." : "",
         fileInstruction,
         webSearchInstruction,
         ragInstruction,
         memoryInstruction,
       ].filter(Boolean).join("\n\n");
 
-      // Research prompts are standalone tasks. Avoid sending the entire chat history
-      // (which can exhaust free-tier TPM before the model writes its answer).
-      const providerMessages = isResearchRoute
-        ? [{ role: "user", content: latestQuestion }]
-        : messages;
+      // Search is based on the latest question (plus its referent for short follow-ups),
+      // while generation receives the same ordered conversation as normal chat.
+      const providerMessages = messages;
 
       let hasSentHeaders = false;
       let answer = "";
@@ -2909,23 +2910,6 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
           },
         },
         {
-          name: "gemini",
-          enabled: Boolean(GEMINI_API_KEY),
-          run: (providerSignal, emitText) => {
-            providerInfo = {
-              provider: "gemini",
-              model: GEMINI_MODEL,
-            };
-
-            return streamGemini({
-              messages: providerMessages,
-              extraInstruction: effectiveInstruction,
-              signal: providerSignal,
-              onText: emitText,
-            });
-          },
-        },
-        {
           name: "openrouter",
           enabled: Boolean(OPENROUTER_API_KEY),
           run: (providerSignal, emitText) => {
@@ -2947,6 +2931,22 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
                   "https://nova-ai-xxid.onrender.com",
                 "X-Title": "EYRION AI",
               },
+              signal: providerSignal,
+              onText: emitText,
+            });
+          },
+        },
+        {
+          name: "gemini",
+          enabled: Boolean(GEMINI_API_KEY),
+          run: (providerSignal, emitText) => {
+            providerInfo = {
+              provider: "gemini",
+              model: GEMINI_MODEL,
+            };
+            return streamGemini({
+              messages: providerMessages,
+              extraInstruction: effectiveInstruction,
               signal: providerSignal,
               onText: emitText,
             });
@@ -3000,25 +3000,15 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
             result = await runProviderWithRetry(provider, providerTimeout.signal, onText);
             break;
           } catch (error) {
-            failures.push({
-              provider: provider.name,
-              message: error.message,
-            });
-
-            console.error(
-              `[EYRION AI] ${provider.name} akış hatası:`,
-              error.message
-            );
+            failures.push({ status: error.status || null, code: classifyAiError(error), name: error.name });
+            console.error("[EYRION AI] Sağlayıcı akışı başarısız:", safeProviderDiagnostic(provider.name, error));
 
             if (clientDisconnected) return;
 
             // Kısmi metin gönderildiyse başka sağlayıcıya geçmek
             // aynı cevabın baştan tekrarlanmasına neden olur.
             if (answer.length > 0 || firstChunkSent) {
-              const partialError = new Error(
-                "Yanıt akışı kesildi."
-              );
-
+              const partialError = Object.assign(new Error("Provider stream ended after sending partial output."), { code: "AI_INCOMPLETE" });
               partialError.partial = true;
               throw partialError;
             }
@@ -3026,8 +3016,8 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
             // Genel istek süresi dolduysa yanıtı açık bırakma.
             if (controller.signal.aborted) {
               throw Object.assign(
-                new Error("İstek zaman aşımına uğradı."),
-                { status: 504 }
+                new Error("Request timed out."),
+                { status: 504, code: "AI_TIMEOUT" }
               );
             }
 
@@ -3037,13 +3027,7 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
           }
         }
 
-        if (!result) {
-          throw new Error(
-            failures.length
-              ? "Kullanılabilir sağlayıcılardan yanıt alınamadı."
-              : "Sunucuda hiçbir yapay zekâ API anahtarı tanımlanmamış."
-          );
-        }
+        if (!result) throw createProviderExhaustedError(failures, providers.filter((provider) => provider.enabled).length);
 
         if (clientDisconnected || res.destroyed) return;
 
@@ -3061,26 +3045,22 @@ function registerStreamingEndpoint(route, extraInstruction, customError) {
       } catch (error) {
         if (clientDisconnected || res.destroyed) return;
 
-        console.error(
-          `[EYRION AI] ${route} hatası:`,
-          error.message
-        );
+        console.error(`[EYRION AI] ${route} isteği tamamlanamadı:`, safeProviderDiagnostic("chat-route", error));
 
         if (!hasSentHeaders) {
           const status = error.status === 504 ? 504 : 503;
 
           return res.status(status).json({
             success: false,
-            error:
-              status === 504
-                ? "Yanıt oluşturma süresi doldu. Lütfen tekrar dene."
-                : "Şu anda yanıt oluşturulamıyor. Lütfen daha sonra tekrar dene.",
+            code: error.code || (status === 504 ? "AI_TIMEOUT" : "AI_UNAVAILABLE"),
+            error: getUserFacingProviderError(error),
           });
         }
 
         sendSSE(res, {
           type: "error",
           error: getUserFacingProviderError(error),
+          code: error.code || (error.status === 429 ? "AI_RATE_LIMIT" : error.status === 504 ? "AI_TIMEOUT" : "AI_UNAVAILABLE"),
           partial: Boolean(error.partial),
         });
 
@@ -3716,9 +3696,11 @@ app.post(
         req.headers.authorization || ""
       );
       const memoryInstruction = await loadUserMemoryInstruction(req);
+      const contextInstruction = req.body?.contextTruncated === true || didContextGetTrimmed(req.body?.messages)
+        ? "BAĞLAM SINIRI: Konuşmanın yalnızca yakın bölümü modele iletildi. Gönderilmeyen eski mesajları hatırladığını iddia etme. Eksik atıf varsa netleştir." : "";
       const result = await generateAnswer(
         conversation,
-        [ragInstruction, memoryInstruction].filter(Boolean).join("\n\n")
+        [ragInstruction, memoryInstruction, contextInstruction].filter(Boolean).join("\n\n")
       );
 
       return res.json({
@@ -3728,12 +3710,12 @@ app.post(
         model: result.model,
       });
     } catch (error) {
-      console.error("[EYRION AI] Sohbet hatası:", error.message);
+      console.error("[EYRION AI] Sohbet isteği tamamlanamadı:", safeProviderDiagnostic("chat-route", error));
 
       return res.status(503).json({
         success: false,
-        error:
-          "Şu anda yanıt oluşturulamıyor. Lütfen daha sonra tekrar dene.",
+        code: error.code || "AI_UNAVAILABLE",
+        error: getAiErrorMessage(error),
       });
     }
   })
@@ -3755,9 +3737,10 @@ app.post(
     if (!conversation) return;
 
     const latestQuestion = getLatestUserMessage(conversation);
+    const researchQuestion = researchQueryFromContext(conversation);
     let results = [];
     try {
-      results = await researchWeb(latestQuestion);
+      results = await researchWeb(researchQuestion);
       const webInstruction = results.length
         ? buildWebResearchInstruction(results)
         : "CANLI WEB ARAŞTIRMASI: Doğrulanmış web kaynağı bulunamadı veya sayfa okunamadı. Güncel iddiaları genel bilginden tamamlama; araştırmanın başarısız olduğunu açıkça belirt.";
@@ -3765,13 +3748,16 @@ app.post(
         conversation,
         req.headers.authorization || ""
       );
+      const contextInstruction = req.body?.contextTruncated === true || didContextGetTrimmed(req.body?.messages)
+        ? "BAĞLAM SINIRI: Konuşmanın yalnızca yakın bölümü modele iletildi. Gönderilmeyen eski mesajları hatırladığını iddia etme. Eksik atıf varsa netleştir." : "";
       const result = await generateAnswer(
-        [{ role: "user", content: latestQuestion }],
+        conversation,
         [
           RESEARCH_INSTRUCTION,
           webInstruction,
           ragInstruction,
           await loadUserMemoryInstruction(req),
+          contextInstruction,
         ].filter(Boolean).join("\n\n")
       );
 
@@ -3786,7 +3772,7 @@ app.post(
         })),
       });
     } catch (error) {
-      console.error("[EYRION AI] Araştırma hatası:", error.message);
+      console.error("[EYRION AI] Araştırma isteği tamamlanamadı:", safeProviderDiagnostic("research-route", error));
       if (results.length) {
         const excerpts = results.slice(0, 5).map((item, index) => {
           const excerpt = String(item.content || item.snippet || "").replace(/\s+/g, " ").trim().slice(0, 520);
@@ -3805,7 +3791,8 @@ app.post(
       }
       return res.status(503).json({
         success: false,
-        error: "Web araması tamamlandı ancak yanıt üretilemedi ve doğrulanabilir kaynak bulunamadı. API sağlayıcılarını kontrol et.",
+        code: error.code || "AI_UNAVAILABLE",
+        error: results.length ? getAiErrorMessage(error) : "Araştırma için doğrulanabilir kaynak bulunamadı. Daha sonra yeniden deneyebilirsin.",
       });
     }
   })
