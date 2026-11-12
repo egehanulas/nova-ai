@@ -18,9 +18,17 @@ export type MobileConfiguration = {
   issues: ConfigIssue[];
 };
 
+// These are public client settings, not server secrets. Expo embeds them in the app bundle.
+// Environment variables remain available to override them for staging/local development.
+const DEFAULT_PUBLIC_CONFIG = {
+  apiUrl: 'https://nova-ai-xxid.onrender.com',
+  supabaseUrl: 'https://rjwjgopzrjnpjwhdccqs.supabase.co',
+  supabasePublishableKey: 'sb_publishable_qjORMs4iC1ZQ72FmpnSWnA_ciB6adJu',
+} as const;
+
 function parseHttpsUrl(value: string | undefined, field: ConfigField, label: string) {
   const raw = value?.trim();
-  if (!raw) return { url: null, issue: { field, scope: field === 'EXPO_PUBLIC_EYRION_API_URL' ? 'api' as const : 'supabase' as const, message: `${field} eksik. ${label} adresini mobile/.env dosyasına ekleyin.` } };
+  if (!raw) return { url: null, issue: { field, scope: field === 'EXPO_PUBLIC_EYRION_API_URL' ? 'api' as const : 'supabase' as const, message: `${field} eksik. Uygulama yapılandırmasını kontrol edin.` } };
 
   let parsed: URL;
   try {
@@ -46,7 +54,7 @@ export function readMobileConfiguration(env: MobileEnvironment): MobileConfigura
   const key = env.supabasePublishableKey?.trim() ?? '';
   let keyIssue: ConfigIssue | null = null;
   if (!key) {
-    keyIssue = { field: 'EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY', scope: 'supabase', message: 'EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eksik. Supabase panelindeki publishable key değerini ekleyin.' };
+    keyIssue = { field: 'EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY', scope: 'supabase', message: 'EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eksik. Uygulama yapılandırmasını kontrol edin.' };
   } else if (!/^sb_publishable_[A-Za-z0-9_-]{16,}$/.test(key) || /(replace.?me|placeholder|your[_-]?key)/i.test(key)) {
     keyIssue = { field: 'EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY', scope: 'supabase', message: 'EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY geçersiz. Yalnızca sb_publishable_ ile başlayan publishable key kullanın; service_role, secret veya örnek anahtar kullanmayın.' };
   }
@@ -59,11 +67,12 @@ export function readMobileConfiguration(env: MobileEnvironment): MobileConfigura
   };
 }
 
-// Expo statically inlines these direct process.env references into the public mobile bundle.
+// Expo statically inlines direct process.env references into the public mobile bundle.
+// Built-in public defaults mean end users do not need to create or supply a .env file.
 export const mobileConfiguration = readMobileConfiguration({
-  apiUrl: process.env.EXPO_PUBLIC_EYRION_API_URL,
-  supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
-  supabasePublishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  apiUrl: process.env.EXPO_PUBLIC_EYRION_API_URL ?? DEFAULT_PUBLIC_CONFIG.apiUrl,
+  supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? DEFAULT_PUBLIC_CONFIG.supabaseUrl,
+  supabasePublishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? DEFAULT_PUBLIC_CONFIG.supabasePublishableKey,
 });
 
 export const isSupabaseConfigured = Boolean(mobileConfiguration.supabaseUrl && mobileConfiguration.supabasePublishableKey);
